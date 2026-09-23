@@ -17,9 +17,6 @@ BATT_GUARD_RELEASE_FACTOR = 0.5
 SL_RETRY_S = 30
 SL_DEV_POLL_S = 900
 SL_MAX_DEV = 12
-NOTIFY_REPEAT_H = 6
-NOTIFY_MAX_PER_HOUR = 20
-NOTIFY_MAX_CRIT_PER_HOUR = 6
 HOSTNAME = "energyoptimizer"
 
 # ── Ereignistypen (events.h) ────────────────────────────────────────────────

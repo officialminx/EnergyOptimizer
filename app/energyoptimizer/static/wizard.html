@@ -1,0 +1,302 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a84ff">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Einrichtung &ndash; EnergyOptimizer</title>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="/i18n.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--blue:#0a84ff;--green:#28c76f;--red:#ff3b30;--ink:#1d1d1f;--ink2:#6b6f76;--ink3:#9aa0a8;--card:#fff;--card2:#f7f8fb;--line:rgba(0,0,0,.07);
+--grad:linear-gradient(125deg,#0a84ff,#13b1e0 52%,#19c9d6);
+--bg:#eef1f6;--bg2:#e7ebf2;--input-focus-bg:#fff;
+--sf:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",system-ui,sans-serif;
+color-scheme:light}
+:root[data-theme="dark"]{--ink:#f0f2f5;--ink2:#9aa4b2;--ink3:#6e7681;--card:#1c2129;--card2:#232933;--line:rgba(255,255,255,.09);
+--bg:#0d1117;--bg2:#161b22;--input-focus-bg:#232933;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#f0f2f5;--ink2:#9aa4b2;--ink3:#6e7681;--card:#1c2129;--card2:#232933;--line:rgba(255,255,255,.09);
+--bg:#0d1117;--bg2:#161b22;--input-focus-bg:#232933;color-scheme:dark}}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--sf);color:var(--ink);min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px 16px;-webkit-font-smoothing:antialiased;
+background:radial-gradient(1200px 540px at 85% -10%,rgba(25,201,214,.11),transparent 60%),radial-gradient(1000px 480px at 8% -8%,rgba(10,132,255,.12),transparent 60%),linear-gradient(180deg,var(--bg),var(--bg2));background-attachment:fixed}
+.box{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 24px 22px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 10px 30px -12px rgba(16,24,40,.14)}
+.head{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.logo{width:40px;height:40px;border-radius:11px;box-shadow:0 4px 12px -3px rgba(10,132,255,.35)}
+.head-t{font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
+.head-s{color:var(--ink3);font-size:.76rem;font-weight:600;margin-top:1px}
+.steps{display:flex;gap:6px;margin-bottom:20px}
+.steps span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps span.on{background:var(--blue)}
+.step{display:none}
+.step.on{display:block}
+h2{font-size:1.12rem;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.lead{color:var(--ink2);font-size:.86rem;line-height:1.5;margin-bottom:16px}
+label{display:block;color:var(--ink2);font-size:.78rem;font-weight:600;margin:12px 0 5px}
+input[type=text],input[type=password],input[type=number]{width:100%;background:var(--card2);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);padding:11px 12px;font-size:1rem;font-family:inherit;-webkit-appearance:none;transition:border-color .2s,box-shadow .2s}
+input:focus{outline:none;border-color:var(--blue);background:var(--input-focus-bg);box-shadow:0 0 0 4px rgba(10,132,255,.13)}
+.g2{display:grid;grid-template-columns:1fr 100px;gap:10px}
+.g2 label{margin-top:12px}
+.suffix{display:flex;align-items:center;gap:8px}
+.suffix span{color:var(--ink2);font-weight:600}
+.hint{color:var(--ink3);font-size:.76rem;line-height:1.45;margin-top:6px}
+.msg{font-size:.84rem;font-weight:600;line-height:1.45;margin-top:12px;padding:10px 12px;border-radius:10px;display:none}
+.msg.ok{display:block;color:var(--green);background:rgba(40,199,111,.1)}
+.msg.err{display:block;color:var(--red);background:rgba(255,59,48,.08)}
+.msg.busy{display:block;color:var(--ink2);background:var(--card2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;border:none;border-radius:12px;font-size:.95rem;font-weight:700;font-family:inherit;cursor:pointer;transition:transform .12s,opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.pri{color:#fff;background:var(--grad);box-shadow:0 8px 24px -6px rgba(10,132,255,.4)}
+.btn.sec{color:var(--blue);background:rgba(10,132,255,.1)}
+.btn.ghost{color:var(--ink2);background:none;padding:12px 6px}
+.btn.wide{width:100%;margin-top:14px}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.nav .btn.pri{min-width:112px;padding:12px 18px}
+.nav .btn.ghost{padding:12px 4px}
+.nav-r{display:flex;gap:10px;align-items:center;margin-left:auto}
+.devs{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.dev{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card2);border:1px solid var(--line);border-radius:12px}
+.dev input[type=checkbox]{width:20px;height:20px;accent-color:var(--blue);flex:none}
+.dev input[type=text]{padding:7px 9px;font-size:.92rem;border-radius:9px}
+.dev-m{flex:1;min-width:0}
+.dev-s{color:var(--ink3);font-size:.74rem;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev.cfg{opacity:.6}
+.add{display:flex;gap:8px;margin-top:10px}
+.add input{flex:1}
+.done-ico{width:56px;height:56px;border-radius:50%;background:rgba(40,199,111,.12);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:800;margin:6px 0 14px}
+.sum{list-style:none;margin:4px 0 0;display:flex;flex-direction:column;gap:8px}
+.sum li{display:flex;justify-content:space-between;gap:12px;font-size:.86rem;padding:9px 12px;background:var(--card2);border-radius:10px}
+.sum li span:first-child{color:var(--ink2);font-weight:600}
+.sum li span:last-child{font-weight:700;text-align:right;overflow-wrap:anywhere}
+.skip-all{display:block;text-align:center;margin-top:14px;color:var(--ink3);font-size:.78rem;background:none;border:none;font-family:inherit;cursor:pointer;width:100%}
+</style></head><body>
+<div class="box">
+  <div class="head"><img class="logo" src="/apple-touch-icon.png" alt="" width="40" height="40">
+    <div><div class="head-t">EnergyOptimizer</div><div class="head-s" id="step-lbl"></div></div></div>
+  <div class="steps" id="steps"><span class="on"></span><span></span><span></span></div>
+
+  <section class="step" data-step="1">
+    <h2>Solar-Log verbinden</h2>
+    <p class="lead">Von hier kommen Produktion und Verbrauch. Gib die Adresse ein, unter der du die Weboberfl&auml;che des Solar-Log im Browser &ouml;ffnest.</p>
+    <div class="g2">
+      <div><label for="sl-ip">IP-Adresse oder Hostname</label><input type="text" id="sl-ip" placeholder="z.&nbsp;B. 192.168.1.40" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <div><label for="sl-port">Port</label><input type="number" id="sl-port" min="1" max="65535" value="80"></div>
+    </div>
+    <label for="sl-pass">Passwort <small>(optional)</small></label>
+    <input type="password" id="sl-pass" autocomplete="off" placeholder="Nur wenn im Solar-Log eines gesetzt ist">
+    <div class="hint" id="sl-pass-hint"></div>
+    <button type="button" class="btn sec wide" id="sl-test">Verbindung testen</button>
+    <div class="msg" id="sl-msg"></div>
+  </section>
+
+  <section class="step" data-step="2">
+    <h2>Steckdosen hinzuf&uuml;gen</h2>
+    <p class="lead">EnergyOptimizer schaltet Shelly-Steckdosen und -Relais (Gen2 oder neuer). Die Suche findet sie im lokalen Netzwerk.</p>
+    <button type="button" class="btn sec wide" id="sc-start">Netzwerk durchsuchen</button>
+    <div class="msg" id="sc-msg"></div>
+    <div class="devs" id="devs"></div>
+    <label for="add-ip">Steckdose per IP-Adresse hinzuf&uuml;gen</label>
+    <div class="add"><input type="text" id="add-ip" placeholder="z.&nbsp;B. 192.168.1.51" autocomplete="off" spellcheck="false"><button type="button" class="btn sec" id="add-btn">Hinzuf&uuml;gen</button></div>
+    <div class="hint" id="dev-hint">Leistung, Priorit&auml;t und Automatik stellst du danach unter Ger&auml;te ein.</div>
+  </section>
+
+  <section class="step" data-step="3">
+    <h2>Name im Netzwerk</h2>
+    <p class="lead">Unter diesem Namen erreichst du EnergyOptimizer im Heimnetz, ohne dir die IP-Adresse zu merken.</p>
+    <label for="host">Name</label>
+    <div class="suffix"><input type="text" id="host" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="63"><span>.local</span></div>
+    <div class="hint">Nur Kleinbuchstaben, Ziffern und Bindestriche. &Uuml;ber Tailscale oder VPN gilt dieser Name nicht; dort verwendest du die IP-Adresse oder den Tailscale-Namen.</div>
+    <div class="msg" id="host-msg"></div>
+  </section>
+
+  <section class="step" data-step="4">
+    <div class="done-ico">&#10003;</div>
+    <h2>Alles bereit</h2>
+    <p class="lead">Die Grundeinrichtung ist abgeschlossen. Alles l&auml;sst sich sp&auml;ter unter Einstellungen &auml;ndern.</p>
+    <ul class="sum" id="sum"></ul>
+    <p class="hint" style="margin-top:14px">N&auml;chster Schritt: Bei jeder Steckdose die Leistung eintragen und die Automatik einschalten, damit sie mit dem &Uuml;berschuss geschaltet wird.</p>
+  </section>
+
+  <div class="nav">
+    <button type="button" class="btn ghost" id="back">Zur&uuml;ck</button>
+    <div class="nav-r">
+      <button type="button" class="btn ghost" id="skip">&Uuml;berspringen</button>
+      <button type="button" class="btn pri" id="next">Weiter</button>
+    </div>
+  </div>
+  <button type="button" class="skip-all" id="skip-all">Einrichtung sp&auml;ter abschliessen</button>
+</div>
+<script>
+(function(){
+var T=window.T||function(s,a){return a?s.replace(/\{(\w+)\}/g,function(m,k){return a[k]!=null?a[k]:m;}):s;};
+var $=function(id){return document.getElementById(id);};
+var cfg={},step=1,LAST=4,found=[],scanTimer=null;
+var st={sl:'',devs:0,host:''};
+
+function api(url,opts){
+  return fetch(url,Object.assign({credentials:'same-origin'},opts||{})).then(function(r){
+    if(r.status===401){location.replace('/');throw new Error('auth');}
+    return r.json();
+  });
+}
+function post(url,body){return api(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});}
+function msg(id,cls,t){var e=$(id);e.className='msg'+(cls?' '+cls:'');e.textContent=t||'';}
+
+function show(n){
+  step=n;
+  var secs=document.querySelectorAll('.step');
+  for(var i=0;i<secs.length;i++)secs[i].classList.toggle('on',+secs[i].dataset.step===n);
+  var bars=$('steps').children;
+  for(var j=0;j<bars.length;j++)bars[j].classList.toggle('on',j<n);
+  $('step-lbl').textContent=n<LAST?T('Einrichtung · Schritt {n} von {m}',{n:n,m:LAST-1}):T('Einrichtung abgeschlossen');
+  $('back').style.display=n>1&&n<LAST?'':'none';
+  $('skip').style.display=n<LAST?'':'none';
+  $('skip-all').style.display=n<LAST?'':'none';
+  $('next').textContent=n<LAST?T('Weiter'):T('Zum Dashboard');
+  if(n===LAST)summary();
+  window.scrollTo(0,0);
+}
+
+// ── Solar-Log ──────────────────────────────────────────────────────────────
+function slBody(){return{sl_ip:$('sl-ip').value.trim(),sl_port:$('sl-port').value||'80',sl_pass:$('sl-pass').value};}
+function slTest(){
+  var b=slBody();
+  if(!b.sl_ip){msg('sl-msg','err',T('Bitte die Adresse des Solar-Log eingeben.'));return Promise.resolve(false);}
+  msg('sl-msg','busy',T('Verbinde mit dem Solar-Log…'));
+  $('sl-test').disabled=true;
+  return post('/api/solarlog/test',b).then(function(d){
+    msg('sl-msg',d.ok?'ok':'err',d.msg||'');
+    return !!d.ok;
+  }).catch(function(){msg('sl-msg','err',T('Keine Verbindung zu EnergyOptimizer.'));return false;})
+    .then(function(ok){$('sl-test').disabled=false;return ok;});
+}
+function slSave(){
+  var b=slBody();
+  if(!b.sl_ip)return Promise.resolve(true);
+  var doc={sl_ip:b.sl_ip,sl_port:String(b.sl_port)};
+  if(b.sl_pass)doc.sl_pass=b.sl_pass;
+  return post('/api/save',doc).then(function(d){
+    if(!d.ok){msg('sl-msg','err',d.msg||T('Speichern fehlgeschlagen'));return false;}
+    st.sl=b.sl_ip+(String(b.sl_port)!=='80'?':'+b.sl_port:'');
+    return true;
+  });
+}
+
+// ── Steckdosen ─────────────────────────────────────────────────────────────
+function configured(){return(cfg.shelly||[]).filter(function(e){return e.ip;});}
+function renderDevs(){
+  var box=$('devs'),html='',have={};
+  configured().forEach(function(e){have[e.ip]=1;
+    html+='<div class="dev cfg"><input type="checkbox" checked disabled><div class="dev-m"><b>'+esc(e.name||e.ip)+'</b>'
+      +'<div class="dev-s">'+esc(e.ip)+' · '+esc(T('bereits eingerichtet'))+'</div></div></div>';});
+  found.forEach(function(f,i){if(have[f.ip])return;
+    html+='<div class="dev"><input type="checkbox" data-i="'+i+'"'+(f.sel?' checked':'')+'>'
+      +'<div class="dev-m"><input type="text" data-n="'+i+'" value="'+esc(f.name)+'" maxlength="31">'
+      +'<div class="dev-s">'+esc(f.ip)+(f.model?' · '+esc(f.model):'')+'</div></div></div>';});
+  box.innerHTML=html;
+  var cbs=box.querySelectorAll('input[type=checkbox][data-i]');
+  for(var k=0;k<cbs.length;k++)cbs[k].addEventListener('change',function(){found[+this.dataset.i].sel=this.checked;});
+  var ns=box.querySelectorAll('input[data-n]');
+  for(var m=0;m<ns.length;m++)ns[m].addEventListener('input',function(){found[+this.dataset.n].name=this.value;});
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function addFound(list){
+  var known={};found.forEach(function(f){known[f.ip]=1;});
+  (list||[]).forEach(function(d){if(!known[d.ip]){found.push({ip:d.ip,name:d.name||d.ip,model:d.model||'',id:d.id||'',sel:true});known[d.ip]=1;}});
+  renderDevs();
+}
+function scan(){
+  $('sc-start').disabled=true;
+  msg('sc-msg','busy',T('Suche läuft… Das dauert bis zu einer Minute.'));
+  post('/api/discover').then(function(){
+    clearInterval(scanTimer);
+    scanTimer=setInterval(function(){
+      api('/api/discover').then(function(d){
+        addFound(d.devices);
+        if(!d.running){
+          clearInterval(scanTimer);$('sc-start').disabled=false;
+          msg('sc-msg',d.count?'ok':'err',d.count?T('{n} Gerät(e) gefunden.',{n:d.count})
+            :T('Keine Shelly-Geräte gefunden. Du kannst sie per IP-Adresse hinzufügen.'));
+        }
+      }).catch(function(){});
+    },1500);
+  }).catch(function(){$('sc-start').disabled=false;msg('sc-msg','err',T('Suche konnte nicht gestartet werden.'));});
+}
+function addIp(){
+  var ip=$('add-ip').value.trim();
+  if(!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)){msg('sc-msg','err',T('Bitte eine gültige IPv4-Adresse eingeben.'));return;}
+  addFound([{ip:ip,name:T('Steckdose {n}',{n:configured().length+found.length+1})}]);
+  $('add-ip').value='';msg('sc-msg','','');
+}
+function devSave(){
+  var have={},slots=configured(),doc={},n=slots.length,max=4,added=0;
+  slots.forEach(function(e){have[e.ip]=1;});
+  found.forEach(function(f){
+    if(!f.sel||have[f.ip]||n>=max)return;
+    doc['s'+n+'_ip']=f.ip;doc['s'+n+'_name']=(f.name||f.ip).slice(0,31);
+    if(f.id)doc['s'+n+'_id']=f.id;
+    n++;added++;
+  });
+  var skipped=found.filter(function(f){return f.sel&&!have[f.ip];}).length-added;
+  if(!added){st.devs=slots.length;return Promise.resolve(true);}
+  return post('/api/save',doc).then(function(d){
+    if(!d.ok){msg('sc-msg','err',d.msg||T('Speichern fehlgeschlagen'));return false;}
+    st.devs=n;
+    if(skipped>0)alert(T('Es sind höchstens {n} Steckdosen möglich. {k} wurden nicht übernommen.',{n:max,k:skipped}));
+    return load();
+  });
+}
+
+// ── Netzwerkname ───────────────────────────────────────────────────────────
+function hostSave(){
+  var h=$('host').value.trim().toLowerCase().replace(/\.local\.?$/,'');
+  if(!h||h===cfg.hostname){st.host=cfg.hostname;return Promise.resolve(true);}
+  if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(h)){
+    msg('host-msg','err',T('Nur Kleinbuchstaben, Ziffern und Bindestriche, höchstens 63 Zeichen.'));return Promise.resolve(false);}
+  return post('/api/save',{hostname:h}).then(function(d){
+    if(!d.ok){msg('host-msg','err',d.msg||T('Speichern fehlgeschlagen'));return false;}
+    st.host=h;return load();
+  });
+}
+
+function summary(){
+  var port=location.port&&location.port!=='80'?':'+location.port:'';
+  var rows=[[T('Solar-Log'),st.sl||(cfg.sl_ip?cfg.sl_ip:T('nicht eingerichtet'))],
+            [T('Steckdosen'),String(configured().length)],
+            [T('Adresse'),'http://'+(cfg.hostname||'energyoptimizer')+'.local'+port]];
+  $('sum').innerHTML=rows.map(function(r){return'<li><span>'+esc(r[0])+'</span><span>'+esc(r[1])+'</span></li>';}).join('');
+}
+function finish(){
+  post('/api/wizard',{done:true}).then(function(){location.replace('/');}).catch(function(){location.replace('/');});
+}
+function load(){
+  return api('/api/status').then(function(d){cfg=d.cfg||{};return true;});
+}
+
+var savers={1:slSave,2:devSave,3:hostSave};
+$('next').addEventListener('click',function(){
+  if(step===LAST){finish();return;}
+  var btn=this;btn.disabled=true;
+  (savers[step]||function(){return Promise.resolve(true);})().then(function(ok){
+    btn.disabled=false;if(ok)show(step+1);
+  }).catch(function(){btn.disabled=false;});
+});
+$('skip').addEventListener('click',function(){show(step+1);});
+$('back').addEventListener('click',function(){if(step>1)show(step-1);});
+$('skip-all').addEventListener('click',finish);
+$('sl-test').addEventListener('click',slTest);
+$('sc-start').addEventListener('click',scan);
+$('add-btn').addEventListener('click',addIp);
+$('add-ip').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addIp();}});
+
+load().then(function(){
+  if(cfg.sl_ip&&cfg.sl_ip!=='192.168.0.81')$('sl-ip').value=cfg.sl_ip;
+  $('sl-port').value=cfg.sl_port||80;
+  $('host').value=cfg.hostname||'energyoptimizer';
+  $('sl-pass-hint').textContent=cfg.sl_pass_set?T('Ein Passwort ist bereits gespeichert. Leer lassen, um es zu behalten.'):'';
+  renderDevs();
+  show(1);
+}).catch(function(){show(1);});
+})();
+</script>
+</body></html>

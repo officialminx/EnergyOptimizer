@@ -1,6 +1,7 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Anmelden &ndash; EnergyOptimizer</title>
+<script src="/i18n.js"></script>
 <script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -37,14 +38,14 @@ button:active{transform:scale(.97)}
 <input type="password" id="pw" autocomplete="current-password" autofocus>
 <button type="submit">Anmelden</button>
 <div class="err" id="err">Falsches Passwort</div>
-<details class="help"><summary>Passwort vergessen?</summary><p style="margin-top:8px">Auf dem Server im Ordner der <code>docker-compose.yml</code> ausführen:<br><code>docker compose exec energyoptimizer python -m energyoptimizer reset-password</code><br>Danach diese Seite neu laden und ein neues Passwort festlegen.</p></details>
+<details class="help"><summary>Passwort vergessen?</summary><p style="margin-top:8px">Auf dem Server im Ordner der <code>docker-compose.yml</code> ausführen:<br><code>docker compose exec energyoptimizer python -m energyoptimizer reset-password</code><br>Dort das neue Passwort zweimal eingeben und dich nach ein paar Sekunden damit anmelden.</p></details>
 </form><script>
 document.getElementById('lf').addEventListener('submit',function(e){e.preventDefault();
 var pw=document.getElementById('pw').value;
 fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw})})
 .then(function(r){return r.json();}).then(function(d){if(d&&(d.ok||d.setup)){location.replace('/');}else{show(d&&d.wait);}}).catch(function(){show();});
 function show(w){var e=document.getElementById('err');
-e.textContent=w?('Zu viele Versuche – bitte '+w+' s warten'):'Falsches Passwort';
+var T=window.T||function(s,a){return s.replace('{n}',a?a.n:'');};e.textContent=w?T('Zu viele Versuche – bitte {n} s warten',{n:w}):T('Falsches Passwort');
 e.style.display='block';var p=document.getElementById('pw');p.value='';p.focus();}
 });
 </script></body></html>

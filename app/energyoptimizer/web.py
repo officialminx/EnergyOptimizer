@@ -15,17 +15,22 @@ from aiohttp import web
 
 from . import __version__, sched
 from .clock import CLOCK
+from .i18n import tr
+from .passwords import verify_password
 from .const import (
-    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, NS_CRIT, NS_WARN, RST_TXT,
+    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, RST_TXT,
     RUN_START_GRACE_S,
 )
-from .settings import MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, hyst_off_ticks, hyst_on_ticks
+from .settings import LANGS, MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, host_looks_valid, hyst_off_ticks, hyst_on_ticks
+from .solarlog import REQ_BASIC, SolarLogAuthError, SolarLogClient, SolarLogError
 
 _LOGGER = logging.getLogger(__name__)
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 AUTH_ALERT_AFTER = 10
 AUTH_ALERT_REPEAT_S = 900
+AUTH_MAX_LOCK_S = 900       # longest lock after repeated wrong passwords
+AUTH_FAIL_FORGET_S = 900    # failures are forgotten after this long without one
 
 
 def _json(fn):
@@ -46,12 +51,15 @@ class WebApi:
         self.index_html = _read("index.html")
         self.login_html = _read("login.html")
         self.setup_html = _read("setup.html")
+        self.wizard_html = _read("wizard.html")
+        self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
         self.icon = _read("icon.png", "rb")
-        self.etag = '"%s"' % hashlib.sha256(self.index_html.encode()).hexdigest()[:8]
+        self.etag = hashlib.sha256((self.index_html + self.i18n_js).encode()).hexdigest()[:8]
         self.secret = self._load_secret()
         self.fails = 0
         self.last_fail = 0.0
         self.block_until = 0.0
+        self._basic_cache = b""
         self.alert_t = 0.0
 
     # ── Anmeldung (Cookie eo_auth = SHA-256(secret ‖ passwort)[:16] hex) ─────
@@ -80,6 +88,18 @@ class WebApi:
     def token(self) -> str:
         return hashlib.sha256(self.secret + self.web_pass.encode()).digest()[:16].hex()
 
+    def _basic_ok(self, header: str, pw: str) -> bool:
+        """Scripts send Basic auth with every request; hashing each time would
+        cost tens of milliseconds, so a verified header is remembered for the
+        current password."""
+        key = hashlib.sha256(self.secret + header.encode() + self.web_pass.encode()).digest()
+        if self._basic_cache == key:
+            return True
+        if verify_password(pw, self.web_pass):
+            self._basic_cache = key
+            return True
+        return False
+
     def block_remaining(self) -> int:
         if not self.block_until:
             return 0
@@ -93,22 +113,20 @@ class WebApi:
         if self.block_remaining() > 0:
             return
         now = CLOCK.mono()
-        if self.last_fail and now - self.last_fail > 60:
+        if self.last_fail and now - self.last_fail > AUTH_FAIL_FORGET_S:
             self.fails = 0
             self.alert_t = 0.0
         self.last_fail = now
         self.fails += 1
-        wait = 5 if self.fails >= 10 else (2 if self.fails >= 5 else 0)
+        # From the fifth failure on, each further one doubles the lock: 1 s, 2 s,
+        # 4 s … up to 15 minutes, which makes guessing a password impractical.
+        wait = min(AUTH_MAX_LOCK_S, 2 ** (self.fails - 5)) if self.fails >= 5 else 0
         if wait:
             self.block_until = now + wait
             _LOGGER.warning("[Auth] %d Fehlversuche – Passwortprüfung für %ds gesperrt", self.fails, wait)
         if self.fails >= AUTH_ALERT_AFTER and (not self.alert_t or now - self.alert_t >= AUTH_ALERT_REPEAT_S):
             self.alert_t = now
             self.eo.events.log(EV_AUTHFAIL, -1, ER_NONE, True, f"{self.fails} Fehlversuche")
-            self.eo.notify.send(NS_WARN, "Wiederholte Fehlanmeldungen",
-                                f"{self.fails} fehlgeschlagene Anmeldeversuche am Web-Interface. "
-                                "Falls das nicht du warst: Passwort ändern und prüfen, wer im Netz ist.",
-                                "lock")
 
     def note_success(self) -> None:
         self.fails = 0
@@ -137,7 +155,7 @@ class WebApi:
                     user, _, pw = base64.b64decode(auth[6:]).decode().partition(":")
                 except (ValueError, UnicodeDecodeError):
                     user, pw = "", ""
-                if user == "admin" and hmac.compare_digest(pw.encode(), self.web_pass.encode()):
+                if user == "admin" and self._basic_ok(auth, pw):
                     return True
             self.note_failure()
             return False
@@ -161,7 +179,7 @@ class WebApi:
     @web.middleware
     async def middleware(self, req: web.Request, handler):
         path = req.path
-        open_paths = ("/", "/api/login", "/api/logout", "/api/setup", "/apple-touch-icon.png",
+        open_paths = ("/", "/i18n.js", "/api/login", "/api/logout", "/api/setup", "/apple-touch-icon.png",
                       "/apple-touch-icon-precomposed.png", "/favicon.ico")
         if path.startswith("/api/") and path not in open_paths:
             if not self.is_authed(req):
@@ -190,10 +208,14 @@ class WebApi:
         for p in ("/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/favicon.ico"):
             r.add_get(p, self.h_icon)
         r.add_get("/", self.h_index)
+        r.add_get("/wizard", self.h_wizard)
+        r.add_get("/i18n.js", self.h_i18n)
         r.add_get("/api/status", self.h_status)
         r.add_post("/api/login", self.h_login)
         r.add_post("/api/setup", self.h_setup)
         r.add_post("/api/logout", self.h_logout)
+        r.add_post("/api/wizard", self.h_wizard_done)
+        r.add_post("/api/solarlog/test", self.h_sl_test)
         r.add_get("/api/history/stats", _json(lambda: self.eo.history.stats()))
         r.add_get("/api/history/export", self.h_hist_export)
         r.add_post("/api/history/clear", self.h_hist_clear)
@@ -217,7 +239,6 @@ class WebApi:
         r.add_get("/api/ideas/export", self.h_ideas_export)
         r.add_get("/api/alarms", _json(lambda: self.eo.alarms.build()))
         r.add_post("/api/alarms/ack", self.h_alarm_ack)
-        r.add_post("/api/notify/test", self.h_notify_test)
         r.add_post("/api/selftest", self.h_selftest_start)
         r.add_get("/api/selftest", _json(lambda: self.eo.selftest_json()))
         r.add_get("/api/config/export", self.h_config_export)
@@ -230,16 +251,86 @@ class WebApi:
         return web.Response(body=self.icon, content_type="image/png",
                             headers={"Cache-Control": "public, max-age=604800"})
 
+    @property
+    def lang(self) -> str:
+        return self.eo.settings.cfg["lang"]
+
+    def _page(self, html: str, lang: str = "", **headers) -> web.Response:
+        # The pages are written with lang="de"; i18n.js translates them in the browser.
+        lang = lang or self.lang
+        if lang != "de":
+            html = html.replace('<html lang="de">', f'<html lang="{lang}">', 1)
+        return web.Response(text=html, content_type="text/html", headers=headers)
+
     async def h_index(self, req):
         if self.setup_required:
-            return web.Response(text=self.setup_html, content_type="text/html",
-                                headers={"Cache-Control": "no-store"})
+            # Before the first password is set, the setup page offers its own language switch.
+            q = req.query.get("lang", "")
+            return self._page(self.setup_html, q if q in LANGS else "", **{"Cache-Control": "no-store"})
         if not self.is_authed(req):
-            return web.Response(text=self.login_html, content_type="text/html")
-        if req.headers.get("If-None-Match") == self.etag:
+            return self._page(self.login_html, **{"Cache-Control": "no-store"})
+        if not self.eo.settings.cfg["wizard_done"]:
+            return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
+        etag = f'"{self.etag}-{self.lang}"'
+        if req.headers.get("If-None-Match") == etag:
             return web.Response(status=304)
-        return web.Response(text=self.index_html, content_type="text/html",
-                            headers={"Cache-Control": "no-cache", "ETag": self.etag})
+        return self._page(self.index_html, **{"Cache-Control": "no-cache", "ETag": etag})
+
+    async def h_wizard(self, req):
+        if self.setup_required or not self.is_authed(req):
+            raise web.HTTPFound("/")
+        return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
+
+    async def h_i18n(self, req):
+        return web.Response(text=self.i18n_js, content_type="application/javascript",
+                            headers={"Cache-Control": "no-cache"})
+
+    async def h_wizard_done(self, req):
+        doc = await self._json_body(req) or {}
+        self.eo.settings.cfg["wizard_done"] = doc.get("done", True) is not False
+        self.eo.settings.save()
+        return web.json_response({"ok": True})
+
+    async def h_sl_test(self, req):
+        """Setup wizard: try a Solar-Log address and password without saving them."""
+        doc = await self._json_body(req) or {}
+        c = self.eo.settings.cfg
+        host = doc.get("sl_ip") if isinstance(doc.get("sl_ip"), str) else ""
+        host = host.strip()
+        if not host_looks_valid(host):
+            return web.json_response({"ok": False, "msg": tr("Ungültige Adresse", self.lang)})
+        try:
+            port = int(doc.get("sl_port") or 80)
+        except (TypeError, ValueError):
+            port = 80
+        pw = doc.get("sl_pass") if isinstance(doc.get("sl_pass"), str) else ""
+        if not pw and host == c["sl_ip"]:
+            pw = c["sl_pass"]   # empty field means "keep the stored password"
+        client = SolarLogClient(self.eo.session, host=host, port=port, password=pw,
+                                username=c["sl_user"] or None)
+        lang = self.lang
+        try:
+            if pw:
+                await client.async_login()
+            data = json.loads(await client.request_text(REQ_BASIC))
+            values = data.get("801", {}).get("170") if isinstance(data, dict) else None
+            if not isinstance(values, dict):
+                raise SolarLogError("unexpected answer")
+        except SolarLogAuthError:
+            return web.json_response({"ok": False, "msg": tr("Der Solar-Log hat das Passwort abgelehnt.", lang)})
+        except (SolarLogError, ValueError):
+            return web.json_response({"ok": False, "msg": tr(
+                "Keine Antwort vom Solar-Log unter {host}. Adresse und Port prüfen.", lang, host=host)})
+
+        def val(key: str) -> int:
+            try:
+                return int(float(values.get(key) or 0))
+            except (TypeError, ValueError):
+                return 0
+        prod, cons = val(c["sl_fprod"]), val(c["sl_fcons"])
+        msg = tr("Verbunden: {prod} W Produktion, {cons} W Verbrauch.", lang, prod=prod, cons=cons)
+        return web.json_response({"ok": True, "msg": msg, "prod": prod, "cons": cons,
+                                  "user": client.username if pw and client.login_trace else ""})
 
     async def _json_body(self, req) -> dict | None:
         try:
@@ -261,7 +352,7 @@ class WebApi:
         if self.setup_required:
             return web.json_response({"ok": False, "setup": True}, status=409)
         pw = doc.get("pw") if isinstance(doc.get("pw"), str) else ""
-        if not hmac.compare_digest(pw.encode(), self.web_pass.encode()):
+        if not await asyncio.to_thread(verify_password, pw, self.web_pass):
             self.note_failure()
             w = self.block_remaining()
             return web.json_response({"ok": False, "wait": w} if w else {"ok": False}, status=401)
@@ -281,12 +372,15 @@ class WebApi:
             return web.json_response({"ok": False, "done": True}, status=409)
         doc = await self._json_body(req)
         pw = doc.get("pw") if isinstance(doc, dict) and isinstance(doc.get("pw"), str) else ""
+        lang = doc.get("lang") if isinstance(doc, dict) else None
+        if lang in LANGS:
+            self.eo.settings.cfg["lang"] = lang
         if len(pw) < MIN_PASSWORD_LEN:
             return web.json_response(
-                {"ok": False, "msg": f"Mindestens {MIN_PASSWORD_LEN} Zeichen"}, status=400)
+                {"ok": False, "msg": tr("Mindestens {n} Zeichen", self.lang, n=MIN_PASSWORD_LEN)}, status=400)
         if len(pw) > MAX_PASSWORD_LEN:
             return web.json_response(
-                {"ok": False, "msg": f"Höchstens {MAX_PASSWORD_LEN} Zeichen"}, status=400)
+                {"ok": False, "msg": tr("Höchstens {n} Zeichen", self.lang, n=MAX_PASSWORD_LEN)}, status=400)
         self.eo.set_web_password(pw)
         self.note_success()
         return self._with_auth_cookie(web.json_response({"ok": True}))
@@ -429,15 +523,16 @@ class WebApi:
                                  "sl_poll_min", "sl_avg_s", "on_margin", "off_margin", "hyst_on_s",
                                  "hyst_off_s", "min_on_min", "min_off_min", "fw_start", "fw_end",
                                  "sl_fsafe", "batt_grd", "sh_count", "p_buy", "p_feed", "p_base",
-                                 "nt_en", "nt_srv", "nt_sev", "nt_qs", "nt_qe", "hb_en", "hb_min",
+                                 "hb_en", "hb_min",
                                  "mo_sl", "mo_dev", "mo_np", "mo_inv", "sl_dev", "lat", "lon",
                                  "mq_en", "mq_host", "mq_port", "mq_user", "mq_disc")}
         cf["hostname"] = c["hostname"]
         cf["hyst_on"] = hyst_on_ticks(c)
         cf["hyst_off"] = hyst_off_ticks(c)
         cf["ip"] = req_host_ip()
-        cf["nt_top_set"] = bool(c["nt_top"])
         cf["hb_url_set"] = bool(c["hb_url"])
+        cf["sl_pass_set"] = bool(c["sl_pass"])
+        cf["lang"] = c["lang"]
         cf["mq_pfx"] = c["mq_pfx"]
         cf["shelly"] = [
             {"name": e["name"], "ip": e["ip"], "id": e["id"], "pw": e["pw"], "pri": e["pri"],
@@ -537,7 +632,7 @@ class WebApi:
             "version": __version__, "build": os.environ.get("EO_BUILD", "dev"),
             "ip": req_host_ip(), "port": eo.port,
             "mdns": f"{host}.local" if eo.mdns.enabled else "", "mdns_err": eo.mdns.error,
-            "notify": eo.notify.state(), "update": eo.updates.state(),
+            "heartbeat": eo.heartbeat.state(), "update": eo.updates.state(),
         })
         return web.json_response(d)
 
@@ -578,7 +673,8 @@ class WebApi:
             return web.json_response({"ok": False, "msg": "JSON Fehler"}, status=400)
         ok, iid, err, nf = self.eo.ideas.upsert(doc)
         if not ok:
-            return web.json_response({"ok": False, "msg": err.replace('"', "'")}, status=404 if nf else 400)
+            return web.json_response({"ok": False, "msg": tr(err, self.lang).replace('"', "'")},
+                                     status=404 if nf else 400)
         return web.json_response({"ok": True, "id": iid})
 
     async def h_ideas_delete(self, req):
@@ -587,12 +683,13 @@ class WebApi:
         except ValueError:
             iid = 0
         if not self.eo.ideas.delete(iid):
-            return web.json_response({"ok": False, "msg": "Notiz nicht gefunden"}, status=404)
+            return web.json_response({"ok": False, "msg": tr("Notiz nicht gefunden", self.lang)}, status=404)
         return web.json_response({"ok": True})
 
     async def h_ideas_export(self, req):
-        return web.Response(text=self.eo.ideas.markdown(), content_type="text/markdown", charset="utf-8",
-                            headers={"Content-Disposition": 'attachment; filename="verbesserungen.md"'})
+        return web.Response(text=self.eo.ideas.markdown(self.lang), content_type="text/markdown", charset="utf-8",
+                            headers={"Content-Disposition": 'attachment; filename="%s"' % (
+                                "improvements.md" if self.lang == "en" else "verbesserungen.md")})
 
     async def h_alarm_ack(self, req):
         try:
@@ -601,15 +698,6 @@ class WebApi:
             i = -1
         self.eo.alarms.ack(i)
         return web.json_response({"ok": True})
-
-    async def h_notify_test(self, req):
-        c = self.eo.settings.cfg
-        if not c["nt_en"] or not c["nt_top"]:
-            return web.json_response({"ok": False, "msg": "Benachrichtigungen sind nicht aktiviert oder "
-                                                          "es fehlt der Topic."})
-        self.eo.notify.send(NS_CRIT, "EnergyOptimizer – Testmeldung",
-                            "Wenn diese Meldung ankommt, funktioniert die Alarmierung.", "bell")
-        return web.json_response({"ok": True, "msg": "Testmeldung eingereiht – Ergebnis erscheint gleich hier."})
 
     async def h_selftest_start(self, req):
         self.eo.request_selftest()
@@ -624,12 +712,12 @@ class WebApi:
     async def h_config_import(self, req):
         doc = await self._json_body(req)
         if doc is None:
-            return web.json_response({"ok": False, "msg": "Datei ist kein gültiges JSON"}, status=400)
+            return web.json_response({"ok": False, "msg": tr("Datei ist kein gültiges JSON", self.lang)}, status=400)
         if not isinstance(doc.get("eo_config"), int) or isinstance(doc.get("eo_config"), bool):
-            return web.json_response({"ok": False, "msg": "Das ist keine EnergyOptimizer-Sicherung"},
+            return web.json_response({"ok": False, "msg": tr("Das ist keine EnergyOptimizer-Sicherung", self.lang)},
                                      status=400)
         warn = self.eo.apply_settings(doc, "Import")
-        msg = "Einstellungen übernommen. Passwörter, ntfy-Topic und Heartbeat-URL bleiben unverändert."
+        msg = tr("Einstellungen übernommen. Passwörter und Heartbeat-URL bleiben unverändert.", self.lang)
         if warn:
             msg += " " + warn
         return web.json_response({"ok": True, "msg": msg.replace('"', "'")})

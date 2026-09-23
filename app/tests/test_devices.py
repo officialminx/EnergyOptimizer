@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import pytest
@@ -139,3 +140,47 @@ def test_schedule_over_midnight_uses_start_day():
     assert sched.active(sl, datetime(2026, 6, 10, 5, 0)) == -1  # Mittwoch 5 Uhr
     assert sched.to_str(sl) == "1320,360,1,1"
     assert sched.from_str("60,120,3")[0] == [60, 120, 3, True]  # altes Format ohne Flag
+
+
+async def test_no_command_when_plug_already_in_target_state(env):
+    eo, clock, (boiler, _) = env
+    dv = eo.devices
+    await dv.poll_all()                     # the plug reports: off
+    assert await dv.set("shelly", 0, False)
+    assert boiler.cmds == []                # already off, nothing sent
+    boiler.on = True                        # switched on at the device itself
+    await dv.poll_all()
+    assert await dv.set("shelly", 0, True)
+    assert boiler.cmds == []
+    assert await dv.set("shelly", 0, False)
+    assert boiler.cmds == [False]
+    # A manual command always goes out, even if the state looks the same.
+    dv.apply_command("shelly", 0, "off")
+    for _ in range(20):
+        if len(boiler.cmds) == 2:
+            break
+        await asyncio.sleep(0.01)
+    assert boiler.cmds == [False, False]
+
+
+def test_mqtt_publishes_only_changes(tmp_path):
+    from energyoptimizer.mqtt import Mqtt
+
+    class Client:
+        def __init__(self):
+            self.sent = []
+
+        def publish(self, topic, payload, retain=False):
+            self.sent.append((topic, payload))
+
+    class App:
+        pass
+
+    m = Mqtt(App())
+    m.client = Client()
+    m._pub("eo/a", {"w": 1})
+    m._pub("eo/a", {"w": 1})
+    m._pub("eo/a", {"w": 2})
+    m._pub("eo/b", "ON")
+    m._pub("eo/b", "ON")
+    assert m.client.sent == [("eo/a", '{"w": 1}'), ("eo/a", '{"w": 2}'), ("eo/b", "ON")]

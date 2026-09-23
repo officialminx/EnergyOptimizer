@@ -1,7 +1,7 @@
 """Alarmzentrale.
 
-Jede Störung wird erst nach ihrer Entprellzeit aktiv, dann per ntfy gemeldet,
-bei Kritisch alle 6 h wiederholt (bis quittiert) und beim Beheben entwarnt.
+Jede Störung wird erst nach ihrer Entprellzeit aktiv, im Ereignisprotokoll
+vermerkt und auf dem Dashboard angezeigt, bis sie behoben ist.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from .clock import CLOCK
 from .const import (
     AL_COUNT, AL_FAILSAFE, AL_INVERTER, AL_NOPROD, AL_NVS, AL_SHELLY0, AL_SOLARLOG,
-    EV_ALARM, MAX_SHELLY, NOTIFY_REPEAT_H, NS_CRIT, NS_INFO, NS_WARN,
+    EV_ALARM, MAX_SHELLY, NS_CRIT, NS_WARN,
     SHELLY_FAIL_RECOVER,
 )
 
@@ -64,7 +64,6 @@ class AlarmState:
     active: bool = False
     active_since: float = 0.0
     active_epoch: int = 0
-    last_notify: float = 0.0
     acked: bool = False
     detail: str = ""
 
@@ -95,24 +94,12 @@ class Alarms:
             a.acked = False
             a.active_since = now
             a.active_epoch = int(CLOCK.time())
-            a.last_notify = now
             self.app.events.log(EV_ALARM, dev, i, True, alarm_name(i))
-            self.app.notify.send(a.sev, alarm_name(i), a.detail or "Störung erkannt",
-                                 "rotating_light" if a.sev == NS_CRIT else "warning")
             return
         if not cond and a.active:
             a.active = False
-            mins = int((now - a.active_since) / 60)
             self.app.events.log(EV_ALARM, dev, i, False, alarm_name(i))
-            self.app.notify.send(NS_INFO, alarm_name(i), f"Behoben nach {mins} min.", "white_check_mark")
             a.detail = ""
-            return
-        if (a.active and not a.acked and a.sev == NS_CRIT
-                and now - a.last_notify >= NOTIFY_REPEAT_H * 3600):
-            a.last_notify = now
-            self.app.notify.send(NS_CRIT, alarm_name(i),
-                                 f"Weiterhin aktiv seit {int((now - a.active_since) / 60)} min. {a.detail}",
-                                 "rotating_light")
 
     def tick(self, sl_age_s: float, sd, sd_valid: bool, devs) -> None:
         c = self.app.settings.cfg

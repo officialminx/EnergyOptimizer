@@ -1,6 +1,7 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Einrichten &ndash; EnergyOptimizer</title>
+<script src="/i18n.js"></script>
 <script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -28,9 +29,13 @@ input{width:100%;background:var(--card2);border:1.5px solid var(--line);border-r
 input:focus{outline:none;border-color:var(--blue);background:var(--input-focus-bg);box-shadow:0 0 0 4px rgba(10,132,255,.13)}
 button{width:100%;margin-top:16px;padding:14px;border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:700;font-family:inherit;cursor:pointer;background:var(--grad);box-shadow:0 8px 24px -6px rgba(10,132,255,.4);transition:transform .12s}
 button:active{transform:scale(.97)}
+.lang{display:flex;gap:4px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:3px;margin:0 auto 18px;width:max-content}
+.lang a{padding:6px 12px;border-radius:8px;color:var(--ink2);font-size:.8rem;font-weight:700;text-decoration:none}
+.lang a.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
 .err{color:#ff3b30;font-size:.82rem;font-weight:600;margin-top:12px;text-align:center;display:none}
 </style></head><body>
 <form class="box" id="lf">
+<div class="lang" id="lang"><a href="/?lang=de" data-l="de" lang="de">Deutsch</a><a href="/?lang=en" data-l="en" lang="en">English</a></div>
 <div class="top"><img class="logo" src="/apple-touch-icon.png" alt="" width="64" height="64">
 <h1>EnergyOptimizer</h1><div class="sub">Willkommen! Lege zuerst ein Passwort fest.</div></div>
 <label for="pw">Neues Passwort</label>
@@ -41,13 +46,22 @@ button:active{transform:scale(.97)}
 <div class="err" id="err"></div>
 <p class="help">Mindestens 6 Zeichen. Das Passwort schützt die ganze Oberfläche und lässt sich später unter Einstellungen &rarr; Sicherheit ändern.</p>
 </form><script>
+(function(){
+  var L=window.LANG||'de',q=/[?&]lang=(de|en)/.test(location.search);
+  // Without an explicit choice, follow the browser language once.
+  var nav=(navigator.language||'de').slice(0,2)==='de'?'de':'en';
+  if(!q&&nav!==L){location.replace('/?lang='+nav);return;}
+  var a=document.querySelectorAll('#lang a');
+  for(var i=0;i<a.length;i++)a[i].classList.toggle('on',a[i].dataset.l===L);
+})();
+var T=window.T||function(s){return s;};
 document.getElementById('lf').addEventListener('submit',function(e){e.preventDefault();
 var pw=document.getElementById('pw').value,pw2=document.getElementById('pw2').value;
-if(pw.length<6)return show('Mindestens 6 Zeichen');
-if(pw!==pw2)return show('Die Passwörter stimmen nicht überein');
-fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw})})
-.then(function(r){return r.json();}).then(function(d){if(d&&d.ok){location.replace('/');}else if(d&&d.done){location.replace('/');}else{show(d&&d.msg||'Speichern fehlgeschlagen');}})
-.catch(function(){show('Keine Verbindung');});
+if(pw.length<6)return show(T('Mindestens {n} Zeichen',{n:6}));
+if(pw!==pw2)return show(T('Die Passwörter stimmen nicht überein'));
+fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw,lang:window.LANG||'de'})})
+.then(function(r){return r.json();}).then(function(d){if(d&&d.ok){location.replace('/');}else if(d&&d.done){location.replace('/');}else{show(d&&d.msg||T('Speichern fehlgeschlagen'));}})
+.catch(function(){show(T('Keine Verbindung'));});
 });
 function show(t){var e=document.getElementById('err');e.textContent=t;e.style.display='block';}
 </script></body></html>

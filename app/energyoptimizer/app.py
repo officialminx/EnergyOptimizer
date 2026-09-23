@@ -21,7 +21,8 @@ from .history import History
 from .ideas import Ideas
 from .mdns import Mdns
 from .mqtt import Mqtt
-from .notify import Notifier
+from .passwords import hash_password, is_hash
+from .heartbeat import Heartbeat
 from .settings import SettingsStore
 from .solarlog import SolarData, SolarDevices, SolarLogReader
 from .storage import load_json, save_json
@@ -50,7 +51,7 @@ class EnergyOptimizer:
         self.ideas = Ideas(data_dir)
         self.devices = Devices(self)
         self.alarms = Alarms(self)
-        self.notify = Notifier(self)
+        self.heartbeat = Heartbeat(self)
         self.mqtt = Mqtt(self)
         self.sysinfo = SysInfo(data_dir)
         self.mdns = Mdns(port)
@@ -91,7 +92,7 @@ class EnergyOptimizer:
         loop = asyncio.get_running_loop()
         self._tasks = [
             loop.create_task(self.network_task(), name="network"),
-            loop.create_task(self.notify.run(), name="notify"),
+            loop.create_task(self.heartbeat.run(), name="heartbeat"),
             loop.create_task(self.mqtt.run(), name="mqtt"),
             loop.create_task(self.update_task(), name="updates"),
         ]
@@ -118,25 +119,34 @@ class EnergyOptimizer:
 
     # ── Web-Passwort ────────────────────────────────────────────────────────
     def set_web_password(self, pw: str) -> None:
-        self.settings.cfg["web_pass"] = pw
+        self.settings.cfg["web_pass"] = hash_password(pw)
         self.settings.save()
         self.events.log(EV_CONFIG, -1, ER_MANUAL, True, "Web-Passwort festgelegt")
         _LOGGER.info("[Auth] Web-Passwort festgelegt")
 
     def check_password_reset(self) -> None:
+        """`python -m energyoptimizer reset-password` leaves the hash of the new
+        password in a file; the password is replaced directly, so the web
+        interface is never open without one."""
         path = os.path.join(self.data_dir, RESET_FLAG)
         if not os.path.exists(path):
             return
         try:
+            with open(path, encoding="ascii") as f:
+                new = f.read().strip()
+        except (OSError, ValueError):
+            new = ""
+        try:
             os.remove(path)
         except OSError as err:
             _LOGGER.error("[Auth] %s konnte nicht gelöscht werden: %s", path, err)
-        if not self.settings.cfg["web_pass"]:
+        if not is_hash(new):
+            _LOGGER.warning("[Auth] Ungültige Reset-Datei ignoriert – Passwort unverändert")
             return
-        self.settings.cfg["web_pass"] = ""
+        self.settings.cfg["web_pass"] = new
         self.settings.save()
         self.events.log(EV_CONFIG, -1, ER_MANUAL, True, "Web-Passwort zurückgesetzt")
-        _LOGGER.warning("[Auth] Web-Passwort zurückgesetzt – beim nächsten Aufruf neu festlegen")
+        _LOGGER.warning("[Auth] Web-Passwort über die Kommandozeile neu gesetzt")
 
     # ── Einstellungen übernehmen ────────────────────────────────────────────
     def apply_settings(self, doc: dict, text: str | None = None) -> str:
@@ -303,15 +313,7 @@ class EnergyOptimizer:
             add("MQTT", ST_OK, f"Verbunden mit {cfg['mq_host']}:{cfg['mq_port']}")
         else:
             add("MQTT", ST_FAIL, f"Aktiviert, aber keine Verbindung zu {cfg['mq_host']}:{cfg['mq_port']}")
-        ns = self.notify.state()
-        if not ns["cfg"]:
-            add("Benachrichtigungen", ST_WARN, "Kein Topic gesetzt – Störungen werden nicht gemeldet")
-        elif ns["age"] < 0:
-            add("Benachrichtigungen", ST_OK, "Eingerichtet, bisher nichts gesendet")
-        elif ns["last"]:
-            add("Benachrichtigungen", ST_OK, f"{ns['ok']} zugestellt, letzte vor {ns['age']} s")
-        else:
-            add("Benachrichtigungen", ST_FAIL, f"Letzter Versand fehlgeschlagen: {ns['err']}")
+        ns = self.heartbeat.state()
         if not cfg["hb_en"]:
             add("Heartbeat", ST_SKIP, "Nicht aktiviert")
         elif ns["hb_age"] < 0:

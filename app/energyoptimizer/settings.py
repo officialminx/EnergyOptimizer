@@ -17,10 +17,13 @@ from typing import Any
 
 from . import sched
 from .const import MAX_EXT, MAX_SHELLY
+from .i18n import tr
+from .passwords import hash_password, is_hash
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_HOSTNAME = "energyoptimizer"
+LANGS = ("de", "en")
 MIN_PASSWORD_LEN = 6
 MAX_PASSWORD_LEN = 64
 _HOST_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
@@ -51,7 +54,7 @@ def _ext_default(i: int) -> dict[str, Any]:
 
 def defaults() -> dict[str, Any]:
     return {
-        "web_pass": "", "hostname": DEFAULT_HOSTNAME,
+        "web_pass": "", "hostname": DEFAULT_HOSTNAME, "lang": "de", "wizard_done": False,
         "sl_ip": "192.168.0.81", "sl_port": 80, "sl_user": "", "sl_pass": "",
         "sl_fprod": "101", "sl_fcons": "110", "sl_fgrid": "",
         "sl_fyday": "105", "sl_fcday": "111", "sl_fytot": "109", "sl_fctot": "115",
@@ -61,8 +64,6 @@ def defaults() -> dict[str, Any]:
         "min_on_min": 7, "min_off_min": 5, "fw_start": 20, "fw_end": 24,
         "sl_fsafe": 30, "batt_grd": 100,
         "p_buy": 0, "p_feed": 0, "p_base": 0,
-        "nt_en": False, "nt_srv": "https://ntfy.sh", "nt_top": "", "nt_sev": 1,
-        "nt_qs": 22, "nt_qe": 7,
         "hb_en": False, "hb_url": "", "hb_min": 15,
         "mo_sl": 15, "mo_dev": 15, "mo_np": 45, "mo_inv": 30,
         "lat": 47.05, "lon": 8.31, "sl_dev": False,
@@ -210,6 +211,9 @@ class SettingsStore:
                 continue
             if k in base:
                 base[k] = v
+        if "wizard_done" not in stored:
+            # Installation from before the setup wizard existed: already set up.
+            base["wizard_done"] = True
         for key, dflt in (("shelly", _shelly_default), ("ext", _ext_default)):
             items = stored.get(key) or []
             for i in range(len(base[key])):
@@ -220,6 +224,12 @@ class SettingsStore:
                         entry["sch"] = sched.from_str(entry["sch"])
                     base[key][i] = entry
         self.cfg = base
+        if not isinstance(base["web_pass"], str):
+            base["web_pass"] = ""
+        if base["web_pass"] and not is_hash(base["web_pass"]):
+            # Older installs kept the password in plain text: replace it with its hash.
+            base["web_pass"] = hash_password(base["web_pass"])
+            self.save()
 
     def _apply_env_bootstrap(self, c: dict) -> None:
         """Erststart: Werte aus Umgebungsvariablen übernehmen (docker-compose)."""
@@ -231,7 +241,7 @@ class SettingsStore:
         if env.get("EO_SOLARLOG_PASSWORD"):
             c["sl_pass"] = env["EO_SOLARLOG_PASSWORD"]
         if env.get("EO_WEB_PASSWORD"):
-            c["web_pass"] = env["EO_WEB_PASSWORD"]
+            c["web_pass"] = hash_password(env["EO_WEB_PASSWORD"])
         host = normalize_hostname(env.get("EO_HOSTNAME", ""))
         if host:
             c["hostname"] = host
@@ -254,9 +264,10 @@ class SettingsStore:
     def apply(self, doc: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], str]:
         """Übernimmt ein Formular/Import-Dokument. Rückgabe: (alt, neu, Warnungen)."""
         warn: list[str] = []
+        lang = doc["lang"] if doc.get("lang") in LANGS else self.cfg.get("lang", "de")
 
         def note(feld: str, why: str) -> None:
-            warn.append(f"{feld}: {why}.")
+            warn.append(f"{tr(feld, lang)}: {tr(why, lang)}.")
 
         orig = copy.deepcopy(self.cfg)
         t = copy.deepcopy(self.cfg)
@@ -269,10 +280,10 @@ class SettingsStore:
 
         if nonempty_str("web_pass"):
             if MIN_PASSWORD_LEN <= len(doc["web_pass"]) <= MAX_PASSWORD_LEN:
-                t["web_pass"] = doc["web_pass"]
+                t["web_pass"] = hash_password(doc["web_pass"])
             else:
                 note("Web-Passwort nicht geändert",
-                     f"{MIN_PASSWORD_LEN} bis {MAX_PASSWORD_LEN} Zeichen erforderlich")
+                     tr("{a} bis {b} Zeichen erforderlich", lang, a=MIN_PASSWORD_LEN, b=MAX_PASSWORD_LEN))
         if _is_str(doc.get("hostname")):
             host = normalize_hostname(doc["hostname"])
             if host:
@@ -280,6 +291,8 @@ class SettingsStore:
             else:
                 note("Name im Netzwerk nicht übernommen",
                      "nur Kleinbuchstaben, Ziffern und Bindestriche, höchstens 63 Zeichen")
+        if _is_str(doc.get("lang")) and doc["lang"] in LANGS:
+            t["lang"] = doc["lang"]
         if _is_str(doc.get("sl_ip")) and host_looks_valid(doc["sl_ip"]):
             t["sl_ip"] = doc["sl_ip"]
         if has("sl_port"):
@@ -341,21 +354,6 @@ class SettingsStore:
             if b is not None:
                 t[k] = b
 
-        as_bool("nt_en")
-        if nonempty_str("nt_srv"):
-            ok, why = url_is_https_ok(doc["nt_srv"])
-            if ok:
-                t["nt_srv"] = doc["nt_srv"]
-            else:
-                note("ntfy-Server nicht übernommen", why)
-        if nonempty_str("nt_top"):
-            t["nt_top"] = "" if doc["nt_top"] == "-" else doc["nt_top"]
-        if has("nt_sev"):
-            t["nt_sev"] = _clamp(_as_int(doc["nt_sev"]), 0, 2)
-        if has("nt_qs"):
-            t["nt_qs"] = _clamp(_as_int(doc["nt_qs"]), 0, 23)
-        if has("nt_qe"):
-            t["nt_qe"] = _clamp(_as_int(doc["nt_qe"]), 0, 23)
         as_bool("hb_en")
         if nonempty_str("hb_url"):
             u = doc["hb_url"]
@@ -481,14 +479,12 @@ class SettingsStore:
         c = self.cfg
         doc: dict[str, Any] = {"eo_config": 1, "device": "energyoptimizer"}
         doc["hostname"] = c["hostname"]
+        doc["lang"] = c["lang"]
         for k in ("sl_ip", "sl_port", "sl_user", "sl_fprod", "sl_fcons", "sl_fgrid",
                   "sl_fyday", "sl_fcday", "sl_fytot", "sl_fctot", "sl_fsoc", "sl_fbatt",
                   "sl_poll_min", "sl_avg_s", "sl_fsafe", "batt_grd", "on_margin",
                   "off_margin", "hyst_on_s", "hyst_off_s", "min_on_min", "min_off_min",
                   "fw_start", "fw_end", "p_buy", "p_feed", "p_base"):
-            doc[k] = c[k]
-        doc["nt_en"] = "true" if c["nt_en"] else "false"
-        for k in ("nt_srv", "nt_sev", "nt_qs", "nt_qe"):
             doc[k] = c[k]
         doc["hb_en"] = "true" if c["hb_en"] else "false"
         for k in ("hb_min", "mo_sl", "mo_dev", "mo_np", "mo_inv"):

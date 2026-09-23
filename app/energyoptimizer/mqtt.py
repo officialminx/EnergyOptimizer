@@ -53,6 +53,7 @@ class Mqtt:
         self._last_counts = (0, 0)
         self._ext_echo: dict[int, tuple[str, float]] = {}
         self._on_connect_pending = False
+        self._sent: dict[str, str] = {}
 
     # ── Markierungen aus der Steuerung ──────────────────────────────────────
     def mark_shelly_dirty(self, i: int) -> None:
@@ -117,6 +118,7 @@ class Mqtt:
         if cl is None:
             return
         self.connected = True
+        self._sent.clear()
         _LOGGER.info("[MQTT] Verbunden mit %s:%s", c["mq_host"], c["mq_port"])
         cl.publish(f"{self.prefix}/status", "online", retain=True)
         for i in range(c["sh_count"]):
@@ -164,6 +166,10 @@ class Mqtt:
         if self.client is not None:
             if not isinstance(payload, str):
                 payload = json.dumps(payload, ensure_ascii=False)
+            # Only publish what changed; the broker keeps the retained value.
+            if self._sent.get(topic) == payload:
+                return
+            self._sent[topic] = payload
             self.client.publish(topic, payload, retain=retain)
 
     def _publish_solar(self) -> None:
