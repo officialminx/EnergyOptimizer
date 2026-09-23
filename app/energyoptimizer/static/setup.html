@@ -1,6 +1,6 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Anmelden &ndash; EnergyOptimizer</title>
+<title>Einrichten &ndash; EnergyOptimizer</title>
 <script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -32,19 +32,22 @@ button:active{transform:scale(.97)}
 </style></head><body>
 <form class="box" id="lf">
 <div class="top"><img class="logo" src="/apple-touch-icon.png" alt="" width="64" height="64">
-<h1>EnergyOptimizer</h1><div class="sub">Bitte anmelden</div></div>
-<label for="pw">Passwort</label>
-<input type="password" id="pw" autocomplete="current-password" autofocus>
-<button type="submit">Anmelden</button>
-<div class="err" id="err">Falsches Passwort</div>
-<details class="help"><summary>Passwort vergessen?</summary><p style="margin-top:8px">Auf dem Server im Ordner der <code>docker-compose.yml</code> ausführen:<br><code>docker compose exec energyoptimizer python -m energyoptimizer reset-password</code><br>Danach diese Seite neu laden und ein neues Passwort festlegen.</p></details>
+<h1>EnergyOptimizer</h1><div class="sub">Willkommen! Lege zuerst ein Passwort fest.</div></div>
+<label for="pw">Neues Passwort</label>
+<input type="password" id="pw" autocomplete="new-password" minlength="6" autofocus>
+<label for="pw2" style="margin-top:12px">Passwort wiederholen</label>
+<input type="password" id="pw2" autocomplete="new-password" minlength="6">
+<button type="submit">Passwort festlegen</button>
+<div class="err" id="err"></div>
+<p class="help">Mindestens 6 Zeichen. Das Passwort schützt die ganze Oberfläche und lässt sich später unter Einstellungen &rarr; Sicherheit ändern.</p>
 </form><script>
 document.getElementById('lf').addEventListener('submit',function(e){e.preventDefault();
-var pw=document.getElementById('pw').value;
-fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw})})
-.then(function(r){return r.json();}).then(function(d){if(d&&(d.ok||d.setup)){location.replace('/');}else{show(d&&d.wait);}}).catch(function(){show();});
-function show(w){var e=document.getElementById('err');
-e.textContent=w?('Zu viele Versuche – bitte '+w+' s warten'):'Falsches Passwort';
-e.style.display='block';var p=document.getElementById('pw');p.value='';p.focus();}
+var pw=document.getElementById('pw').value,pw2=document.getElementById('pw2').value;
+if(pw.length<6)return show('Mindestens 6 Zeichen');
+if(pw!==pw2)return show('Die Passwörter stimmen nicht überein');
+fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw})})
+.then(function(r){return r.json();}).then(function(d){if(d&&d.ok){location.replace('/');}else if(d&&d.done){location.replace('/');}else{show(d&&d.msg||'Speichern fehlgeschlagen');}})
+.catch(function(){show('Keine Verbindung');});
 });
+function show(t){var e=document.getElementById('err');e.textContent=t;e.style.display='block';}
 </script></body></html>

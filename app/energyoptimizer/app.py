@@ -1,4 +1,4 @@
-"""Hauptschleife (network_task aus main.cpp) und Zusammenbau aller Teile."""
+"""Hauptschleife und Zusammenbau aller Teile."""
 
 from __future__ import annotations
 
@@ -19,21 +19,29 @@ from .energy import Energy
 from .events import EventLog
 from .history import History
 from .ideas import Ideas
+from .mdns import Mdns
 from .mqtt import Mqtt
 from .notify import Notifier
 from .settings import SettingsStore
 from .solarlog import SolarData, SolarDevices, SolarLogReader
 from .storage import load_json, save_json
 from .sysinfo import SysInfo
+from .updates import UpdateCheck
 
 _LOGGER = logging.getLogger(__name__)
 
 ST_OK, ST_WARN, ST_FAIL, ST_SKIP = 0, 1, 2, 3
 
+# Liegt diese Datei im Datenordner, wird das Web-Passwort gelöscht und beim nächsten
+# Aufruf der Oberfläche neu festgelegt (python -m energyoptimizer reset-password).
+RESET_FLAG = "RESET_PASSWORD"
+MDNS_CHECK_S = 60
+
 
 class EnergyOptimizer:
-    def __init__(self, data_dir: str) -> None:
+    def __init__(self, data_dir: str, port: int = 80) -> None:
         self.data_dir = data_dir
+        self.port = port
         os.makedirs(data_dir, exist_ok=True)
         self.settings = SettingsStore(data_dir)
         self.events = EventLog(data_dir)
@@ -44,7 +52,9 @@ class EnergyOptimizer:
         self.alarms = Alarms(self)
         self.notify = Notifier(self)
         self.mqtt = Mqtt(self)
-        self.sysinfo = SysInfo()
+        self.sysinfo = SysInfo(data_dir)
+        self.mdns = Mdns(port)
+        self.updates = UpdateCheck()
         self.session: aiohttp.ClientSession = None  # type: ignore[assignment]
         self.reader: SolarLogReader = None  # type: ignore[assignment]
         self.solar = SolarData()
@@ -59,10 +69,12 @@ class EnergyOptimizer:
         self.selftest = {"running": False, "done_t": 0.0, "items": []}
         self._tasks: list[asyncio.Task] = []
         self._selftest_req = False
+        self.mdns_req = True
 
     # ── Start / Stopp ───────────────────────────────────────────────────────
     async def start(self) -> None:
         self.settings.load()
+        self.check_password_reset()
         self.events.load()
         self.energy.load()
         self.history.load()
@@ -81,6 +93,7 @@ class EnergyOptimizer:
             loop.create_task(self.network_task(), name="network"),
             loop.create_task(self.notify.run(), name="notify"),
             loop.create_task(self.mqtt.run(), name="mqtt"),
+            loop.create_task(self.update_task(), name="updates"),
         ]
 
     async def stop(self) -> None:
@@ -90,10 +103,40 @@ class EnergyOptimizer:
         self.flush()
         if self.session:
             await self.session.close()
+        await self.mdns.close()
 
     def flush(self) -> None:
         self.energy.save()
         self.events.flush()
+
+    async def update_task(self) -> None:
+        # Eigene Aufgabe: eine langsame GitHub-Antwort darf die Regelung nie aufhalten.
+        while True:
+            if self.updates.due():
+                await self.updates.check(self.session)
+            await asyncio.sleep(30)
+
+    # ── Web-Passwort ────────────────────────────────────────────────────────
+    def set_web_password(self, pw: str) -> None:
+        self.settings.cfg["web_pass"] = pw
+        self.settings.save()
+        self.events.log(EV_CONFIG, -1, ER_MANUAL, True, "Web-Passwort festgelegt")
+        _LOGGER.info("[Auth] Web-Passwort festgelegt")
+
+    def check_password_reset(self) -> None:
+        path = os.path.join(self.data_dir, RESET_FLAG)
+        if not os.path.exists(path):
+            return
+        try:
+            os.remove(path)
+        except OSError as err:
+            _LOGGER.error("[Auth] %s konnte nicht gelöscht werden: %s", path, err)
+        if not self.settings.cfg["web_pass"]:
+            return
+        self.settings.cfg["web_pass"] = ""
+        self.settings.save()
+        self.events.log(EV_CONFIG, -1, ER_MANUAL, True, "Web-Passwort zurückgesetzt")
+        _LOGGER.warning("[Auth] Web-Passwort zurückgesetzt – beim nächsten Aufruf neu festlegen")
 
     # ── Einstellungen übernehmen ────────────────────────────────────────────
     def apply_settings(self, doc: dict, text: str | None = None) -> str:
@@ -104,6 +147,7 @@ class EnergyOptimizer:
         self.solar_refresh_req = True
         self.devices.poll_req = True
         self.devices.auto_eval_req = True
+        self.mdns_req = True
         return warn
 
     # ── Hauptschleife ───────────────────────────────────────────────────────
@@ -112,6 +156,7 @@ class EnergyOptimizer:
         last_tick = 0.0
         last_hist_slot = -1
         last_devs = 0.0
+        last_mdns = 0.0
         sl_was_ok = True
         sl_ever_ok = False
         while True:
@@ -187,7 +232,13 @@ class EnergyOptimizer:
                     self.energy.tick()
                     self.alarms.tick(sl_age, self.solar, self.sl_ok, self.devs)
                     self.sysinfo.sample()
+                    self.check_password_reset()
                     self.events.flush()
+
+                if self.mdns_req or now - last_mdns >= MDNS_CHECK_S:
+                    self.mdns_req = False
+                    last_mdns = now
+                    await self.mdns.update(cfg["hostname"])
 
                 if self._selftest_req:
                     self._selftest_req = False

@@ -1,8 +1,8 @@
-"""Einstellungen (settings.cpp + applyAndSave aus webserver.cpp).
+"""Einstellungen.
 
 Gespeichert wird als JSON in <data>/settings.json. Die Schlüssel entsprechen den
-Feldnamen der Web-API, damit Sicherungen der ESP32-Version (Export
-"energyoptimizer-config.json") direkt importiert werden können.
+Feldnamen der Web-API, damit exportierte Sicherungen ("energyoptimizer-config.json")
+direkt wieder importiert werden können.
 """
 
 from __future__ import annotations
@@ -12,12 +12,26 @@ import ipaddress
 import json
 import logging
 import os
+import re
 from typing import Any
 
 from . import sched
 from .const import MAX_EXT, MAX_SHELLY
 
 _LOGGER = logging.getLogger(__name__)
+
+DEFAULT_HOSTNAME = "energyoptimizer"
+MIN_PASSWORD_LEN = 6
+MAX_PASSWORD_LEN = 64
+_HOST_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+
+
+def normalize_hostname(name: str) -> str | None:
+    """Name im Netzwerk (ohne ".local"); None, wenn er kein gültiger DNS-Name ist."""
+    n = name.strip().lower()
+    if n.endswith(".local"):
+        n = n[:-6]
+    return n if _HOST_LABEL.match(n) else None
 
 
 def _shelly_default(i: int) -> dict[str, Any]:
@@ -37,7 +51,7 @@ def _ext_default(i: int) -> dict[str, Any]:
 
 def defaults() -> dict[str, Any]:
     return {
-        "web_pass": "",
+        "web_pass": "", "hostname": DEFAULT_HOSTNAME,
         "sl_ip": "192.168.0.81", "sl_port": 80, "sl_user": "", "sl_pass": "",
         "sl_fprod": "101", "sl_fcons": "110", "sl_fgrid": "",
         "sl_fyday": "105", "sl_fcday": "111", "sl_fytot": "109", "sl_fctot": "115",
@@ -132,7 +146,7 @@ def _is_str(v: Any) -> bool:
 
 
 def _as_int(v: Any) -> int:
-    """ArduinoJson as<int>(): Zahlen direkt, Zahl-Strings geparst, sonst 0."""
+    """Zahlen direkt, Zahl-Strings geparst, sonst 0."""
     if isinstance(v, bool):
         return int(v)
     if isinstance(v, (int, float)):
@@ -218,6 +232,9 @@ class SettingsStore:
             c["sl_pass"] = env["EO_SOLARLOG_PASSWORD"]
         if env.get("EO_WEB_PASSWORD"):
             c["web_pass"] = env["EO_WEB_PASSWORD"]
+        host = normalize_hostname(env.get("EO_HOSTNAME", ""))
+        if host:
+            c["hostname"] = host
 
     def save(self) -> bool:
         tmp = self.path + ".tmp"
@@ -251,7 +268,18 @@ class SettingsStore:
             return _is_str(doc.get(k)) and len(doc[k]) > 0
 
         if nonempty_str("web_pass"):
-            t["web_pass"] = doc["web_pass"]
+            if MIN_PASSWORD_LEN <= len(doc["web_pass"]) <= MAX_PASSWORD_LEN:
+                t["web_pass"] = doc["web_pass"]
+            else:
+                note("Web-Passwort nicht geändert",
+                     f"{MIN_PASSWORD_LEN} bis {MAX_PASSWORD_LEN} Zeichen erforderlich")
+        if _is_str(doc.get("hostname")):
+            host = normalize_hostname(doc["hostname"])
+            if host:
+                t["hostname"] = host
+            else:
+                note("Name im Netzwerk nicht übernommen",
+                     "nur Kleinbuchstaben, Ziffern und Bindestriche, höchstens 63 Zeichen")
         if _is_str(doc.get("sl_ip")) and host_looks_valid(doc["sl_ip"]):
             t["sl_ip"] = doc["sl_ip"]
         if has("sl_port"):
@@ -452,6 +480,7 @@ class SettingsStore:
     def export(self) -> dict[str, Any]:
         c = self.cfg
         doc: dict[str, Any] = {"eo_config": 1, "device": "energyoptimizer"}
+        doc["hostname"] = c["hostname"]
         for k in ("sl_ip", "sl_port", "sl_user", "sl_fprod", "sl_fcons", "sl_fgrid",
                   "sl_fyday", "sl_fcday", "sl_fytot", "sl_fctot", "sl_fsoc", "sl_fbatt",
                   "sl_poll_min", "sl_avg_s", "sl_fsafe", "batt_grd", "on_margin",

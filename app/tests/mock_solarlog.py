@@ -1,7 +1,7 @@
 """Nachbau des Solar-Log-Verhaltens, wie ha-advanced-solarlog es erwartet.
 
 * /getjp nimmt nur text/html mit X-SL-CSRF-PROTECTION an (application/json → 400,
-  genau das, woran die ESP32-Abfrage mit Passwort scheiterte),
+  so scheitert eine Abfrage mit Basic-Auth),
 * 801/170 ist offen, 858/740/782 verlangen eine Sitzung,
 * /login kennt nur das Konto "installer" und verlangt das Passwort bcrypt-gehasht.
 """

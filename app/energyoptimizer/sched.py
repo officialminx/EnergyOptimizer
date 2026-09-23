@@ -1,4 +1,4 @@
-"""Zeitschaltuhr-Programme (sched_prog.cpp).
+"""Zeitschaltuhr-Programme.
 
 Ein Programm ist [start_min, end_min, days, enabled]: Minuten seit Mitternacht,
 Wochentagsmaske (Bit0 = Montag … Bit6 = Sonntag) und ob es aktiv ist. Endet ein

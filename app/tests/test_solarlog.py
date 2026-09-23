@@ -79,7 +79,7 @@ async def test_devices_and_names(server):
 
 
 async def test_wrong_content_type_is_rejected_by_mock(server):
-    # Gegenprobe: so hat die ESP32-Firmware gefragt – der Solar-Log lehnt ab.
+    # Gegenprobe: JSON mit Basic-Auth lehnt der Solar-Log ab.
     async with aiohttp.ClientSession() as s:
         async with s.post(f"http://{server.host}:{server.port}/getjp", data='{"801":{"170":null}}',
                           headers={"Content-Type": "application/json"}) as r:

@@ -1,4 +1,4 @@
-"""Benachrichtigungen über ntfy und Heartbeat (notify.cpp)."""
+"""Benachrichtigungen über ntfy und Heartbeat."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Energiezähler (energy.cpp).
+"""Energiezähler.
 
 Produktion und Verbrauch kommen als native Zählerstände vom Solar-Log; Netzbezug
 und Einspeisung werden aus der Netzleistung integriert (Zeitschritt gedeckelt auf
@@ -170,6 +170,6 @@ class Energy:
             _LOGGER.info("[Energy] Neuer Tag – Tageszähler zurückgesetzt")
             self.save()
             return
-        # Im Container ist Schreiben billig: alle 5 Minuten statt stündlich (NVS-Schonung).
+        # Alle 5 Minuten sichern: nach einem Stromausfall fehlen höchstens ein paar Minuten.
         if self.dirty and CLOCK.mono() - self.last_save >= 300:
             self.save()

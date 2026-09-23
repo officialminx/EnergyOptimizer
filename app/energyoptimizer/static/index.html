@@ -82,15 +82,20 @@ body{
   background:var(--topbar-bg);border-bottom:1px solid var(--line2);
   padding:max(8px,env(safe-area-inset-top)) clamp(14px,4vw,40px) 8px;}
 .topbar-in{max-width:1160px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
-.brand{display:flex;align-items:center;gap:9px}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
 .brand-mark{width:34px;height:34px;border-radius:11px;flex-shrink:0;background:var(--grad);
   display:grid;place-items:center;box-shadow:0 4px 12px -2px rgba(10,132,255,.4)}
 .brand-mark svg{width:20px;height:20px;color:#fff;animation:spin 24s linear infinite}
-.brand h1{font-size:1rem;font-weight:800;letter-spacing:-.02em;
+.brand h1{font-size:1rem;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   background:linear-gradient(95deg,#0a84ff,#0fa6b0);-webkit-background-clip:text;background-clip:text;color:transparent}
 .status-chip{display:flex;align-items:center;gap:7px;background:var(--chip-bg);
   border:1px solid var(--line);border-radius:100px;padding:5px 11px;box-shadow:var(--shadow)}
 .status-chip #ts{font-size:.78rem;font-weight:600;color:var(--ink2)}
+.topbar-r{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto}
+@media(max-width:420px){#btn-kiosk{display:none}.status-chip{padding:5px 9px}.brand h1{font-size:.95rem}}
+a.btn{text-decoration:none;display:flex;align-items:center;justify-content:center}
+.g2 label.btn{display:flex;align-items:center;justify-content:center;gap:7px;align-self:stretch}
+.g2 a.btn{text-align:center}
 .theme-btn .i-moon{display:none}
 :root[data-theme="dark"] .theme-btn .i-sun{display:none}
 :root[data-theme="dark"] .theme-btn .i-moon{display:block}
@@ -445,8 +450,10 @@ input:checked+.sl:before{transform:translateX(18px)}
 /* ── Sticky Speichern-Leiste (nur wenn geaendert) ─────────────────────────── */
 .savebar{position:fixed;left:0;right:0;z-index:90;pointer-events:none;
   bottom:calc(64px + env(safe-area-inset-bottom));padding:0 clamp(12px,4vw,36px);
-  transform:translateY(150%);transition:transform .28s cubic-bezier(.22,1,.36,1)}
-.savebar.on{transform:none;pointer-events:auto}
+  transform:translateY(150%);opacity:0;visibility:hidden;
+  transition:transform .28s cubic-bezier(.22,1,.36,1),opacity .2s,visibility 0s .28s}
+.savebar.on{transform:none;pointer-events:auto;opacity:1;visibility:visible;
+  transition:transform .28s cubic-bezier(.22,1,.36,1),opacity .2s}
 .savebar-in{max-width:1160px;margin:auto;display:flex;align-items:center;gap:12px;
   padding:9px 10px 9px 16px;border-radius:17px;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--shadow)}
@@ -513,6 +520,10 @@ details.coll.sub .det-body{padding:0 14px 14px}
 .alarm-ack{flex-shrink:0;border:1px solid var(--line);background:var(--card2);color:var(--ink2);
   border-radius:9px;padding:6px 11px;font-family:inherit;font-size:.72rem;font-weight:800;cursor:pointer}
 .alarm-ack:active{transform:scale(.95)}
+.alarm.upd{border-left-color:var(--blue)}
+.alarm.upd .alarm-i{background:rgba(10,132,255,.13);color:var(--blue)}
+.alarm.upd a{color:var(--blue);font-weight:800;text-decoration:none}
+.alarm.upd code{font-size:.7rem;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:1px 5px}
 /* Badge sitzt am Icon, nicht am Kastenmittelpunkt */
 .nav-badge{position:absolute;top:4px;left:50%;margin-left:5px;min-width:17px;height:17px;padding:0 4px;
   border-radius:100px;background:var(--red);color:#fff;font-size:.6rem;font-weight:800;
@@ -732,6 +743,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
       <div class="brand-mark"><svg><use href="#i-sun"/></svg></div>
       <h1>EnergyOptimizer</h1>
     </div>
+    <div class="topbar-r">
     <div class="status-chip">
       <svg width="13" height="13" style="color:var(--ink3)"><use href="#i-clock"/></svg>
       <span id="ts" class="tnum">--:--</span>
@@ -744,10 +756,17 @@ details.coll.sub .det-body{padding:0 14px 14px}
       <svg class="i-sun"><use href="#i-sun"/></svg>
       <svg class="i-moon"><use href="#i-moon"/></svg>
     </button>
+    </div>
   </div>
 </div>
 
 <div class="page active" id="page-dash">
+  <div class="alarm upd" id="upd-banner" style="display:none">
+    <div class="alarm-i"><svg><use href="#i-refresh"/></svg></div>
+    <div class="alarm-b"><div class="alarm-t" id="upd-t">Update verf&uuml;gbar</div>
+      <div class="alarm-d">Auf dem Server: <code>docker compose pull &amp;&amp; docker compose up -d</code> &middot; <a id="upd-link" href="#" target="_blank" rel="noopener">Was ist neu?</a></div></div>
+    <button type="button" class="alarm-ack" onclick="updDismiss()">Sp&auml;ter</button>
+  </div>
   <div class="alarms" id="alarms" style="display:none"></div>
   <div class="sline idle" id="sline">
     <div class="sline-ico"><svg><use href="#i-bolt"/></svg></div>
@@ -1061,14 +1080,14 @@ details.coll.sub .det-body{padding:0 14px 14px}
   <div class="set-idx">
     <div class="set-grp">Anlage</div>
     <div class="set-list">
-      <button type="button" class="set-row active" data-set="ctrl"><span class="set-ico"><svg><use href="#i-sliders"/></svg></span>
+      <button type="button" class="set-row active" data-set="solarlog"><span class="set-ico"><svg><use href="#i-server"/></svg></span>
+        <span class="set-tx"><span class="set-t">SolarLog</span><span class="set-s">Verbindung, Datenfelder, Fail-Safe</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+      <button type="button" class="set-row" data-set="ctrl"><span class="set-ico"><svg><use href="#i-sliders"/></svg></span>
         <span class="set-tx"><span class="set-t">Steuerung</span><span class="set-s">Puffer, Hysterese, Sperrzeiten, Nachlauf</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
-      <button type="button" class="set-row" data-set="solarlog"><span class="set-ico"><svg><use href="#i-server"/></svg></span>
-        <span class="set-tx"><span class="set-t">SolarLog</span><span class="set-s">Verbindung, Datenfelder, Fail-Safe, Diagnose</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="prices"><span class="set-ico"><svg><use href="#i-coin"/></svg></span>
         <span class="set-tx"><span class="set-t">Strompreise</span><span class="set-s">Bezug, Einspeisung, Grundpreis</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
-    <div class="set-grp">Meldungen</div>
+    <div class="set-grp">Meldungen &amp; Integrationen</div>
     <div class="set-list">
       <button type="button" class="set-row" data-set="notify"><span class="set-ico"><svg><use href="#i-bell"/></svg></span>
         <span class="set-tx"><span class="set-t">Benachrichtigungen</span><span class="set-s">ntfy-Push, Ruhezeit, Heartbeat</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
@@ -1077,12 +1096,18 @@ details.coll.sub .det-body{padding:0 14px 14px}
       <button type="button" class="set-row" data-set="mqtt"><span class="set-ico"><svg><use href="#i-chip"/></svg></span>
         <span class="set-tx"><span class="set-t">MQTT / Home Assistant</span><span class="set-s">Broker, Discovery</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
-    <div class="set-grp">Ger&auml;t</div>
+    <div class="set-grp">System</div>
     <div class="set-list">
+      <button type="button" class="set-row" data-set="net"><span class="set-ico"><svg><use href="#i-server"/></svg></span>
+        <span class="set-tx"><span class="set-t">Netzwerk</span><span class="set-s">Name im Netzwerk, Adresse</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="sec"><span class="set-ico"><svg><use href="#i-shield"/></svg></span>
         <span class="set-tx"><span class="set-t">Sicherheit</span><span class="set-s">Web-Passwort, Abmelden</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+      <button type="button" class="set-row" data-set="data"><span class="set-ico"><svg><use href="#i-save"/></svg></span>
+        <span class="set-tx"><span class="set-t">Daten &amp; Sicherung</span><span class="set-s">Konfiguration, Langzeit-Verlauf, Import</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="sys"><span class="set-ico"><svg><use href="#i-tool"/></svg></span>
-        <span class="set-tx"><span class="set-t">System &amp; Wartung</span><span class="set-s">Diagnose, Selbsttest, Sicherung, CSV, Update</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <span class="set-tx"><span class="set-t">Diagnose</span><span class="set-s">Systemzustand, Selbsttest, Neustart</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+      <button type="button" class="set-row" data-set="about"><span class="set-ico"><svg><use href="#i-refresh"/></svg></span>
+        <span class="set-tx"><span class="set-t">Update &amp; Info</span><span class="set-s">Version, Updates, Projekt</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
     <div class="set-grp">Weiterentwicklung</div>
     <div class="set-list">
@@ -1094,7 +1119,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
   <div class="set-panes">
   <form id="sf" style="display:contents">
 
-    <div class="pane active" data-pane="ctrl">
+    <div class="pane" data-pane="ctrl">
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Steuerung</div></div>
       <div class="card">
         <div class="g2">
@@ -1145,7 +1170,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
       </div>
     </div>
 
-    <div class="pane" data-pane="solarlog">
+    <div class="pane active" data-pane="solarlog">
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">SolarLog</div></div>
       <div class="card">
         <label>IP-Adresse<i class="ib" data-i="slip"></i></label><input type="text" name="sl_ip" id="f-sl-ip">
@@ -1278,7 +1303,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
         <div class="card-h"><div class="card-t"><svg><use href="#i-clock"/></svg>Heartbeat (Dead-Man-Switch)<i class="ib" data-i="hb"></i></div></div>
         <div class="ip" data-i="hb">Das Ger&auml;t meldet sich regelm&auml;ssig bei einem externen Dienst (z.&nbsp;B. healthchecks.io).
           Bleibt das Lebenszeichen aus, alarmiert <b>der Dienst</b> &ndash; nur so f&auml;llt auch ein Stromausfall
-          oder ein h&auml;ngender ESP32 auf, bei dem das Ger&auml;t selbst nichts mehr senden kann.</div>
+          oder ein h&auml;ngender Server auf, der selbst nichts mehr senden kann.</div>
         <div class="trow"><label class="tgl"><input type="checkbox" name="hb_en" id="f-hb-en"><span class="sl"></span></label><span class="auto-lbl">Heartbeat aktiv</span></div>
         <label>Ping-URL <small>(leer = unver&auml;ndert, &bdquo;-&ldquo; l&ouml;scht)</small></label>
         <input type="text" name="hb_url" id="f-hb-url" placeholder="https://hc-ping.com/&lt;uuid&gt;" autocomplete="off">
@@ -1344,83 +1369,94 @@ details.coll.sub .det-body{padding:0 14px 14px}
       </div>
     </div>
 
+    <div class="pane" data-pane="net">
+      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Netzwerk</div></div>
+      <div class="card">
+        <label>Name im Netzwerk<i class="ib" data-i="host"></i></label>
+        <div style="display:flex;align-items:center;gap:8px"><input type="text" name="hostname" id="f-hostname" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="63" placeholder="energyoptimizer" style="flex:1"><span style="color:var(--ink2);font-weight:600">.local</span></div>
+        <div class="ip" data-i="host">Unter diesem Namen ist die Oberfl&auml;che im Heimnetz erreichbar, z.&nbsp;B.
+          <b>http://energyoptimizer.local</b>. Erlaubt sind Kleinbuchstaben, Ziffern und Bindestriche.
+          L&auml;uft noch ein anderes Ger&auml;t unter demselben Namen, hier einen anderen w&auml;hlen.
+          Von unterwegs (z.&nbsp;B. &uuml;ber Tailscale) gilt stattdessen der Name des Servers im VPN.</div>
+      </div>
+    </div>
+
     <div class="pane" data-pane="sec">
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Sicherheit</div></div>
       <div class="card">
         <label>Web-Interface Passwort <small>(leer = unver&auml;ndert)</small><i class="ib" data-i="pw"></i></label><input type="password" name="web_pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="new-password">
-        <div class="ip" data-i="pw">Sch&uuml;tzt die gesamte Oberfl&auml;che; der Benutzername ist immer
-          <b>admin</b>. Solange kein Passwort gesetzt ist, kann jeder im Netz die Anlage schalten &ndash;
-          und das <b>Firmware-Update ist gesperrt</b>, es verlangt zwingend ein Passwort. Vergessene
-          Passw&ouml;rter lassen sich nur &uuml;ber USB zur&uuml;cksetzen (NVS l&ouml;schen), nicht &uuml;ber
-          das Netz.</div>
+        <div class="ip" data-i="pw">Sch&uuml;tzt die gesamte Oberfl&auml;che (6 bis 64 Zeichen); f&uuml;r
+          Skripte mit Basic-Auth ist der Benutzername <b>admin</b>. Nach einer &Auml;nderung m&uuml;ssen sich
+          alle Ger&auml;te neu anmelden. Passwort vergessen? Auf dem Server
+          <code>docker compose exec energyoptimizer python -m energyoptimizer reset-password</code>
+          ausf&uuml;hren und danach ein neues Passwort festlegen.</div>
         <button type="button" class="btn boff" style="width:100%;margin-top:12px" onclick="doLogout()"><svg><use href="#i-power"/></svg>Abmelden</button>
       </div>
     </div>
 
     <div class="pane" data-pane="sys">
-      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">System &amp; Wartung</div></div>
+      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Diagnose</div></div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-chip"/></svg>Diagnose<i class="ib" data-i="diag"></i></div></div>
-        <div class="ip" data-i="diag">Der Gesundheitszustand des ESP32. <b>Heap</b> ist der freie
-          Arbeitsspeicher &ndash; er schwankt im Betrieb, sollte aber &uuml;ber Tage nicht stetig fallen;
-          <b>Min. Heap</b> ist der tiefste je erreichte Wert seit dem Start. <b>Uptime</b> und
-          <b>Starts/Abst&uuml;rze</b> zeigen, ob das Ger&auml;t durchl&auml;uft. <b>NVS</b> ist der kleine
-          Einstellungsspeicher; l&auml;uft er voll, lassen sich Einstellungen nicht mehr sichern.
-          Nach einem Absturz erscheint hier zus&auml;tzlich das Absturzabbild zum Herunterladen.</div>
+        <div class="ip" data-i="diag">Der Zustand des Servers, auf dem EnergyOptimizer l&auml;uft.
+          <b>Arbeitsspeicher</b> schwankt im Betrieb, sollte aber &uuml;ber Tage nicht stetig sinken.
+          <b>Datenspeicher</b> ist der freie Platz im Datenordner (Einstellungen, Verlauf, Protokoll);
+          l&auml;uft er voll, lassen sich keine Daten mehr sichern. <b>CPU</b> ist die Last des ganzen
+          Systems, <b>App</b> der Anteil von EnergyOptimizer.</div>
         <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--ink2);margin:5px 0;font-weight:600">
-          <span>Heap-Speicher</span><span id="sys-heap-txt" class="tnum">-- / --</span>
+          <span>Arbeitsspeicher</span><span id="sys-mem-txt" class="tnum">-- / --</span>
         </div>
-        <div class="heap-track"><div id="sys-heap-bar" class="heap-fill" style="width:0%;background:var(--green)"></div></div>
+        <div class="heap-track"><div id="sys-mem-bar" class="heap-fill" style="width:0%;background:var(--green)"></div></div>
         <div class="stat-grid" style="margin-top:12px">
-          <div class="stat"><small>Core 0</small><span class="val tnum" id="sys-cpu0" style="font-size:1.2rem">--<span class="unit">%</span></span></div>
-          <div class="stat"><small>Core 1</small><span class="val tnum" id="sys-cpu1" style="font-size:1.2rem">--<span class="unit">%</span></span></div>
+          <div class="stat"><small>CPU</small><span class="val tnum" id="sys-cpu" style="font-size:1.2rem">--<span class="unit">%</span></span></div>
+          <div class="stat"><small>App</small><span class="val tnum" id="sys-proc" style="font-size:1.2rem">--<span class="unit">%</span></span></div>
           <div class="stat"><small>Temperatur</small><span class="val tnum" id="sys-temp" style="font-size:1.2rem">--<span class="unit">&deg;C</span></span></div>
         </div>
         <div class="stat-grid" style="margin-top:10px">
-          <div class="stat"><small>Uptime</small><span class="val tnum" id="sys-uptime" style="font-size:1rem">--</span></div>
-          <div class="stat"><small>Min. Heap</small><span class="val tnum" id="sys-minheap" style="font-size:1rem">--</span></div>
-          <div class="stat"><small>Ethernet</small><span class="val tnum" id="sys-eth" style="font-size:1rem">--</span></div>
-        </div>
-        <div class="stat-grid" style="margin-top:10px;grid-template-columns:repeat(2,1fr)">
+          <div class="stat"><small>Laufzeit</small><span class="val tnum" id="sys-uptime" style="font-size:1rem">--</span></div>
           <div class="stat"><small>Starts</small><span class="val tnum" id="sys-boots" style="font-size:1rem">--</span></div>
-          <div class="stat"><small>davon Abst&uuml;rze</small><span class="val tnum" id="sys-crashes" style="font-size:1rem">--</span></div>
+          <div class="stat"><small>Version</small><span class="val tnum" id="sys-ver" style="font-size:1rem">--</span></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--ink2);margin:14px 0 5px;font-weight:600">
-          <span>Einstellungsspeicher (NVS)</span><span id="sys-nvs-txt" class="tnum">--</span>
+          <span>Datenspeicher</span><span id="sys-disk-txt" class="tnum">--</span>
         </div>
-        <div class="heap-track"><div id="sys-nvs-bar" class="heap-fill" style="width:0%;background:var(--green)"></div></div>
-        <div class="hint" id="sys-rst" style="margin-top:10px">Letzter Start: &ndash;</div>
-        <div class="hint" id="sys-lastcrash" style="display:none;color:var(--orange)"></div>
-        <div class="hint" id="sys-core" style="display:none;margin-top:10px">
-          <span id="sys-core-t"></span>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button type="button" class="btn bscan" style="width:auto;padding:9px 14px" onclick="dlCore()"><svg><use href="#i-save"/></svg>Abbild herunterladen</button>
-            <button type="button" class="btn boff" style="width:auto;padding:9px 14px" onclick="clearCore()">Verwerfen</button>
-          </div>
-        </div>
-        <div class="hint" id="sys-nvs-err" style="display:none;color:var(--red);margin-top:10px">
-          &#9888; Speicherfehler: Einstellungen konnten nicht ins NVS geschrieben werden (Partition voll oder defekt). Details im Serial-Log.
+        <div class="heap-track"><div id="sys-disk-bar" class="heap-fill" style="width:0%;background:var(--green)"></div></div>
+        <div class="hint" id="sys-net" style="margin-top:10px">Adresse: &ndash;</div>
+        <div class="hint" id="sys-save-err" style="display:none;color:var(--red);margin-top:10px">
+          &#9888; Speicherfehler: Einstellungen konnten nicht gespeichert werden (Datenordner voll oder schreibgesch&uuml;tzt). Details im Container-Log.
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><div class="card-t"><svg><use href="#i-check"/></svg>Selbsttest &amp; Sicherung<i class="ib" data-i="st"></i></div></div>
+        <div class="card-h"><div class="card-t"><svg><use href="#i-check"/></svg>Selbsttest<i class="ib" data-i="st"></i></div></div>
         <div class="ip" data-i="st">Pr&uuml;ft Netzwerk, Uhrzeit, SolarLog, jede Steckdose, Dateisystem, MQTT und die
           Alarmierung in einem Durchlauf. Dauert einige Sekunden, weil dabei wirklich abgefragt wird &ndash;
           nicht nur der zuletzt bekannte Zustand angezeigt.</div>
         <button type="button" class="btn bscan" style="width:100%" onclick="runSelftest()"><svg><use href="#i-check"/></svg>Selbsttest starten</button>
         <div id="st-list" style="margin-top:10px"></div>
-        <div class="subhead">
-          <div class="subhead-t"><svg><use href="#i-save"/></svg>Konfiguration sichern<i class="ib" data-i="cfg"></i></div>
-          <div class="ip" data-i="cfg">Alle Einstellungen als JSON-Datei. <b>Passw&ouml;rter, der ntfy-Topic und die
-            Heartbeat-URL sind bewusst nicht enthalten</b> &ndash; solche Dateien landen erfahrungsgem&auml;ss
-            in Backups und Chats.
-            Der Import durchl&auml;uft dieselbe Pr&uuml;fung wie das normale Speichern.</div>
-          <div class="g2">
-            <button type="button" class="btn bscan" onclick="cfgExport()"><svg><use href="#i-save"/></svg>Exportieren</button>
-            <label class="btn bscan" style="cursor:pointer">Importieren<input type="file" id="cfg-file" accept=".json,application/json" style="display:none" onchange="cfgImport()"></label>
-          </div>
-          <div class="hint" id="cfg-msg" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t"><svg><use href="#i-power"/></svg>Neustart<i class="ib" data-i="rst"></i></div></div>
+        <div class="ip" data-i="rst">Startet EnergyOptimizer neu &ndash; Einstellungen, Verlauf und Z&auml;hler
+          bleiben erhalten. Die Steckdosen schalten dabei nicht ab; sie behalten ihren Zustand, bis die
+          Automatik nach etwa einer Minute wieder greift.</div>
+        <button type="button" class="btn brestart" onclick="doRestart()"><svg><use href="#i-power"/></svg>Neu starten</button>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="data">
+      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Daten &amp; Sicherung</div></div>
+      <div class="card">
+        <div class="card-h"><div class="card-t"><svg><use href="#i-save"/></svg>Konfiguration sichern<i class="ib" data-i="cfg"></i></div></div>
+        <div class="ip" data-i="cfg">Alle Einstellungen als JSON-Datei. <b>Passw&ouml;rter, der ntfy-Topic und die
+          Heartbeat-URL sind bewusst nicht enthalten</b> &ndash; solche Dateien landen erfahrungsgem&auml;ss
+          in Backups und Chats.
+          Der Import durchl&auml;uft dieselbe Pr&uuml;fung wie das normale Speichern.</div>
+        <div class="g2">
+          <button type="button" class="btn bscan" onclick="cfgExport()"><svg><use href="#i-save"/></svg>Exportieren</button>
+          <label class="btn bscan" style="cursor:pointer"><svg><use href="#i-plus"/></svg>Importieren<input type="file" id="cfg-file" accept=".json,application/json" style="display:none" onchange="cfgImport()"></label>
         </div>
+        <div class="hint" id="cfg-msg" style="margin-top:8px"></div>
+
       </div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-chart"/></svg>Langzeit-Verlauf (CSV)<i class="ib" data-i="dl"></i></div></div>
@@ -1450,21 +1486,31 @@ details.coll.sub .det-body{padding:0 14px 14px}
           <span id="daily-upload-status"></span>
         </div>
       </div>
-      <div class="card">
-        <div class="card-h"><div class="card-t"><svg><use href="#i-refresh"/></svg>Firmware-Update (OTA)<i class="ib" data-i="ota"></i></div></div>
-        <div class="ip" data-i="ota">W&auml;hle eine <code>firmware.bin</code> und starte das Update &ndash; das Ger&auml;t startet danach automatisch neu. Einstellungen bleiben erhalten. <b>Erfordert ein gesetztes Web-Passwort.</b></div>
-        <input type="file" id="fw-file" accept=".bin" style="margin-bottom:10px">
-        <button type="button" class="btn bsave" onclick="doUpdate()"><svg><use href="#i-refresh"/></svg>Hochladen &amp; installieren</button>
-      </div>
-      <div class="card">
-        <div class="card-h"><div class="card-t"><svg><use href="#i-power"/></svg>Neustart<i class="ib" data-i="rst"></i></div></div>
-        <div class="ip" data-i="rst">Startet nur den ESP32 neu &ndash; Einstellungen, Verlauf und Z&auml;hler
-          bleiben erhalten. Die Steckdosen schalten dabei nicht ab; sie behalten ihren Zustand, bis die
-          Automatik nach etwa einer Minute wieder greift.</div>
-        <button type="button" class="btn brestart" onclick="doRestart()"><svg><use href="#i-power"/></svg>ESP32 Neu starten</button>
-      </div>
     </div>
 
+    <div class="pane" data-pane="about">
+      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Update &amp; Info</div></div>
+      <div class="card">
+        <div class="card-h"><div class="card-t"><svg><use href="#i-refresh"/></svg>Update<i class="ib" data-i="upd"></i></div></div>
+        <div class="ip" data-i="upd">Neue Versionen kommen als Docker-Image. Einstellungen, Verlauf und Z&auml;hler liegen im Datenordner und bleiben erhalten.</div>
+        <div class="hint" id="upd-state" style="margin-bottom:8px">Version: &ndash;</div>
+        <div class="hint">Auf dem Server im Ordner der <code>docker-compose.yml</code>:<br><code>docker compose pull &amp;&amp; docker compose up -d</code></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t"><svg><use href="#i-bulb"/></svg>&Uuml;ber EnergyOptimizer</div></div>
+        <div class="hint" style="line-height:1.55">Schaltet Verbraucher automatisch mit dem Solar&uuml;berschuss &ndash;
+          f&uuml;r Solar-Log-Anlagen mit Shelly-Steckdosen und MQTT-Schaltern.</div>
+        <div class="stat-grid" style="margin-top:12px;grid-template-columns:repeat(2,1fr)">
+          <div class="stat"><small>Version</small><span class="val tnum" id="about-ver" style="font-size:1rem">--</span></div>
+          <div class="stat"><small>Build</small><span class="val tnum" id="about-build" style="font-size:1rem">--</span></div>
+        </div>
+        <div class="g2" style="margin-top:12px">
+          <a class="btn bscan" href="https://github.com/officialminx/energyoptimizer" target="_blank" rel="noopener">Projekt auf GitHub</a>
+          <a class="btn bscan" href="https://github.com/officialminx/energyoptimizer/issues" target="_blank" rel="noopener">Problem melden</a>
+        </div>
+        <div class="hint" style="margin-top:10px;text-align:center">Lizenz: Apache 2.0</div>
+      </div>
+    </div>
   </form>
 
   <!-- Bewusst AUSSERHALB von #sf: die Notizen werden einzeln sofort gespeichert
@@ -1474,9 +1520,9 @@ details.coll.sub .det-body{padding:0 14px 14px}
     <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Verbesserungen</div></div>
     <div class="card">
       <div class="card-h"><div class="card-t"><svg><use href="#i-bulb"/></svg>Ideen &amp; offene Punkte<i class="ib" data-i="idea"></i></div></div>
-      <div class="ip" data-i="idea">Was am Ger&auml;t auff&auml;llt, hier notieren &ndash; die Liste bleibt &uuml;ber Neustart und
-        Firmware-Update erhalten und l&auml;sst sich als Markdown-Datei herunterladen, um die Punkte
-        anschliessend in die Firmware einzubauen. Jede Notiz wird beim Speichern sofort
+      <div class="ip" data-i="idea">Was im Betrieb auff&auml;llt, hier notieren &ndash; die Liste bleibt &uuml;ber Neustarts und
+        Updates erhalten und l&auml;sst sich als Markdown-Datei herunterladen, etwa als Vorlage f&uuml;r ein
+        GitHub-Issue. Jede Notiz wird beim Speichern sofort
         &uuml;bernommen (nicht &uuml;ber die Speicherleiste unten).</div>
       <button type="button" class="btn bscan" style="width:100%" onclick="ideaNew()"><svg><use href="#i-plus"/></svg>Neue Verbesserung</button>
       <div class="msg msg-err" id="idea-msg"></div>
@@ -1525,8 +1571,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
     </div>
     <div class="card">
       <div class="card-h"><div class="card-t"><svg><use href="#i-save"/></svg>F&uuml;r die Umsetzung abholen<i class="ib" data-i="ideaex"></i></div></div>
-      <div class="ip" data-i="ideaex">Die Liste als Markdown-Datei &ndash; genau das Format, das beim Umbau der Firmware
-        gelesen wird. Ohne Download geht es auch direkt &uuml;ber
+      <div class="ip" data-i="ideaex">Die Liste als Markdown-Datei, bereit zum Einf&uuml;gen in ein Issue oder eine Notiz. Ohne Download geht es auch direkt &uuml;ber
         <code>/api/ideas</code> (JSON) bzw. <code>/api/ideas/export</code> (Markdown).</div>
       <button type="button" class="btn bscan" style="width:100%" onclick="ideaExport()"><svg><use href="#i-save"/></svg>Als Markdown herunterladen</button>
     </div>
@@ -1782,7 +1827,7 @@ function setTo(sec){
   // Das Import-Diagramm liegt in dieser Pane und war bis eben ausgeblendet. Die
   // Tageswerte dazu holt sonst nur die Verlaufsseite – ohne den Abruf hier blieb das
   // Diagramm leer, wenn man direkt in die Einstellungen ging.
-  if(sec==='sys'){fetchDailyHistory();drawDailyChart();}
+  if(sec==='data'){fetchDailyHistory();drawDailyChart();}
   // Die Notizen hängen an keinem Status-Poll – beim Öffnen einmal holen.
   if(sec==='ideas')ideaLoad();
   scrollTo(0,0);
@@ -3042,6 +3087,19 @@ function uploadDailyCsv(){
   inp.value='';
 }
 var pollFails=0;
+// Hinweis auf eine neue Version. "Später" blendet ihn nur für genau diese Version aus.
+function updDismissed(v){try{return localStorage.getItem('upd-dismiss')===v;}catch(e){return false;}}
+function updDismiss(){
+  var u=lastSt&&lastSt.update;if(!u)return;
+  try{localStorage.setItem('upd-dismiss',u.latest);}catch(e){}
+  $('upd-banner').style.display='none';
+}
+function updateBanner(u){
+  var b=$('upd-banner');if(!b)return;
+  var show=!!(u&&u.available&&!updDismissed(u.latest));
+  if(show){setTxt('upd-t','Version '+u.latest+' ist verfügbar');$('upd-link').href=u.url||'#';}
+  b.style.display=show?'flex':'none';
+}
 function poll(){
   api('/api/status').then(function(d){
     pollFails=0;lastSt=d;
@@ -3065,6 +3123,7 @@ function poll(){
     renderExt(d.ext||[]);
     updateStatusLine(d);
     syncAlarms(d);
+    updateBanner(d.update);
     updateKiosk(d);
     var lm={connected:{cls:'green'},wifi_connecting:{cls:'blue'},disconnected:{cls:'red'},scan:{cls:'blue'},off:{cls:'off'}};
     var ls=lm[d.led]||lm.off;
@@ -3085,7 +3144,7 @@ function poll(){
 }
 // Die Hysterese ist als Dauer eingestellt, gezaehlt wird aber in Abfragen - die
 // Bewertung laeuft nur nach einer SolarLog-Abfrage. Der Hinweis rechnet beides
-// gegeneinander auf (gleiche Aufrundung wie hyst_ticks() in der Firmware), damit
+// gegeneinander auf (gleiche Aufrundung wie hyst_ticks() im Server), damit
 // sichtbar ist, was ein geaendertes Intervall aus der Einstellung macht.
 function hystTicks(secs,pollMin){
   var ps=Math.max(60,(pollMin||1)*60);
@@ -3158,7 +3217,9 @@ function loadCfg(c){
   $('f-mq-user').value=c.mq_user||'';
   $('f-mq-pfx').value=c.mq_pfx||'energyoptimizer';
   $('f-mq-disc').checked=c.mq_disc!==false;
-  $('ipnote').innerHTML='IP: <b>'+c.ip+'</b> &nbsp;|&nbsp; <b>http://'+c.ip+'/</b>';
+  $('f-hostname').value=c.hostname||'energyoptimizer';
+  var pt=location.port?':'+location.port:'';
+  $('ipnote').innerHTML='<b>http://'+esc(c.hostname||'energyoptimizer')+'.local'+pt+'</b> &nbsp;|&nbsp; IP <b>'+esc(c.ip)+pt+'</b>';
   setBaseline();
 }
 var devOvIdx=null,devOvId='';
@@ -3200,7 +3261,7 @@ function openDevOv(idx,prefill,kind){
 }
 // ── Zeitschaltuhr-Editor ─────────────────────────────────────────────────────
 // Serverformat je Programm: "start,ende,tage,aktiv" (Minuten seit Mitternacht),
-// Programme durch Semikolon getrennt – identisch in NVS, /api/status (Abschnitt cfg) und der Sicherung.
+// Programme durch Semikolon getrennt – identisch in settings.json, /api/status (Abschnitt cfg) und der Sicherung.
 var MAX_SCHED_UI=4;
 // Die Programme stehen als Liste im Dialog, nicht als vier feste Zeilen: hinzugefügt
 // und gelöscht wird per Knopf. schList ist dabei die Wahrheit, das Formular nur ihre
@@ -3511,14 +3572,14 @@ function renderExt(list){
   list.forEach(updateExt);
 }
 function doRestart(){
-  if(confirm('ESP32 wirklich neu starten?'))
+  if(confirm('EnergyOptimizer wirklich neu starten?'))
     api('/api/restart',{method:'POST'}).then(function(){setTimeout(function(){location.reload();},6000);});
 }
 function doLogout(){
   var go=function(){location.replace('/');};
   api('/api/logout',{method:'POST'}).then(go).catch(go);
 }
-function fmtSize(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' kB';}
+function fmtSize(b){return b>=1073741824?(b/1073741824).toFixed(1)+' GB':b>=1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' kB';}
 function dlLoadStats(){
   var el=$('dl-stats'),wl=$('dl-warn');if(!el)return;
   api('/api/history/stats').then(function(d){
@@ -3535,50 +3596,9 @@ function dlLoadStats(){
   }).catch(function(){el.textContent='Nicht verfügbar.';});
 }
 function dlExport(){location.href='/api/history/export';}
-function dlCore(){location.href='/api/coredump';}
-function clearCore(){
-  if(!confirm('Absturz-Abbild verwerfen? Ohne die Datei lässt sich der Absturz nachträglich nicht mehr auswerten – vorher herunterladen!'))return;
-  api('/api/coredump/erase',{method:'POST'}).then(function(){pollSys();}).catch(function(){});
-}
 function dlClear(){
   if(!confirm('Gesamten Langzeit-Verlauf wirklich unwiderruflich löschen? Vorher exportieren nicht vergessen!'))return;
   api('/api/history/clear',{method:'POST'}).then(function(){dlLoadStats();});
-}
-function doUpdate(){
-  var fi=$('fw-file');
-  if(!fi.files||!fi.files.length){alert('Bitte zuerst eine .bin-Datei wählen.');return;}
-  if(!confirm('Firmware jetzt einspielen? Das Gerät startet danach neu.'))return;
-  var fd=new FormData();fd.append('update',fi.files[0]);
-  // Roher XHR statt fetch(), weil nur XHR den Upload-Fortschritt liefert. Basic-Auth
-  // und Origin-Header sendet der Browser bei same-origin automatisch mit.
-  var xhr=new XMLHttpRequest();
-  xhr.open('POST','/api/update');
-  ovShow(ovSpin(),'Firmware wird hochgeladen&hellip;','0&nbsp;%',0,'var(--blue)');
-  xhr.upload.onprogress=function(e){
-    if(!e.lengthComputable)return;
-    var p=Math.round(e.loaded/e.total*100);
-    $('ov-sub').innerHTML=p+'&nbsp;%';$('ov-fill').style.width=p+'%';
-  };
-  xhr.onload=function(){
-    var ok=false,msg='Update fehlgeschlagen';
-    try{var r=JSON.parse(xhr.responseText);ok=r.ok;if(r.msg)msg=r.msg;}catch(e){}
-    if(xhr.status===200&&ok){
-      ovShow(ovOk(),'Update installiert!','ESP32 startet neu&hellip;',100,'var(--green)');
-      setTimeout(function(){
-        ovShow(ovSpin(),'Neustart l&auml;uft&hellip;','Warte auf Verbindung&hellip;',0,'var(--blue)');
-        setTimeout(function(){$('ov-fill').style.width='90%';},80);
-        var tries=0,pi=setInterval(function(){
-          api('/api/status').then(function(){clearInterval(pi);location.reload();})
-          .catch(function(){if(++tries>40){clearInterval(pi);location.reload();}});
-        },1000);
-      },2000);
-    }else{
-      saveOv.style.display='none';
-      alert('Fehler: '+msg);
-    }
-  };
-  xhr.onerror=function(){saveOv.style.display='none';alert('Netzwerkfehler beim Update.');};
-  xhr.send(fd);
 }
 var saveOv=null;
 function ovShow(ico,ttl,sub,pct,col){
@@ -3626,9 +3646,9 @@ $('sf').addEventListener('submit',function(e){
       }
     }else if(d.ok){
       var t=5;
-      ovShow(ovOk(),'Gespeichert!','ESP32 startet in '+t+'s neu&hellip;',100,'var(--green)');
+      ovShow(ovOk(),'Gespeichert!','Neustart in '+t+'s neu&hellip;',100,'var(--green)');
       var ti=setInterval(function(){t--;
-        if(t>0){$('ov-sub').innerHTML='ESP32 startet in '+t+'s neu&hellip;';}
+        if(t>0){$('ov-sub').innerHTML='Neustart in '+t+'s neu&hellip;';}
         else{clearInterval(ti);
           $('ov-fill').style.width='0%';
           ovShow(ovSpin(),'Neustart l&auml;uft&hellip;','Warte auf Verbindung&hellip;',0,'var(--blue)');
@@ -3801,47 +3821,39 @@ function cfgImport(){
   r.onerror=function(){setTxt('cfg-msg','Datei konnte nicht gelesen werden');};
   r.readAsText(f);
 }
-function fmtKb(b){return Math.round(b/1024)+' kB';}
+function fmtMb(b){return b>=1073741824?(b/1073741824).toFixed(1)+' GB':Math.round(b/1048576)+' MB';}
+function barCol(p){return p<60?'var(--green)':p<80?'var(--orange)':'var(--red)';}
 function pollSys(){
   api('/api/sysinfo').then(function(d){
-    var used=d.heap_total-d.heap_free,pct=Math.round(used*100/d.heap_total);
-    var col=pct<60?'var(--green)':pct<80?'var(--orange)':'var(--red)';
-    var hb=$('sys-heap-bar');hb.style.width=pct+'%';hb.style.background=col;
-    $('sys-heap-txt').textContent=fmtKb(d.heap_free)+' frei / '+fmtKb(d.heap_total);
-    $('sys-cpu0').innerHTML=d.cpu0+'<span class="unit">%</span>';
-    $('sys-cpu1').innerHTML=d.cpu1+'<span class="unit">%</span>';
-    $('sys-temp').innerHTML=d.temp.toFixed(1)+'<span class="unit">&deg;C</span>';
-    var u=d.uptime,h=Math.floor(u/3600),m=Math.floor((u%3600)/60),s=u%60;
-    $('sys-uptime').textContent=(h>0?h+'h ':'')+m+'m '+s+'s';
-    $('sys-minheap').textContent=fmtKb(d.heap_min);
-    $('sys-eth').textContent=d.eth?'Verbunden':'Getrennt';
-    var ne=$('sys-nvs-err');if(ne)ne.style.display=d.nvs_err?'block':'none';
-    if(d.nvs_total){
-      var np=Math.round(d.nvs_used*100/d.nvs_total);
-      var nb=$('sys-nvs-bar');
-      if(nb){nb.style.width=np+'%';nb.style.background=np<75?'var(--green)':np<90?'var(--orange)':'var(--red)';}
-      setTxt('sys-nvs-txt',d.nvs_used+' von '+d.nvs_total+' Einträgen ('+np+'%), '+d.nvs_free+' frei');
-    }
+    var pct=Math.round((d.mem_total-d.mem_free)*100/d.mem_total);
+    var mb=$('sys-mem-bar');mb.style.width=pct+'%';mb.style.background=barCol(pct);
+    $('sys-mem-txt').textContent=fmtMb(d.mem_free)+' frei / '+fmtMb(d.mem_total);
+    $('sys-cpu').innerHTML=d.cpu+'<span class="unit">%</span>';
+    $('sys-proc').innerHTML=d.proc+'<span class="unit">%</span>';
+    $('sys-temp').innerHTML=d.temp?d.temp.toFixed(1)+'<span class="unit">&deg;C</span>':'&ndash;';
+    var u=d.uptime,dd=Math.floor(u/86400),h=Math.floor((u%86400)/3600),m=Math.floor((u%3600)/60);
+    $('sys-uptime').textContent=dd>0?dd+'d '+h+'h':(h>0?h+'h '+m+'m':m+'m '+(u%60)+'s');
     setTxt('sys-boots',d.boots!=null?String(d.boots):'--');
-    setTxt('sys-crashes',d.crashes!=null?String(d.crashes):'--');
-    var rs=$('sys-rst');
-    if(rs){
-      rs.innerHTML='Letzter Start: <b>'+esc(d.rst_txt||EV_RST[d.rst]||'unbekannt')+'</b>'
-        +(d.coredump?' &middot; Absturz-Abbild in der coredump-Partition vorhanden':'');
-      rs.style.color=d.rst_bad?'var(--orange)':'';
+    setTxt('sys-ver',d.version||'--');setTxt('about-ver',d.version||'--');setTxt('about-build',(d.build||'--').slice(0,7));
+    if(d.disk_total){
+      var dp=Math.round((d.disk_total-d.disk_free)*100/d.disk_total);
+      var db=$('sys-disk-bar');db.style.width=dp+'%';db.style.background=dp<75?'var(--green)':dp<90?'var(--orange)':'var(--red)';
+      setTxt('sys-disk-txt',fmtMb(d.disk_free)+' frei / '+fmtMb(d.disk_total));
     }
-    var lc=$('sys-lastcrash');
-    if(lc){
-      if(d.lcr){lc.style.display='block';
-        lc.innerHTML='&#9888; Letzter unsauberer Start: '+esc(EV_RST[d.lcr]||'unbekannt')+' (Start #'+d.lcb+')';}
-      else lc.style.display='none';
-    }
-    var cd=$('sys-core');
-    if(cd){
-      cd.style.display=d.coredump?'block':'none';
-      if(d.coredump)setHtml('sys-core-t','Ein Absturz-Abbild liegt in der coredump-Partition ('
-        +fmtKb(d.cd_size||0)+'). Es stammt vom <b>letzten</b> Absturz und bleibt erhalten, bis '
-        +'es verworfen wird &ndash; auch über Neustarts und Firmware-Updates hinweg.');
+    var pt=d.port&&d.port!==80?':'+d.port:'';
+    setHtml('sys-net','Adresse: '+(d.mdns?'<b>http://'+esc(d.mdns)+pt+'</b> &middot; ':'')+'IP '+esc(d.ip)+pt
+      +(d.mdns_err?'<br><span style="color:var(--orange)">&#9888; '+esc(d.mdns_err)+'</span>':''));
+    var se=$('sys-save-err');if(se)se.style.display=d.save_err?'block':'none';
+    var up=d.update;
+    if(up){
+      var t='Installiert: <b>'+esc(up.current)+'</b>';
+      if(!up.enabled)t+=' &middot; Update-Prüfung ausgeschaltet';
+      else if(up.available)t+=' &middot; <span style="color:var(--blue)">Neu: <b>'+esc(up.latest)+'</b></span>'
+        +(up.url?' &middot; <a href="'+esc(up.url)+'" target="_blank" rel="noopener">Was ist neu?</a>':'');
+      else if(up.age<0)t+=' &middot; noch nicht geprüft';
+      else if(up.error)t+=' &middot; Prüfung fehlgeschlagen';
+      else t+=' &middot; aktuell';
+      setHtml('upd-state',t);
     }
     var n=d.notify;
     if(n){
@@ -4184,10 +4196,10 @@ function mock(url,opts){
   if(url==='/api/history/stats')return{exists:true,bytes:812000,first:Math.round(DM.t0/1000)-86400*180,fs_total:26500000,fs_used:812000};
   if(url==='/api/history/clear')return{ok:true};
   if(url==='/api/sysinfo'){DM.uptime+=10;
-    return{heap_free:148*1024+Math.round(Math.random()*9000),heap_total:320*1024,heap_min:121*1024,
-      uptime:DM.uptime,eth:true,temp:46+Math.random()*5,
-      cpu0:18+Math.round(Math.random()*22),cpu1:9+Math.round(Math.random()*16),
-      boots:47,crashes:2,rst:3,rst_txt:'Software-Neustart',rst_bad:false,coredump:false,lcr:6,lcb:31,
+    return{mem_free:2900*1048576+Math.round(Math.random()*9e7),mem_total:3900*1048576,
+      disk_free:21e9,disk_total:29e9,uptime:DM.uptime,temp:46+Math.random()*5,
+      cpu:6+Math.round(Math.random()*10),proc:1+Math.round(Math.random()*3),
+      boots:47,rst_txt:'Container-Start',version:'demo',update:{current:'0.0.1',latest:'0.0.2',available:true,url:'#',enabled:true,error:'',age:120},ip:'192.168.1.20',port:80,mdns:'energyoptimizer.local',mdns_err:'',
       notify:{cfg:true,ok:12,fail:0,age:240,last:true,err:'',hb_age:420,hb_ok:true}};}
   if(url.indexOf('/api/alarms/ack')===0){DM.alAck=true;return{ok:true};}
   if(url==='/api/alarms'){

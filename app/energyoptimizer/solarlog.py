@@ -5,8 +5,7 @@
 passwortgeschützten JSON-Zugang zuverlässig:
 
 * POST /getjp mit ``Content-Type: text/html`` und ``X-SL-CSRF-PROTECTION: 1``
-  (application/json und HTTP-Basic-Auth, wie die ESP32-Firmware sie schickte,
-  lehnt der Solar-Log ab),
+  (application/json mit HTTP-Basic-Auth lehnt der Solar-Log ab),
 * Login über POST /login mit ``u=<konto>&p=<passwort>``, wobei die Kontonamen
   der Reihe nach probiert werden,
 * bei "Password was wrong" ein zweiter Versuch mit dem bcrypt-Hash des Passworts
@@ -15,8 +14,7 @@ passwortgeschützten JSON-Zugang zuverlässig:
   Klartext-Passwort zusätzlich ``token=…; `` vor dem Anfragetext.
 
 `SolarLogReader` bildet daraus die Messwerte, die die Regelung braucht
-(solarlog.cpp der Firmware: Felder aus 801/170, Batterie aus 858, Geräteebene
-aus 740/608/782/141).
+(Felder aus 801/170, Batterie aus 858, Geräteebene aus 740/608/782/141).
 """
 
 from __future__ import annotations
