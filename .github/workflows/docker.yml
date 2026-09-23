@@ -5,6 +5,14 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Create a release for an earlier version, e.g. 0.0.1"
+        required: true
+      ref:
+        description: "Commit to tag"
+        required: true
 
 permissions:
   contents: read
@@ -12,6 +20,7 @@ permissions:
 
 jobs:
   test:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,8 +34,12 @@ jobs:
   image:
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+      - id: ver
+        run: echo "version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' app/energyoptimizer/__init__.py)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -41,6 +54,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/energyoptimizer
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.ver.outputs.version }},enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
             type=sha
       - uses: docker/build-push-action@v6
@@ -51,3 +65,40 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: EO_BUILD=${{ github.sha }}
+
+  # Every version that lands on main gets its tag and GitHub release automatically,
+  # so the in-app update notice sees it. Bump __version__ to publish a new release.
+  release:
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.image.outputs.version }}
+    steps:
+      - name: Create tag and release if missing
+        run: |
+          test -n "$VERSION" || { echo "::error::__version__ not found"; exit 1; }
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v$VERSION already released"
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "v$VERSION" --generate-notes
+          fi
+
+  backfill:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ inputs.version }}
+      REF: ${{ inputs.ref }}
+    steps:
+      - name: Create tag and release for an earlier commit
+        run: |
+          gh release create "v${VERSION#v}" --repo "$GITHUB_REPOSITORY" --target "$REF" \
+            --title "v${VERSION#v}" --generate-notes --latest=false

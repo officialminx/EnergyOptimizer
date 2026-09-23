@@ -171,8 +171,9 @@ the cookie login, the CSRF header and a bcrypt-hashed password. Append `?demo=1`
 to preview the interface with sample data.
 
 Container images for `linux/arm64` and `linux/amd64` are built by GitHub Actions and
-published to `ghcr.io/officialminx/energyoptimizer`: `latest` from `main`, and a version tag
-for every `v*` release.
+published to `ghcr.io/officialminx/energyoptimizer` as `latest` and as the version number.
+To publish a release, bump `__version__` in `app/energyoptimizer/__init__.py`: when that
+version reaches `main`, the workflow creates the `vX.Y.Z` tag and the GitHub release.
 
 ## License
 
