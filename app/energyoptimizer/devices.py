@@ -158,7 +158,8 @@ class Devices:
         return self.app.session
 
     # ── Schalten ────────────────────────────────────────────────────────────
-    async def set(self, kind: str, i: int, on: bool, reason: int = ER_NONE) -> bool:
+    async def set(self, kind: str, i: int, on: bool, reason: int = ER_NONE,
+                  force: bool = False) -> bool:
         if not 0 <= i < self.count(kind):
             return False
         s = self.st[kind][i]
@@ -179,6 +180,10 @@ class Devices:
         ip = self.entries(kind)[i]["ip"]
         if not ip:
             return False
+        if not force and s.reachable and s.last_poll and s.on == on:
+            # The plug already reports this state: no command, no traffic.
+            s.last_cmd = int(on)
+            return True
         url = f"http://{ip}/rpc/Switch.Set?id=0&on={'true' if on else 'false'}"
         ok = False
         code: Any = "-"
@@ -213,7 +218,7 @@ class Devices:
         s = self.st[kind][i]
         s.on = on
         s.cmd_lock_until = CLOCK.mono() + SHELLY_CMD_LOCK_S
-        self._spawn(self.set(kind, i, on, reason))
+        self._spawn(self.set(kind, i, on, reason, force=True))
 
     def apply_command(self, kind: str, i: int, cmd: str, src: int = ER_MANUAL,
                       minutes: int = 0) -> bool:
