@@ -1,0 +1,48 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Anmelden &ndash; EnergyOptimizer</title>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--blue:#0a84ff;--ink:#1d1d1f;--ink2:#6b6f76;--ink3:#9aa0a8;--card:#fff;--card2:#f7f8fb;--line:rgba(0,0,0,.07);
+--grad:linear-gradient(125deg,#0a84ff,#13b1e0 52%,#19c9d6);
+--bg:#eef1f6;--bg2:#e7ebf2;--input-focus-bg:#fff;
+--sf:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",system-ui,sans-serif;
+color-scheme:light}
+:root[data-theme="dark"]{--ink:#f0f2f5;--ink2:#9aa4b2;--ink3:#6e7681;--card:#1c2129;--card2:#232933;--line:rgba(255,255,255,.09);
+--bg:#0d1117;--bg2:#161b22;--input-focus-bg:#232933;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#f0f2f5;--ink2:#9aa4b2;--ink3:#6e7681;--card:#1c2129;--card2:#232933;--line:rgba(255,255,255,.09);
+--bg:#0d1117;--bg2:#161b22;--input-focus-bg:#232933;color-scheme:dark}}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--sf);color:var(--ink);min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;-webkit-font-smoothing:antialiased;
+background:radial-gradient(1200px 540px at 85% -10%,rgba(25,201,214,.11),transparent 60%),radial-gradient(1000px 480px at 8% -8%,rgba(10,132,255,.12),transparent 60%),linear-gradient(180deg,var(--bg),var(--bg2));background-attachment:fixed}
+.box{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px 26px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 10px 30px -12px rgba(16,24,40,.14)}
+.top{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:22px}
+.mark{width:52px;height:52px;border-radius:16px;background:var(--grad);display:grid;place-items:center;box-shadow:0 6px 16px -3px rgba(10,132,255,.45);margin-bottom:14px}
+.mark svg{width:30px;height:30px;color:#fff}
+h1{font-size:1.15rem;font-weight:800;letter-spacing:-.02em}
+.sub{color:var(--ink3);font-size:.82rem;font-weight:600;margin-top:3px}
+label{display:block;color:var(--ink2);font-size:.78rem;font-weight:600;margin:0 0 5px}
+input{width:100%;background:var(--card2);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);padding:11px 12px;font-size:1rem;font-family:inherit;-webkit-appearance:none;transition:border-color .2s,box-shadow .2s}
+input:focus{outline:none;border-color:var(--blue);background:var(--input-focus-bg);box-shadow:0 0 0 4px rgba(10,132,255,.13)}
+button{width:100%;margin-top:16px;padding:14px;border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:700;font-family:inherit;cursor:pointer;background:var(--grad);box-shadow:0 8px 24px -6px rgba(10,132,255,.4);transition:transform .12s}
+button:active{transform:scale(.97)}
+.err{color:#ff3b30;font-size:.82rem;font-weight:600;margin-top:12px;text-align:center;display:none}
+</style></head><body>
+<form class="box" id="lf">
+<div class="top"><div class="mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" stroke-width="2"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="2.2" x2="12" y2="4.6"/><line x1="12" y1="19.4" x2="12" y2="21.8"/><line x1="2.2" y1="12" x2="4.6" y2="12"/><line x1="19.4" y1="12" x2="21.8" y2="12"/><line x1="5.1" y1="5.1" x2="6.8" y2="6.8"/><line x1="17.2" y1="17.2" x2="18.9" y2="18.9"/><line x1="18.9" y1="5.1" x2="17.2" y2="6.8"/><line x1="6.8" y1="17.2" x2="5.1" y2="18.9"/></g></svg></div>
+<h1>EnergyOptimizer</h1><div class="sub">Bitte anmelden</div></div>
+<label for="pw">Passwort</label>
+<input type="password" id="pw" autocomplete="current-password" autofocus>
+<button type="submit">Anmelden</button>
+<div class="err" id="err">Falsches Passwort</div>
+</form><script>
+document.getElementById('lf').addEventListener('submit',function(e){e.preventDefault();
+var pw=document.getElementById('pw').value;
+fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw})})
+.then(function(r){return r.json();}).then(function(d){if(d&&d.ok){location.replace('/');}else{show(d&&d.wait);}}).catch(function(){show();});
+function show(w){var e=document.getElementById('err');
+e.textContent=w?('Zu viele Versuche – bitte '+w+' s warten'):'Falsches Passwort';
+e.style.display='block';var p=document.getElementById('pw');p.value='';p.focus();}
+});
+</script></body></html>
