@@ -525,7 +525,7 @@ class WebApi:
                                  "sl_fsafe", "batt_grd", "sh_count", "p_buy", "p_feed", "p_base",
                                  "hb_en", "hb_min",
                                  "mo_sl", "mo_dev", "mo_np", "mo_inv", "sl_dev", "lat", "lon",
-                                 "mq_en", "mq_host", "mq_port", "mq_user", "mq_disc")}
+                                 "mq_en", "mq_host", "mq_port", "mq_user", "mq_disc", "auto_en")}
         cf["hostname"] = c["hostname"]
         cf["hyst_on"] = hyst_on_ticks(c)
         cf["hyst_off"] = hyst_off_ticks(c)

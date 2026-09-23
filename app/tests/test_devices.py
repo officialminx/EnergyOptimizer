@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime
 
 import pytest
@@ -184,3 +185,63 @@ def test_mqtt_publishes_only_changes(tmp_path):
     m._pub("eo/b", "ON")
     m._pub("eo/b", "ON")
     assert m.client.sent == [("eo/a", '{"w": 1}'), ("eo/a", '{"w": 2}'), ("eo/b", "ON")]
+
+
+async def test_master_switch_stops_decisions_and_status_follows(env):
+    eo, clock, (boiler, pumpe) = env
+    dv = eo.devices
+    for s in dv.st["shelly"][:2]:
+        s.reachable = True
+    assert dv.load_status("shelly", 0) == "waiting"
+    for _ in range(3):
+        await dv.distribute(1300)
+        clock.advance(60)
+    assert boiler.on and dv.load_status("shelly", 0) == "surplus"
+    assert dv.managed("shelly", 0) and dv.managed_power() == 1000
+    dv.set_enabled(False)
+    assert not eo.settings.cfg["auto_en"]
+    clock.advance(10 * 60)
+    for _ in range(5):
+        await dv.distribute(-3000)
+        clock.advance(60)
+    # Off leaves the load where it is and no longer claims it.
+    assert boiler.on and boiler.cmds == [True]
+    assert dv.load_status("shelly", 0) == "disabled" and dv.managed_power() == 0
+    dv.set_enabled(True)
+    dv.batt_block = True
+    assert dv.load_status("shelly", 1) == "blocked"
+
+
+async def test_home_assistant_discovery_matches_ha_integration(env):
+    eo, clock, _ = env
+    m = eo.mqtt
+
+    class Client:
+        def __init__(self):
+            self.sent = {}
+
+        def publish(self, topic, payload, retain=False):
+            self.sent[topic] = payload
+
+    m.client = Client()
+    c = eo.settings.cfg
+    c["lang"] = "en"
+    m._publish_discovery(c)
+    m._publish_hub()
+    m._publish_shelly(0, c)
+    cfg = {t.split("/")[3]: json.loads(p) for t, p in m.client.sent.items() if t.startswith("homeassistant/") and p}
+    for oid in ("surplus", "managed_power", "automation", "source_stale", "battery_hold",
+                "shelly_0_status", "shelly_0_runtime", "shelly_0_managed", "shelly_0_auto"):
+        assert oid in cfg, oid
+    assert cfg["surplus"]["name"] == "Available surplus"
+    assert cfg["shelly_0_status"]["ops"][:8] == ["off", "waiting", "surplus", "catchup", "manual",
+                                                  "blocked", "disabled", "external"]
+    assert cfg["shelly_0_status"]["dev"]["via_device"] == m.dev_id
+    assert cfg["shelly_0_switch"]["name"] is None
+    assert cfg["automation"]["cmd_t"] == "energyoptimizer/auto/set"
+    hub = json.loads(m.client.sent["energyoptimizer/state"])
+    assert hub == {"enabled": True, "managed": 0, "stale": True, "batt_hold": False}
+    load = json.loads(m.client.sent["energyoptimizer/shelly/0/state"])
+    assert load["status"] == "blocked" and load["status_text"] == "Blocked" and load["rt_today"] == 0
+    m._handle("energyoptimizer/auto/set", b"OFF")
+    assert not c["auto_en"]

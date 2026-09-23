@@ -69,6 +69,7 @@ def defaults() -> dict[str, Any]:
         "lat": 47.05, "lon": 8.31, "sl_dev": False,
         "mq_en": False, "mq_host": "", "mq_port": 1883, "mq_user": "", "mq_pass": "",
         "mq_pfx": "energyoptimizer", "mq_disc": True,
+        "auto_en": True,
         "sh_count": 1, "shelly": [_shelly_default(i) for i in range(MAX_SHELLY)],
         "ex_count": 0, "ext": [_ext_default(i) for i in range(MAX_EXT)],
     }
@@ -393,6 +394,7 @@ class SettingsStore:
         if nonempty_str("mq_pfx"):
             t["mq_pfx"] = doc["mq_pfx"]
         as_bool("mq_disc")
+        as_bool("auto_en")
 
         for i in range(MAX_SHELLY):
             e = t["shelly"][i]
@@ -496,6 +498,7 @@ class SettingsStore:
         for k in ("mq_host", "mq_port", "mq_user", "mq_pfx"):
             doc[k] = c[k]
         doc["mq_disc"] = "true" if c["mq_disc"] else "false"
+        doc["auto_en"] = "true" if c["auto_en"] else "false"
         for i, e in enumerate(c["shelly"]):
             p = f"s{i}_"
             for k in ("name", "ip", "id", "pw", "pri"):

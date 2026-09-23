@@ -490,6 +490,75 @@ class Devices:
     def failsafe_active(self) -> bool:
         return self.failsafe["shelly"] or self.failsafe["ext"]
 
+    # ── Hauptschalter und Zustand für Home Assistant ────────────────────────
+    @property
+    def enabled(self) -> bool:
+        """Master switch: off leaves every load where it is and makes no decisions."""
+        return bool(self.cfg["auto_en"])
+
+    def set_enabled(self, on: bool, src: int = ER_MANUAL) -> None:
+        if self.enabled == on:
+            return
+        self.cfg["auto_en"] = on
+        self.enabled_changed(on, src)
+        self.app.settings.save()
+
+    def enabled_changed(self, on: bool, src: int = ER_MANUAL) -> None:
+        for kind in ("shelly", "ext"):
+            for i in range(self.count(kind)):
+                s = self.st[kind][i]
+                s.on_ticks = s.off_ticks = 0
+                if on:
+                    s.force_eval = self.entries(kind)[i]["auto"]
+                else:
+                    # Loads stay as they are, but the optimizer stops claiming them.
+                    s.auto_active = s.forced_on = False
+        if not on:
+            self.failsafe = {"shelly": False, "ext": False}
+        self.auto_eval_req = True
+        self.app.events.log(EV_AUTOMODE, -1, src, on, "EnergyOptimizer")
+        _LOGGER.info("[Automatik] Hauptschalter %s", "EIN" if on else "AUS")
+
+    def managed(self, kind: str, i: int) -> bool:
+        """On because the optimizer switched it on (surplus or catch-up)."""
+        s = self.st[kind][i]
+        return s.on and (s.auto_active or s.forced_on)
+
+    def managed_power(self) -> float:
+        total = 0.0
+        for kind in ("shelly", "ext"):
+            for i in range(self.count(kind)):
+                if not self.managed(kind, i):
+                    continue
+                s, e = self.st[kind][i], self.entries(kind)[i]
+                if kind == "shelly" and s.reachable and s.apower_w > 0:
+                    total += s.apower_w
+                else:
+                    total += float(e["pw"])
+        return total
+
+    def load_status(self, kind: str, i: int) -> str:
+        """Why a load is in its state, with the values of ha-energyoptimizer."""
+        e, s = self.entries(kind)[i], self.st[kind][i]
+        now = CLOCK.mono()
+        if s.override_until:
+            return "manual"
+        if s.sched_on:
+            return "schedule"
+        if not e["auto"] or not self.enabled:
+            return "disabled"
+        if s.on:
+            if s.forced_on:
+                return "catchup"
+            return "surplus" if s.auto_active else "external"
+        min_off = self.cfg["min_off_min"] * 60
+        if (self.failsafe_active() or self.batt_block or not self.window_open(kind, i)
+                or self.daycap_reached(kind, i) or (s.nd_retry and now < s.nd_retry)
+                or (s.last_off and now - s.last_off < min_off)
+                or (kind == "shelly" and not s.reachable)):
+            return "blocked"
+        return "waiting"
+
     # ── Tageswechsel ────────────────────────────────────────────────────────
     def day_rollover(self, kind: str) -> None:
         yday = CLOCK.now().timetuple().tm_yday
@@ -599,7 +668,8 @@ class Devices:
 
             if self.daycap_reached(kind, i):
                 ovr = s.override_until != 0
-                if (s.on and not ovr and (e["auto"] or s.forced_on or s.sched_on)
+                auto = self.enabled and (e["auto"] or s.forced_on)
+                if (s.on and not ovr and (auto or s.sched_on)
                         and await self.set(kind, i, False, ER_DAY_CAP)):
                     s.forced_on = s.sched_on = s.auto_active = False
                     s.on_ticks = s.off_ticks = 0
@@ -611,7 +681,7 @@ class Devices:
                 continue
             if not s.on or s.override_until or s.sched_on:
                 continue
-            if not e["auto"] and not s.forced_on:
+            if not self.enabled or (not e["auto"] and not s.forced_on):
                 continue
             s.forced_on = s.auto_active = False
             s.on_ticks = s.off_ticks = 0
@@ -619,6 +689,8 @@ class Devices:
 
     # ── Eigenregelung ───────────────────────────────────────────────────────
     async def demand_tick(self) -> None:
+        if not self.enabled:
+            return
         now = CLOCK.mono()
         min_on = self.cfg["min_on_min"] * 60
         for i in range(self.cfg["sh_count"]):
@@ -749,11 +821,15 @@ class Devices:
         return available
 
     async def distribute(self, surplus_w: float) -> None:
+        if not self.enabled:
+            return
         remain = await self.auto_control("shelly", surplus_w)
         await self.auto_control("ext", remain)
 
     # ── Fail-Safe ───────────────────────────────────────────────────────────
     async def failsafe_control(self, kind: str, sl_age_s: float) -> None:
+        if not self.enabled:
+            return
         limit = self.cfg["sl_fsafe"] * 60
         if limit <= 0 or sl_age_s < limit:
             if self.failsafe[kind]:
@@ -779,6 +855,8 @@ class Devices:
 
     # ── Schlechtwetter-Nachlauf ─────────────────────────────────────────────
     async def forced_runtime(self, kind: str) -> None:
+        if not self.enabled:
+            return
         c = self.cfg
         now = CLOCK.mono()
         dt = CLOCK.now()
@@ -835,6 +913,8 @@ class Devices:
 
     # ── Einstellungen übernommen ────────────────────────────────────────────
     def settings_changed(self, orig: dict, new: dict) -> None:
+        if orig.get("auto_en", True) != new.get("auto_en", True):
+            self.enabled_changed(bool(new["auto_en"]))
         for i in range(MAX_SHELLY):
             o, n = orig["shelly"][i], new["shelly"][i]
             s = self.st["shelly"][i]
