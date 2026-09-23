@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 
 from energyoptimizer import sched
-from energyoptimizer.const import ER_BATTERY, ER_SURPLUS, EV_SWITCH
+from energyoptimizer.const import ER_SURPLUS, EV_SWITCH
 
 from .fakes import FakeClock, FakeShelly, make_app
 
