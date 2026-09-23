@@ -15,11 +15,13 @@ from aiohttp import web
 
 from . import __version__, sched
 from .clock import CLOCK
+from .i18n import tr
 from .const import (
     ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, RST_TXT,
     RUN_START_GRACE_S,
 )
-from .settings import MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, hyst_off_ticks, hyst_on_ticks
+from .settings import LANGS, MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, host_looks_valid, hyst_off_ticks, hyst_on_ticks
+from .solarlog import REQ_BASIC, SolarLogAuthError, SolarLogClient, SolarLogError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,8 +48,10 @@ class WebApi:
         self.index_html = _read("index.html")
         self.login_html = _read("login.html")
         self.setup_html = _read("setup.html")
+        self.wizard_html = _read("wizard.html")
+        self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
         self.icon = _read("icon.png", "rb")
-        self.etag = '"%s"' % hashlib.sha256(self.index_html.encode()).hexdigest()[:8]
+        self.etag = hashlib.sha256((self.index_html + self.i18n_js).encode()).hexdigest()[:8]
         self.secret = self._load_secret()
         self.fails = 0
         self.last_fail = 0.0
@@ -157,7 +161,7 @@ class WebApi:
     @web.middleware
     async def middleware(self, req: web.Request, handler):
         path = req.path
-        open_paths = ("/", "/api/login", "/api/logout", "/api/setup", "/apple-touch-icon.png",
+        open_paths = ("/", "/i18n.js", "/api/login", "/api/logout", "/api/setup", "/apple-touch-icon.png",
                       "/apple-touch-icon-precomposed.png", "/favicon.ico")
         if path.startswith("/api/") and path not in open_paths:
             if not self.is_authed(req):
@@ -186,10 +190,14 @@ class WebApi:
         for p in ("/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/favicon.ico"):
             r.add_get(p, self.h_icon)
         r.add_get("/", self.h_index)
+        r.add_get("/wizard", self.h_wizard)
+        r.add_get("/i18n.js", self.h_i18n)
         r.add_get("/api/status", self.h_status)
         r.add_post("/api/login", self.h_login)
         r.add_post("/api/setup", self.h_setup)
         r.add_post("/api/logout", self.h_logout)
+        r.add_post("/api/wizard", self.h_wizard_done)
+        r.add_post("/api/solarlog/test", self.h_sl_test)
         r.add_get("/api/history/stats", _json(lambda: self.eo.history.stats()))
         r.add_get("/api/history/export", self.h_hist_export)
         r.add_post("/api/history/clear", self.h_hist_clear)
@@ -225,16 +233,86 @@ class WebApi:
         return web.Response(body=self.icon, content_type="image/png",
                             headers={"Cache-Control": "public, max-age=604800"})
 
+    @property
+    def lang(self) -> str:
+        return self.eo.settings.cfg["lang"]
+
+    def _page(self, html: str, lang: str = "", **headers) -> web.Response:
+        # The pages are written with lang="de"; i18n.js translates them in the browser.
+        lang = lang or self.lang
+        if lang != "de":
+            html = html.replace('<html lang="de">', f'<html lang="{lang}">', 1)
+        return web.Response(text=html, content_type="text/html", headers=headers)
+
     async def h_index(self, req):
         if self.setup_required:
-            return web.Response(text=self.setup_html, content_type="text/html",
-                                headers={"Cache-Control": "no-store"})
+            # Before the first password is set, the setup page offers its own language switch.
+            q = req.query.get("lang", "")
+            return self._page(self.setup_html, q if q in LANGS else "", **{"Cache-Control": "no-store"})
         if not self.is_authed(req):
-            return web.Response(text=self.login_html, content_type="text/html")
-        if req.headers.get("If-None-Match") == self.etag:
+            return self._page(self.login_html, **{"Cache-Control": "no-store"})
+        if not self.eo.settings.cfg["wizard_done"]:
+            return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
+        etag = f'"{self.etag}-{self.lang}"'
+        if req.headers.get("If-None-Match") == etag:
             return web.Response(status=304)
-        return web.Response(text=self.index_html, content_type="text/html",
-                            headers={"Cache-Control": "no-cache", "ETag": self.etag})
+        return self._page(self.index_html, **{"Cache-Control": "no-cache", "ETag": etag})
+
+    async def h_wizard(self, req):
+        if self.setup_required or not self.is_authed(req):
+            raise web.HTTPFound("/")
+        return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
+
+    async def h_i18n(self, req):
+        return web.Response(text=self.i18n_js, content_type="application/javascript",
+                            headers={"Cache-Control": "no-cache"})
+
+    async def h_wizard_done(self, req):
+        doc = await self._json_body(req) or {}
+        self.eo.settings.cfg["wizard_done"] = doc.get("done", True) is not False
+        self.eo.settings.save()
+        return web.json_response({"ok": True})
+
+    async def h_sl_test(self, req):
+        """Setup wizard: try a Solar-Log address and password without saving them."""
+        doc = await self._json_body(req) or {}
+        c = self.eo.settings.cfg
+        host = doc.get("sl_ip") if isinstance(doc.get("sl_ip"), str) else ""
+        host = host.strip()
+        if not host_looks_valid(host):
+            return web.json_response({"ok": False, "msg": tr("Ungültige Adresse", self.lang)})
+        try:
+            port = int(doc.get("sl_port") or 80)
+        except (TypeError, ValueError):
+            port = 80
+        pw = doc.get("sl_pass") if isinstance(doc.get("sl_pass"), str) else ""
+        if not pw and host == c["sl_ip"]:
+            pw = c["sl_pass"]   # empty field means "keep the stored password"
+        client = SolarLogClient(self.eo.session, host=host, port=port, password=pw,
+                                username=c["sl_user"] or None)
+        lang = self.lang
+        try:
+            if pw:
+                await client.async_login()
+            data = json.loads(await client.request_text(REQ_BASIC))
+            values = data.get("801", {}).get("170") if isinstance(data, dict) else None
+            if not isinstance(values, dict):
+                raise SolarLogError("unexpected answer")
+        except SolarLogAuthError:
+            return web.json_response({"ok": False, "msg": tr("Der Solar-Log hat das Passwort abgelehnt.", lang)})
+        except (SolarLogError, ValueError):
+            return web.json_response({"ok": False, "msg": tr(
+                "Keine Antwort vom Solar-Log unter {host}. Adresse und Port prüfen.", lang, host=host)})
+
+        def val(key: str) -> int:
+            try:
+                return int(float(values.get(key) or 0))
+            except (TypeError, ValueError):
+                return 0
+        prod, cons = val(c["sl_fprod"]), val(c["sl_fcons"])
+        msg = tr("Verbunden: {prod} W Produktion, {cons} W Verbrauch.", lang, prod=prod, cons=cons)
+        return web.json_response({"ok": True, "msg": msg, "prod": prod, "cons": cons,
+                                  "user": client.username if pw and client.login_trace else ""})
 
     async def _json_body(self, req) -> dict | None:
         try:
@@ -276,12 +354,15 @@ class WebApi:
             return web.json_response({"ok": False, "done": True}, status=409)
         doc = await self._json_body(req)
         pw = doc.get("pw") if isinstance(doc, dict) and isinstance(doc.get("pw"), str) else ""
+        lang = doc.get("lang") if isinstance(doc, dict) else None
+        if lang in LANGS:
+            self.eo.settings.cfg["lang"] = lang
         if len(pw) < MIN_PASSWORD_LEN:
             return web.json_response(
-                {"ok": False, "msg": f"Mindestens {MIN_PASSWORD_LEN} Zeichen"}, status=400)
+                {"ok": False, "msg": tr("Mindestens {n} Zeichen", self.lang, n=MIN_PASSWORD_LEN)}, status=400)
         if len(pw) > MAX_PASSWORD_LEN:
             return web.json_response(
-                {"ok": False, "msg": f"Höchstens {MAX_PASSWORD_LEN} Zeichen"}, status=400)
+                {"ok": False, "msg": tr("Höchstens {n} Zeichen", self.lang, n=MAX_PASSWORD_LEN)}, status=400)
         self.eo.set_web_password(pw)
         self.note_success()
         return self._with_auth_cookie(web.json_response({"ok": True}))
@@ -432,6 +513,8 @@ class WebApi:
         cf["hyst_off"] = hyst_off_ticks(c)
         cf["ip"] = req_host_ip()
         cf["hb_url_set"] = bool(c["hb_url"])
+        cf["sl_pass_set"] = bool(c["sl_pass"])
+        cf["lang"] = c["lang"]
         cf["mq_pfx"] = c["mq_pfx"]
         cf["shelly"] = [
             {"name": e["name"], "ip": e["ip"], "id": e["id"], "pw": e["pw"], "pri": e["pri"],

@@ -21,6 +21,7 @@ from .const import MAX_EXT, MAX_SHELLY
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_HOSTNAME = "energyoptimizer"
+LANGS = ("de", "en")
 MIN_PASSWORD_LEN = 6
 MAX_PASSWORD_LEN = 64
 _HOST_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
@@ -51,7 +52,7 @@ def _ext_default(i: int) -> dict[str, Any]:
 
 def defaults() -> dict[str, Any]:
     return {
-        "web_pass": "", "hostname": DEFAULT_HOSTNAME,
+        "web_pass": "", "hostname": DEFAULT_HOSTNAME, "lang": "de", "wizard_done": False,
         "sl_ip": "192.168.0.81", "sl_port": 80, "sl_user": "", "sl_pass": "",
         "sl_fprod": "101", "sl_fcons": "110", "sl_fgrid": "",
         "sl_fyday": "105", "sl_fcday": "111", "sl_fytot": "109", "sl_fctot": "115",
@@ -208,6 +209,9 @@ class SettingsStore:
                 continue
             if k in base:
                 base[k] = v
+        if "wizard_done" not in stored:
+            # Installation from before the setup wizard existed: already set up.
+            base["wizard_done"] = True
         for key, dflt in (("shelly", _shelly_default), ("ext", _ext_default)):
             items = stored.get(key) or []
             for i in range(len(base[key])):
@@ -278,6 +282,8 @@ class SettingsStore:
             else:
                 note("Name im Netzwerk nicht übernommen",
                      "nur Kleinbuchstaben, Ziffern und Bindestriche, höchstens 63 Zeichen")
+        if _is_str(doc.get("lang")) and doc["lang"] in LANGS:
+            t["lang"] = doc["lang"]
         if _is_str(doc.get("sl_ip")) and host_looks_valid(doc["sl_ip"]):
             t["sl_ip"] = doc["sl_ip"]
         if has("sl_port"):
@@ -464,6 +470,7 @@ class SettingsStore:
         c = self.cfg
         doc: dict[str, Any] = {"eo_config": 1, "device": "energyoptimizer"}
         doc["hostname"] = c["hostname"]
+        doc["lang"] = c["lang"]
         for k in ("sl_ip", "sl_port", "sl_user", "sl_fprod", "sl_fcons", "sl_fgrid",
                   "sl_fyday", "sl_fcday", "sl_fytot", "sl_fctot", "sl_fsoc", "sl_fbatt",
                   "sl_poll_min", "sl_avg_s", "sl_fsafe", "batt_grd", "on_margin",

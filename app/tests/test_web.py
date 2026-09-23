@@ -72,6 +72,10 @@ async def test_status_shape(client):
         assert k in d
     assert d["cfg"]["hyst_on"] == 3
     r = await client.get("/")
+    assert "/api/wizard" in await r.text()   # frisch eingerichtet: zuerst der Assistent
+    r = await client.post("/api/wizard", json={"done": True})
+    assert r.status == 200 and client.eo.settings.cfg["wizard_done"] is True
+    r = await client.get("/")
     assert "<!DOCTYPE html>" in await r.text()
     assert r.headers["X-Frame-Options"] == "DENY"
 
@@ -158,3 +162,52 @@ async def test_hostname_setting(client):
     assert d["cfg"]["hostname"] == "solar-pi"
     info = await (await client.get("/api/sysinfo")).json()
     assert info["version"] and "mem_total" in info and "disk_free" in info
+
+
+async def test_setup_language_and_page_lang(fresh):
+    r = await fresh.get("/?lang=en")
+    assert '<html lang="en">' in await r.text()
+    r = await fresh.post("/api/setup", json={"pw": "kurz", "lang": "en"})
+    assert (await r.json())["msg"] == "At least 6 characters"
+    r = await fresh.post("/api/setup", json={"pw": "geheim1", "lang": "en"})
+    assert r.status == 200 and fresh.eo.settings.cfg["lang"] == "en"
+    await fresh.post("/api/wizard", json={"done": True})
+    r = await fresh.get("/")
+    assert '<html lang="en">' in await r.text()
+    r = await fresh.get("/i18n.js")
+    js = await r.text()
+    assert "/*EN*/" not in js and "window.T=T" in js
+    r = await fresh.post("/api/save", json={"lang": "de"})
+    r = await fresh.get("/")
+    assert '<html lang="de">' in await r.text()
+
+
+async def test_existing_install_skips_wizard(tmp_path):
+    import json as _json
+    (tmp_path / "settings.json").write_text(_json.dumps({"web_pass": "geheim1"}))
+    from energyoptimizer.settings import SettingsStore as Settings
+    st = Settings(str(tmp_path))
+    st.load()
+    assert st.cfg["wizard_done"] is True and st.cfg["lang"] == "de"
+
+
+async def test_solarlog_test_endpoint(client):
+    from aiohttp.test_utils import TestServer
+    from . import mock_solarlog
+    srv = TestServer(mock_solarlog.build({}))
+    await srv.start_server()
+    try:
+        body = {"sl_ip": srv.host, "sl_port": srv.port, "sl_pass": mock_solarlog.PASSWORD}
+        d = await (await client.post("/api/solarlog/test", json=body)).json()
+        assert d["ok"] and d["prod"] == 5200 and d["cons"] == 1800 and d["user"] == "installer"
+        body["sl_pass"] = "falsch"
+        d = await (await client.post("/api/solarlog/test", json=body)).json()
+        assert not d["ok"] and "Passwort" in d["msg"]
+        # Nichts davon wird gespeichert.
+        assert client.eo.settings.cfg["sl_ip"] != srv.host
+    finally:
+        await srv.close()
+    d = await (await client.post("/api/solarlog/test", json={"sl_ip": "127.0.0.1", "sl_port": 1})).json()
+    assert not d["ok"] and "Keine Antwort" in d["msg"]
+    d = await (await client.post("/api/solarlog/test", json={"sl_ip": "bad host!"})).json()
+    assert not d["ok"]
