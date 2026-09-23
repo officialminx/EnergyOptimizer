@@ -1,0 +1,20 @@
+services:
+  energyoptimizer:
+    # Fertiges Multi-Arch-Image (arm64 + amd64). Alternativ lokal bauen:
+    #   docker compose up -d --build
+    image: ghcr.io/officialminx/energyoptimizer:latest
+    build: .
+    container_name: energyoptimizer
+    restart: unless-stopped
+    # Host-Netz: nötig für die Shelly-Suche im eigenen Subnetz, und die
+    # Weboberfläche zeigt die echte IP des Pi an.
+    network_mode: host
+    environment:
+      TZ: Europe/Zurich
+      EO_PORT: "8080"
+      # Nur beim allerersten Start übernommen (danach gilt die Weboberfläche):
+      # EO_SOLARLOG_HOST: "192.168.0.81"
+      # EO_SOLARLOG_PASSWORD: "…"
+      # EO_WEB_PASSWORD: "…"
+    volumes:
+      - ./data:/data
