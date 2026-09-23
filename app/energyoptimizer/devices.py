@@ -1,8 +1,7 @@
-"""Geräte-Steuerung (shelly.cpp + extswitch.cpp der Firmware).
+"""Geräte-Steuerung.
 
 Shelly-Steckdosen (Gen2/Gen3-RPC) und externe Schalter (nur über MQTT) folgen
-derselben Logik; wo die Firmware beide Varianten getrennt führt, steht hier eine
-gemeinsame Implementierung mit `kind` = "shelly" | "ext". Unterschiede:
+derselben Logik, gemeinsam implementiert mit `kind` = "shelly" | "ext". Unterschiede:
 
 * Shelly wird per HTTP geschaltet und abgefragt, externe Schalter melden ihren
   Wunschzustand per MQTT (``<prefix>/ext/<i>/set``) und gelten sofort als geschaltet.

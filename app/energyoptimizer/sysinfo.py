@@ -1,4 +1,4 @@
-"""Systemzustand des Raspberry Pi für die Diagnose-Karte (statt ESP32-Heap/Coredump)."""
+"""Systemzustand des Servers (Raspberry Pi oder PC) für die Diagnose-Karte."""
 
 from __future__ import annotations
 
@@ -31,8 +31,17 @@ def _cpu_temp() -> float:
     return 0.0
 
 
+def _disk(path: str) -> tuple[int, int]:
+    try:
+        st = os.statvfs(path)
+    except OSError:
+        return 0, 0
+    return st.f_blocks * st.f_frsize, st.f_bavail * st.f_frsize
+
+
 class SysInfo:
-    def __init__(self) -> None:
+    def __init__(self, data_dir: str = "/") -> None:
+        self.data_dir = data_dir
         self.mem_min = 0
         self._cpu_prev: tuple[int, int] | None = None
         self._proc_prev: tuple[float, float] | None = None
@@ -65,8 +74,10 @@ class SysInfo:
 
     def get(self) -> dict:
         total, avail = _meminfo()
+        d_total, d_free = _disk(self.data_dir)
         return {
-            "heap_free": avail, "heap_total": total or 1, "heap_min": self.mem_min or avail,
+            "mem_free": avail, "mem_total": total or 1, "mem_min": self.mem_min or avail,
+            "disk_free": d_free, "disk_total": d_total,
             "uptime": int(CLOCK.mono()), "temp": _cpu_temp(),
-            "cpu0": self.cpu_pct, "cpu1": self.proc_pct,
+            "cpu": self.cpu_pct, "proc": self.proc_pct,
         }

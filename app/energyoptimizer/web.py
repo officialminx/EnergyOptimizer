@@ -1,8 +1,4 @@
-"""Web-Oberfläche und JSON-API (webserver.cpp).
-
-Die Oberfläche selbst ist unverändert die der ESP32-Firmware (static/index.html);
-die API liefert dieselben Felder, damit sie ohne Anpassung läuft.
-"""
+"""Web-Oberfläche (static/) und JSON-API."""
 
 from __future__ import annotations
 
@@ -20,10 +16,10 @@ from aiohttp import web
 from . import __version__, sched
 from .clock import CLOCK
 from .const import (
-    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, NS_CRIT, NS_WARN, RST_CONTAINER, RST_TXT,
+    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, NS_CRIT, NS_WARN, RST_TXT,
     RUN_START_GRACE_S,
 )
-from .settings import hyst_off_ticks, hyst_on_ticks
+from .settings import MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, hyst_off_ticks, hyst_on_ticks
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +45,7 @@ class WebApi:
         self.eo = eo
         self.index_html = _read("index.html")
         self.login_html = _read("login.html")
+        self.setup_html = _read("setup.html")
         self.icon = _read("icon.png", "rb")
         self.etag = '"%s"' % hashlib.sha256(self.index_html.encode()).hexdigest()[:8]
         self.secret = self._load_secret()
@@ -119,9 +116,14 @@ class WebApi:
         self.block_until = 0.0
         self.alert_t = 0.0
 
+    @property
+    def setup_required(self) -> bool:
+        """Kein Passwort gesetzt (Erststart oder nach reset-password): nur die Einrichtung ist offen."""
+        return not self.web_pass
+
     def is_authed(self, req: web.Request) -> bool:
-        if not self.web_pass:
-            return True
+        if self.setup_required:
+            return False
         ck = req.cookies.get("eo_auth", "").strip()
         if ck and hmac.compare_digest(ck, self.token()):
             return True
@@ -159,11 +161,12 @@ class WebApi:
     @web.middleware
     async def middleware(self, req: web.Request, handler):
         path = req.path
-        open_paths = ("/", "/api/login", "/api/logout", "/apple-touch-icon.png",
+        open_paths = ("/", "/api/login", "/api/logout", "/api/setup", "/apple-touch-icon.png",
                       "/apple-touch-icon-precomposed.png", "/favicon.ico")
         if path.startswith("/api/") and path not in open_paths:
             if not self.is_authed(req):
-                resp = web.json_response({"ok": False, "auth": False}, status=401)
+                resp = web.json_response({"ok": False, "auth": False, "setup": self.setup_required},
+                                         status=401)
                 return self._headers(resp)
             if req.method == "POST" and not self.check_origin(req):
                 return self._headers(web.json_response({"ok": False, "msg": "Origin"}, status=403))
@@ -189,6 +192,7 @@ class WebApi:
         r.add_get("/", self.h_index)
         r.add_get("/api/status", self.h_status)
         r.add_post("/api/login", self.h_login)
+        r.add_post("/api/setup", self.h_setup)
         r.add_post("/api/logout", self.h_logout)
         r.add_get("/api/history/stats", _json(lambda: self.eo.history.stats()))
         r.add_get("/api/history/export", self.h_hist_export)
@@ -204,8 +208,6 @@ class WebApi:
         r.add_post("/api/discover", self.h_discover_start)
         r.add_get("/api/discover", self.h_discover)
         r.add_get("/api/sysinfo", self.h_sysinfo)
-        r.add_post("/api/coredump/erase", _json(lambda: {"ok": True}))
-        r.add_get("/api/coredump", self.h_coredump)
         r.add_get("/api/events/export", self.h_events_export)
         r.add_get("/api/events", self.h_events)
         r.add_post("/api/events/clear", self.h_events_clear)
@@ -222,7 +224,6 @@ class WebApi:
         r.add_post("/api/config/import", self.h_config_import)
         r.add_get("/api/solarlog/raw", self.h_sl_raw)
         r.add_post("/api/restart", self.h_restart)
-        r.add_post("/api/update", self.h_update)
         return app
 
     async def h_icon(self, req):
@@ -230,6 +231,9 @@ class WebApi:
                             headers={"Cache-Control": "public, max-age=604800"})
 
     async def h_index(self, req):
+        if self.setup_required:
+            return web.Response(text=self.setup_html, content_type="text/html",
+                                headers={"Cache-Control": "no-store"})
         if not self.is_authed(req):
             return web.Response(text=self.login_html, content_type="text/html")
         if req.headers.get("If-None-Match") == self.etag:
@@ -254,18 +258,38 @@ class WebApi:
         doc = await self._json_body(req)
         if doc is None:
             return web.json_response({"ok": False}, status=400)
-        if not self.web_pass:
-            return web.json_response({"ok": True})
+        if self.setup_required:
+            return web.json_response({"ok": False, "setup": True}, status=409)
         pw = doc.get("pw") if isinstance(doc.get("pw"), str) else ""
         if not hmac.compare_digest(pw.encode(), self.web_pass.encode()):
             self.note_failure()
             w = self.block_remaining()
             return web.json_response({"ok": False, "wait": w} if w else {"ok": False}, status=401)
         self.note_success()
-        resp = web.json_response({"ok": True})
+        return self._with_auth_cookie(web.json_response({"ok": True}))
+
+    def _with_auth_cookie(self, resp):
         resp.headers["Set-Cookie"] = (f"eo_auth={self.token()}; Path=/; Max-Age=31536000; "
                                       "SameSite=Lax; HttpOnly")
         return resp
+
+    async def h_setup(self, req):
+        """Erststart: das erste Passwort festlegen. Danach ist dieser Endpunkt gesperrt."""
+        if not self.check_origin(req):
+            return web.json_response({"ok": False}, status=403)
+        if not self.setup_required:
+            return web.json_response({"ok": False, "done": True}, status=409)
+        doc = await self._json_body(req)
+        pw = doc.get("pw") if isinstance(doc, dict) and isinstance(doc.get("pw"), str) else ""
+        if len(pw) < MIN_PASSWORD_LEN:
+            return web.json_response(
+                {"ok": False, "msg": f"Mindestens {MIN_PASSWORD_LEN} Zeichen"}, status=400)
+        if len(pw) > MAX_PASSWORD_LEN:
+            return web.json_response(
+                {"ok": False, "msg": f"Höchstens {MAX_PASSWORD_LEN} Zeichen"}, status=400)
+        self.eo.set_web_password(pw)
+        self.note_success()
+        return self._with_auth_cookie(web.json_response({"ok": True}))
 
     async def h_logout(self, req):
         if not self.check_origin(req):
@@ -397,6 +421,8 @@ class WebApi:
         doc["ext"] = ex
         doc["led"] = "scan" if dv.scan.running else ("connected" if eo.sl_ok else "disconnected")
         doc["mqtt"] = {"conn": eo.mqtt.connected}
+        up = eo.updates
+        doc["update"] = {"available": up.available, "latest": up.latest, "url": up.url}
 
         cf = {k: c[k] for k in ("sl_ip", "sl_port", "sl_user", "sl_fprod", "sl_fcons", "sl_fgrid",
                                  "sl_fyday", "sl_fcday", "sl_fytot", "sl_fctot", "sl_fsoc", "sl_fbatt",
@@ -406,6 +432,7 @@ class WebApi:
                                  "nt_en", "nt_srv", "nt_sev", "nt_qs", "nt_qe", "hb_en", "hb_min",
                                  "mo_sl", "mo_dev", "mo_np", "mo_inv", "sl_dev", "lat", "lon",
                                  "mq_en", "mq_host", "mq_port", "mq_user", "mq_disc")}
+        cf["hostname"] = c["hostname"]
         cf["hyst_on"] = hyst_on_ticks(c)
         cf["hyst_off"] = hyst_off_ticks(c)
         cf["ip"] = req_host_ip()
@@ -504,30 +531,21 @@ class WebApi:
     async def h_sysinfo(self, req):
         eo = self.eo
         d = eo.sysinfo.get()
+        host = eo.settings.cfg["hostname"]
         d.update({
-            "eth": True, "nvs_err": eo.settings.save_error, "boots": eo.boots, "crashes": 0,
-            "rst": RST_CONTAINER, "rst_txt": RST_TXT, "rst_bad": False, "coredump": False,
-            "cd_size": 0, "lcr": 0, "lcb": 0, "nvs_used": 0, "nvs_free": 0, "nvs_total": 0,
-            "elf": __version__, "build": os.environ.get("EO_BUILD", "docker"),
-            "notify": eo.notify.state(),
+            "save_err": eo.settings.save_error, "boots": eo.boots, "rst_txt": RST_TXT,
+            "version": __version__, "build": os.environ.get("EO_BUILD", "dev"),
+            "ip": req_host_ip(), "port": eo.port,
+            "mdns": f"{host}.local" if eo.mdns.enabled else "", "mdns_err": eo.mdns.error,
+            "notify": eo.notify.state(), "update": eo.updates.state(),
         })
         return web.json_response(d)
-
-    async def h_coredump(self, req):
-        return web.json_response({"ok": False, "msg": "Kein Absturz-Abbild vorhanden"}, status=404)
 
     async def h_restart(self, req):
         # Im Container: sauber beenden, Docker (restart: unless-stopped) startet neu.
         self.eo.flush()
         asyncio.get_running_loop().call_later(0.3, lambda: os.kill(os.getpid(), 15))
         return web.json_response({"ok": True})
-
-    async def h_update(self, req):
-        return web.json_response({
-            "ok": False,
-            "msg": "In der Docker-Version wird über ein neues Image aktualisiert: "
-                   "docker compose pull && docker compose up -d",
-        }, status=400)
 
     # ── Protokoll, Notizen, Alarme ──────────────────────────────────────────
     async def h_events(self, req):

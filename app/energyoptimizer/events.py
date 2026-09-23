@@ -1,4 +1,4 @@
-"""Ereignisprotokoll (events.cpp): Ringpuffer mit 1500 Einträgen.
+"""Ereignisprotokoll: Ringpuffer mit 1500 Einträgen.
 
 Ein Eintrag ist [epoch, uptime_s, type, dev, reason, flags, surplus_w, text];
 flags Bit0 = EIN, Bit1 = Überschuss-Wert gültig.

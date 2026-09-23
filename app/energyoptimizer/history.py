@@ -1,8 +1,8 @@
-"""Verlauf (webserver.cpp + history_daily.cpp).
+"""Verlauf.
 
 * Tagesverlauf: 96 Punkte im 15-Minuten-Raster, Mittelwert aller Messungen des
   Intervalls, persistiert in history.json.
-* Langzeit-Log hist.csv (gleiches Format wie auf dem ESP32), gekürzt ab 12 MB auf 6 MB.
+* Langzeit-Log hist.csv, gekürzt ab 12 MB auf 6 MB.
 * Tagesarchiv hist_daily.json: ein Datensatz je Tag (Produktion, Verbrauch,
   Netzbezug, Einspeisung), inkl. CSV-Import.
 * Anzeige-Glättung der Live-Werte (sl_avg_s).

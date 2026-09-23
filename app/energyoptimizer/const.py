@@ -1,4 +1,4 @@
-"""Konstanten aus config.h / events.h / alarms.h der Firmware."""
+"""Konstanten: Grenzen, Intervalle, Ereignis- und Alarmcodes."""
 
 MAX_SHELLY = 4
 MAX_EXT = 4
@@ -86,7 +86,7 @@ ER_TXT = {
     ER_DAY_CAP: "Tageslimit erreicht",
 }
 
-# Startgrund (sysinfo.cpp): im Container gibt es nur den normalen Start.
+# Startgrund: im Container gibt es nur den normalen Start.
 RST_CONTAINER = 3  # "Software-Neustart" in der UI-Tabelle
 RST_TXT = "Container-Start"
 

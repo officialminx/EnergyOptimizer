@@ -1,8 +1,7 @@
 """Zentrale Uhr – in den Tests austauschbar.
 
-Die Firmware rechnet Dauern mit millis() und Kalenderzeiten mit der NTP-Uhr. Hier
-entspricht mono() dem millis() (in Sekunden) und now() der lokalen Zeit in der
-Zeitzone aus TZ (Standard Europe/Zurich, wie in der Firmware).
+Dauern werden mit der monotonen Uhr gemessen (mono(), Sekunden seit Start),
+Kalenderzeiten mit now() in der Zeitzone aus TZ (Standard Europe/Zurich).
 """
 
 from __future__ import annotations

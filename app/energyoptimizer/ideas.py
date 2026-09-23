@@ -1,4 +1,4 @@
-"""Verbesserungs-Notizen (ideas.cpp): höchstens 30 Einträge, als Markdown exportierbar."""
+"""Verbesserungs-Notizen: höchstens 30 Einträge, als Markdown exportierbar."""
 
 from __future__ import annotations
 

@@ -7,7 +7,8 @@ from .fakes import make_app
 
 
 @pytest.fixture
-async def client(tmp_path):
+async def fresh(tmp_path):
+    """Erststart: noch kein Web-Passwort gesetzt."""
     eo = await make_app(tmp_path)
     api = WebApi(eo)
     cl = TestClient(TestServer(api.build()))
@@ -18,7 +19,52 @@ async def client(tmp_path):
     await eo.session.close()
 
 
-async def test_open_without_password_and_status_shape(client):
+@pytest.fixture
+async def client(fresh):
+    """Eingerichtet und angemeldet."""
+    r = await fresh.post("/api/setup", json={"pw": "geheim1"})
+    assert r.status == 200
+    return fresh
+
+
+async def test_first_start_requires_password_setup(fresh):
+    r = await fresh.get("/api/status")
+    assert r.status == 401 and (await r.json())["setup"] is True
+    r = await fresh.get("/")
+    assert "/api/setup" in await r.text()
+    r = await fresh.post("/api/login", json={"pw": ""})
+    assert r.status == 409 and (await r.json())["setup"] is True
+    r = await fresh.post("/api/setup", json={"pw": "kurz"})
+    assert r.status == 400
+    r = await fresh.post("/api/setup", json={"pw": "geheim1"},
+                         headers={"Origin": "http://evil.example"})
+    assert r.status == 403
+    r = await fresh.post("/api/setup", json={"pw": "geheim1"})
+    assert r.status == 200 and "eo_auth=" in r.headers["Set-Cookie"]
+    assert fresh.eo.settings.cfg["web_pass"] == "geheim1"
+    r = await fresh.get("/api/status")
+    assert r.status == 200
+    # Danach ist die Einrichtung gesperrt: niemand kann das Passwort so überschreiben.
+    r = await fresh.post("/api/setup", json={"pw": "anderes1"})
+    assert r.status == 409 and fresh.eo.settings.cfg["web_pass"] == "geheim1"
+
+
+async def test_password_reset_flag(client, tmp_path):
+    from energyoptimizer.__main__ import reset_password
+    import os
+    os.environ["EO_DATA_DIR"] = str(tmp_path)
+    try:
+        assert reset_password() == 0
+    finally:
+        del os.environ["EO_DATA_DIR"]
+    client.eo.check_password_reset()
+    assert client.eo.settings.cfg["web_pass"] == ""
+    assert not (tmp_path / "RESET_PASSWORD").exists()
+    r = await client.get("/api/status")
+    assert r.status == 401 and (await r.json())["setup"] is True
+
+
+async def test_status_shape(client):
     r = await client.get("/api/status")
     assert r.status == 200
     d = await r.json()
@@ -33,7 +79,7 @@ async def test_open_without_password_and_status_shape(client):
 async def test_password_login_flow(client):
     client.eo.settings.cfg["web_pass"] = "pw1"
     r = await client.get("/api/status")
-    assert r.status == 401 and (await r.json()) == {"ok": False, "auth": False}
+    assert r.status == 401 and (await r.json()) == {"ok": False, "auth": False, "setup": False}
     r = await client.get("/")
     assert "login" in (await r.text()).lower()
     r = await client.post("/api/login", json={"pw": "falsch"})
@@ -101,7 +147,14 @@ async def test_daily_import_and_ideas(client):
     assert r.status == 200
 
 
-async def test_update_explains_docker_way(client):
-    r = await client.post("/api/update")
-    d = await r.json()
-    assert not d["ok"] and "docker compose pull" in d["msg"]
+async def test_hostname_setting(client):
+    r = await client.post("/api/save", json={"hostname": "Solar-Pi.local"})
+    assert (await r.json())["warn"] == ""
+    assert client.eo.settings.cfg["hostname"] == "solar-pi"
+    r = await client.post("/api/save", json={"hostname": "kein name!"})
+    assert "Name im Netzwerk" in (await r.json())["warn"]
+    assert client.eo.settings.cfg["hostname"] == "solar-pi"
+    d = await (await client.get("/api/status")).json()
+    assert d["cfg"]["hostname"] == "solar-pi"
+    info = await (await client.get("/api/sysinfo")).json()
+    assert info["version"] and "mem_total" in info and "disk_free" in info

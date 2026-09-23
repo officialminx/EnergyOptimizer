@@ -1,4 +1,4 @@
-"""Alarmzentrale (alarms.cpp + sun.h).
+"""Alarmzentrale.
 
 Jede Störung wird erst nach ihrer Entprellzeit aktiv, dann per ntfy gemeldet,
 bei Kritisch alle 6 h wiederholt (bis quittiert) und beim Beheben entwarnt.

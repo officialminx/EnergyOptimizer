@@ -1,6 +1,6 @@
-"""MQTT mit Home-Assistant-Discovery (mqtt.cpp).
+"""MQTT mit Home-Assistant-Discovery.
 
-Themen wie in der Firmware:
+Themen:
   <prefix>/status                      online/offline (Last Will)
   <prefix>/solar/state                 Leistungen (JSON)
   <prefix>/energy/state                Zählerstände (JSON, minütlich)
