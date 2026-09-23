@@ -9,7 +9,38 @@ function norm(s){return s.replace(/\s+/g,' ').trim();}
 function fill(t,a){
   return a==null?t:t.replace(/\{(\w+)\}/g,function(m,k){return a[k]!=null?a[k]:m;});
 }
-function T(s,a){return fill(D&&D[s]!=null?D[s]:s,a);}
+// Texts with changing values (server messages, stored events) are matched
+// against the dictionary entries that contain placeholders.
+var PAT=null,MISS={},nMiss=0;
+function pats(){
+  PAT=[];
+  for(var k in D){
+    if(k.indexOf('{')<0)continue;
+    var names=[],lit=k.replace(/\{\w+\}/g,'');
+    if(lit.replace(/[^A-Za-zÄÖÜäöüß]/g,'').length<4)continue;
+    var re=k.replace(/[.*+?^$()|[\]\\]/g,'\\$&').replace(/\\?\{(\w+)\\?\}/g,function(m,n){names.push(n);return '(.+?)';});
+    PAT.push({re:new RegExp('^'+re+'$'),n:names,v:D[k],len:k.length});
+  }
+  PAT.sort(function(a,b){return b.len-a.len;});
+}
+function look(k){
+  if(!D||!k)return null;
+  if(D[k]!=null)return D[k];
+  if(k.length>400||!/[A-Za-zÄÖÜäöü]{3}/.test(k))return null;
+  if(!PAT)pats();
+  if(MISS[k])return null;
+  for(var i=0;i<PAT.length;i++){
+    var m=PAT[i].re.exec(k);
+    if(!m)continue;
+    var a={};
+    for(var j=0;j<PAT[i].n.length;j++){var x=m[j+1];a[PAT[i].n[j]]=D[x]!=null?D[x]:x;}
+    return fill(PAT[i].v,a);
+  }
+  if(++nMiss>3000){MISS={};nMiss=0;}
+  MISS[k]=1;
+  return null;
+}
+function T(s,a){var r=D?look(s):null;return fill(r!=null?r:s,a);}
 window.LANG=LANG;
 window.T=T;
 if(!D)return;
@@ -31,15 +62,16 @@ function inlineOnly(el){
   return hasEl&&hasTxt;
 }
 function text(n){
-  var v=n.nodeValue,k=norm(v);
-  if(!k||D[k]==null)return;
+  var v=n.nodeValue,k=norm(v),t=look(k);
+  // The second lookup stops a translation that would itself be translated again.
+  if(t==null||t===k||look(t)!=null)return;
   var m=v.match(/^\s*/)[0],e=v.match(/\s*$/)[0];
-  n.nodeValue=m+D[k]+e;
+  n.nodeValue=m+t+e;
 }
 function attrs(el){
   for(var i=0;i<ATTRS.length;i++){
     var a=el.getAttribute(ATTRS[i]);
-    if(a){var k=norm(a);if(D[k]!=null)el.setAttribute(ATTRS[i],D[k]);}
+    if(a){var k=norm(a),t=look(k);if(t!=null&&t!==k&&look(t)==null)el.setAttribute(ATTRS[i],t);}
   }
 }
 function walk(el){
@@ -48,7 +80,7 @@ function walk(el){
   attrs(el);
   if(inlineOnly(el)){
     var k=norm(el.innerHTML);
-    if(D[k]!=null){el.innerHTML=D[k];return;}
+    if(D[k]!=null&&D[k]!==k){el.innerHTML=D[k];return;}
   }
   for(var n=el.firstChild;n;n=n.nextSibling)walk(n);
 }
@@ -62,13 +94,13 @@ var obs=new MutationObserver(function(list){
     else if(r.type==='attributes')attrs(r.target);
     else{
       var t=r.target;
-      if(t.nodeType===1&&inlineOnly(t)&&D[norm(t.innerHTML)]!=null){t.innerHTML=D[norm(t.innerHTML)];continue;}
+      if(t.nodeType===1&&inlineOnly(t)){var h=norm(t.innerHTML);if(D[h]!=null&&D[h]!==h){t.innerHTML=D[h];continue;}}
       for(var j=0;j<r.addedNodes.length;j++)walk(r.addedNodes[j]);
     }
   }
 });
 function start(){
-  if(document.title){var k=norm(document.title);if(D[k]!=null)document.title=D[k];}
+  if(document.title){var k=norm(document.title);if(D[k]!=null&&D[k]!==k)document.title=D[k];}
   translate(document.body);
   obs.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTRS});
 }

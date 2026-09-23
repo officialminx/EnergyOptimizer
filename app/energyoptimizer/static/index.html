@@ -3,6 +3,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>EnergyOptimizer</title>
+<script src="/i18n.js"></script>
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="EnergyOptimizer">
@@ -728,6 +729,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
 <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11.2v5.2M12 7.4v.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
 <symbol id="i-kiosk" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 20h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 17v3" stroke="currentColor" stroke-width="2"/></symbol>
 <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
 <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 19a2 2 0 0 1-3.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3v6c0 4.5-3.2 7.9-7.5 9-4.3-1.1-7.5-4.5-7.5-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 9.2A3.4 3.4 0 0 0 12 7.5c-1.9 0-3 1-3 2.3 0 3 6 1.4 6 4.4 0 1.3-1.1 2.3-3 2.3a3.4 3.4 0 0 1-3-1.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
@@ -1096,6 +1098,8 @@ details.coll.sub .det-body{padding:0 14px 14px}
     </div>
     <div class="set-grp">System</div>
     <div class="set-list">
+      <button type="button" class="set-row" data-set="lang"><span class="set-ico"><svg><use href="#i-globe"/></svg></span>
+        <span class="set-tx"><span class="set-t">Sprache &amp; Einrichtung</span><span class="set-s">Deutsch oder Englisch, Einrichtungsassistent</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="net"><span class="set-ico"><svg><use href="#i-server"/></svg></span>
         <span class="set-tx"><span class="set-t">Netzwerk</span><span class="set-s">Name im Netzwerk, Adresse</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="sec"><span class="set-ico"><svg><use href="#i-shield"/></svg></span>
@@ -1335,6 +1339,20 @@ details.coll.sub .det-body{padding:0 14px 14px}
         <label>Passwort <small>(leer = unver&auml;ndert)</small></label><input type="password" name="mq_pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="new-password">
         <div class="trow"><label class="tgl"><input type="checkbox" name="mq_disc" id="f-mq-disc"><span class="sl"></span></label><span class="auto-lbl">Home-Assistant-Discovery<i class="ib" data-i="mqd"></i></span></div>
         <div class="ip" data-i="mqd">Ver&ouml;ffentlicht Sensoren/Schalter automatisch in Home Assistant (MQTT-Integration muss dort aktiv sein).</div>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="lang">
+      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Sprache &amp; Einrichtung</div></div>
+      <div class="card">
+        <label for="f-lang">Sprache der Oberfl&auml;che</label>
+        <select name="lang" id="f-lang"><option value="de">Deutsch</option><option value="en">English</option></select>
+        <div class="hint" style="margin-top:6px">Gilt f&uuml;r alle Ger&auml;te, die EnergyOptimizer &ouml;ffnen. Nach dem Speichern l&auml;dt die Seite neu.</div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t"><svg><use href="#i-tool"/></svg>Einrichtungsassistent</div></div>
+        <div class="hint">F&uuml;hrt noch einmal durch Solar-Log, Steckdosen und den Namen im Netzwerk. Bestehende Einstellungen bleiben erhalten.</div>
+        <button type="button" class="btn bscan" style="width:100%;margin-top:10px" onclick="location.href='/wizard'"><svg><use href="#i-arrow"/></svg>Assistenten starten</button>
       </div>
     </div>
 
@@ -1607,6 +1625,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
 
 <script>
 var cfg={},histData=null;
+var LOC=window.LANG==='en'?'en-GB':'de-CH';
 var SHCOL=['#ff9500','#ff375f','#af52de','#5ac8fa'];  // Farben je Steckdose
 // Canvas kennt keine CSS-Variablen: ein 'font' mit var(--sf) ist ungültig und wird
 // stillschweigend verworfen (die Beschriftung landet dann in der 10px-Standardschrift,
@@ -1848,7 +1867,7 @@ function saveSettings(){
   if(bad){
     var pane=bad.closest('.pane');
     if(pane&&pane.dataset.pane)setTo(pane.dataset.pane);
-    err.textContent='Nicht gespeichert – "'+fieldLabel(bad)+'": '+(bad.validationMessage||'ungueltiger Wert');
+    err.textContent=T('Nicht gespeichert – "{0}": {1}',[fieldLabel(bad),bad.validationMessage||T('ungültiger Wert')]);
     err.style.display='block';
     setTimeout(function(){try{bad.focus();bad.reportValidity();}catch(e){}},60);
     return;
@@ -1868,7 +1887,7 @@ $('sf').addEventListener('invalid',function(e){
   var el=e.target,pane=el.closest?el.closest('.pane'):null;
   if(pane&&pane.dataset.pane)setTo(pane.dataset.pane);
   var err=$('msg-err');
-  err.textContent='Nicht gespeichert – "'+fieldLabel(el)+'": '+(el.validationMessage||'ungueltiger Wert');
+  err.textContent=T('Nicht gespeichert – "{0}": {1}',[fieldLabel(el),el.validationMessage||T('ungültiger Wert')]);
   err.style.display='block';
 },true);
 // Verwerfen: die Formularwerte kommen beim nächsten Poll frisch vom Gerät.
@@ -1891,14 +1910,14 @@ function badge(s){
 // ohne diese Anzeige haelt man eine eingeschaltete Steckdose fuer Betrieb.
 function runBadge(s){
   if(!s.rw||!s.reach||!s.on)return'';
-  if(s.run===1)return'<span class="badge b-run">&#9881; L&Auml;UFT</span>';
-  if(s.run===3)return'<span class="badge b-idle">ANLAUF</span>';
-  return'<span class="badge b-idle">KEIN BEDARF</span>';
+  if(s.run===1)return'<span class="badge b-run">&#9881; '+T('LÄUFT')+'</span>';
+  if(s.run===3)return'<span class="badge b-idle">'+T('ANLAUF')+'</span>';
+  return'<span class="badge b-idle">'+T('KEIN BEDARF')+'</span>';
 }
 function pingTxt(p){
-  if(p==null||p<0)return'noch nie';
-  if(p<60)return'vor '+p+'s';
-  var m=Math.floor(p/60),sc=p%60;return'vor '+m+'m'+(sc>0?' '+sc+'s':'');
+  if(p==null||p<0)return T('noch nie');
+  if(p<60)return T('vor {0}',[p+'s']);
+  var m=Math.floor(p/60),sc=p%60;return T('vor {0}',[m+'m'+(sc>0?' '+sc+'s':'')]);
 }
 function shellySkeleton(s){
   return'<div class="shelly-card s-off" id="shc-'+s.idx+'">'
@@ -1929,13 +1948,13 @@ function shellySkeleton(s){
 function emptySkeleton(i){
   return'<div class="shelly-card s-empty" id="shc-'+i+'">'
     +'<div class="sc-empty-ico"><svg><use href="#i-plus"/></svg></div>'
-    +'<div class="sc-empty-txt">Ger&auml;t '+(i+1)+' einrichten</div>'
+    +'<div class="sc-empty-txt">'+T('Gerät {0} einrichten',[i+1])+'</div>'
     +'<button type="button" class="btn bscan" onclick="openDevOv('+i+')"><svg><use href="#i-plus"/></svg>Hinzuf&uuml;gen</button>'
     +'</div>';
 }
 var autoTog={};
 // Befristetes Schalten: 'm24' = bis Mitternacht (Minuten erst beim Klick berechnet)
-var TDUR=[{k:'30',l:'30 min'},{k:'60',l:'1 h'},{k:'120',l:'2 h'},{k:'240',l:'4 h'},{k:'m24',l:'bis 24 Uhr'}];
+var TDUR=[{k:'30',l:'30 min'},{k:'60',l:'1 h'},{k:'120',l:'2 h'},{k:'240',l:'4 h'},{k:'m24',l:T('bis 24 Uhr')}];
 function toggleTimer(i){
   var el=$('shtc-'+i);if(!el)return;
   el.style.display=(el.style.display==='none')?'flex':'none';
@@ -1977,25 +1996,21 @@ function demandHtml(s){
   if(!s.rw)return'';
   var ic='<svg><use href="#i-info"/></svg>';
   if(s.nd>0){
-    return'<div class="dem wait">'+ic+'<span>Kein Bedarf gemeldet &ndash; Steckdose abgeschaltet. '
-      +'Neuer Versuch in '+fmtRest(s.nd)+'.</span></div>';
+    return'<div class="dem wait">'+ic+'<span>'+T('Kein Bedarf gemeldet – Steckdose abgeschaltet. Neuer Versuch in {0}.',[fmtRest(s.nd)])+'</span></div>';
   }
   if(!s.on||!s.reach)return'';
   if(s.run===1){
-    return'<div class="dem">'+ic+'<span>Ger&auml;t l&auml;uft ('+s.apower+' W &ge; '+s.rw+' W Laufschwelle) '
-      +'&ndash; nur diese Zeit z&auml;hlt als Laufzeit.</span></div>';
+    return'<div class="dem">'+ic+'<span>'+T('Gerät läuft ({0} W ≥ {1} W Laufschwelle) – nur diese Zeit zählt als Laufzeit.',[s.apower,s.rw])+'</span></div>';
   }
   if(s.run===3){
-    return'<div class="dem">'+ic+'<span>Anlaufkarenz &ndash; das Ger&auml;t hat noch ein paar Minuten Zeit, '
-      +'bevor "kein Bedarf" gilt.</span></div>';
+    return'<div class="dem">'+ic+'<span>'+T('Anlaufkarenz – das Gerät hat noch ein paar Minuten Zeit, bevor „kein Bedarf“ gilt.')+'</span></div>';
   }
-  var t='Steckdose frei, aber Ger&auml;t l&auml;uft nicht ('+s.apower+' W &lt; '+s.rw+' W): sein eigener '
-       +'Sensor meldet keinen Bedarf';
+  var t=T('Steckdose frei, aber Gerät läuft nicht ({0} W &lt; {1} W): sein eigener Sensor meldet keinen Bedarf',[s.apower,s.rw]);
   if(s.io>0){
     var left=Math.max(0,s.io*60-(s.idle||0));
-    t+='. Abschaltung in '+fmtRest(left);
+    t+=T('. Abschaltung in {0}',[fmtRest(left)]);
   }else{
-    t+=' &ndash; die Steckdose bleibt abrufbereit';
+    t+=T(' – die Steckdose bleibt abrufbereit');
   }
   return'<div class="dem">'+ic+'<span>'+t+'.</span></div>';
 }
@@ -2006,7 +2021,7 @@ function runtimeHtml(s){
   var h='';
   if(s.rt_min>0){
     var done=s.rt_on>=s.rt_min;
-    h+='<span style="color:'+(done?'#0a8e95':'#c96d00')+'">&#9203; Heute '+s.rt_on+'/'+s.rt_min+' min'
+    h+='<span style="color:'+(done?'#0a8e95':'#c96d00')+'">&#9203; '+T('Heute {0}/{1} min',[s.rt_on,s.rt_min])
       +(done?' &#10003;':'')+'</span>';
     if(s.forced)h+=' <span class="badge" style="background:rgba(124,92,255,.16);color:#6a4fe0">&#127783; Nachlauf</span>';
   }
@@ -2015,7 +2030,7 @@ function runtimeHtml(s){
     // sonst nur der Riegel, damit die Zahl nicht doppelt dasteht.
     if(h)h+=' &middot; ';
     h+='<span style="color:'+(s.cap?'var(--red)':'var(--ink3)')+'">&#128683; '
-      +(s.rt_min>0?'Limit ':'Heute ')+s.rt_on+'/'+s.mx_min+' min</span>';
+      +T(s.rt_min>0?'Limit {0}/{1} min':'Heute {0}/{1} min',[s.rt_on,s.mx_min])+'</span>';
     if(s.cap)h+=' <span class="badge" style="background:rgba(255,59,48,.14);color:var(--red)">Tageslimit erreicht</span>';
   }
   return h;
@@ -2027,16 +2042,15 @@ function schedHtml(s,kind){
   if(!s.schp)return'';
   var ic='<svg><use href="#i-clock"/></svg>';
   if(s.sch){
-    var rest=(s.schr>0)?(' &ndash; noch '+fmtRest(s.schr*60)):'';
-    return'<div class="sch-run">'+ic+'Zeitschaltuhr l&auml;uft'+rest
-      +'<button type="button" onclick="'+(kind==='ext'?'extSet':'sh')+'('+s.idx+',0)">aussetzen</button></div>';
+    var rest=(s.schr>0)?T(' – noch {0}',[fmtRest(s.schr*60)]):'';
+    return'<div class="sch-run">'+ic+T('Zeitschaltuhr läuft')+rest
+      +'<button type="button" onclick="'+(kind==='ext'?'extSet':'sh')+'('+s.idx+',0)">'+T('aussetzen')+'</button></div>';
   }
   if(s.schs){
-    return'<div class="sch-run idle">'+ic+'Zeitschaltuhr von Hand ausgesetzt &ndash; '
-      +'das n&auml;chste Programm l&auml;uft wieder.</div>';
+    return'<div class="sch-run idle">'+ic+T('Zeitschaltuhr von Hand ausgesetzt – das nächste Programm läuft wieder.')+'</div>';
   }
   if(s.schn>0){
-    return'<div class="sch-run idle">'+ic+'N&auml;chstes Programm in '+fmtRest(s.schn*60)+'</div>';
+    return'<div class="sch-run idle">'+ic+T('Nächstes Programm in {0}',[fmtRest(s.schn*60)])+'</div>';
   }
   return'';
 }
@@ -2046,18 +2060,18 @@ function updateShelly(s){
   if(card.className!=='shelly-card '+st)card.className='shelly-card '+st;
   setTxt('shn-'+s.idx,s.name);
   setHtml('shb-'+s.idx,badge(s)+runBadge(s));
-  setHtml('shid-'+s.idx,s.id?'&#128279; '+esc(s.id):'ID wird beim n&auml;chsten Poll gelernt');
-  var eTxt=(s.e_day!=null)?' · '+s.e_day.toFixed(2)+' kWh heute':'';
-  setTxt('shmeta-'+s.idx,s.pw+' W (nom.) · Prio '+s.pri+eTxt);
+  setHtml('shid-'+s.idx,s.id?'&#128279; '+esc(s.id):T('ID wird beim nächsten Poll gelernt'));
+  var eTxt=(s.e_day!=null)?' · '+T('{0} kWh heute',[s.e_day.toFixed(2)]):'';
+  setTxt('shmeta-'+s.idx,T('{0} W (nom.) · Prio {1}',[s.pw,s.pri])+eTxt);
   // Nutzen-Kennzahlen: welcher Anteil des Verbrauchs kam aus eigener Produktion,
   // wie lange lief das Gerät, wie oft hat das Relais geschaltet.
   var kpi=[];
-  if(s.e_tot>0.01&&s.pv_tot!=null)kpi.push('☀️ '+Math.round(s.pv_tot/s.e_tot*100)+'% aus PV');
+  if(s.e_tot>0.01&&s.pv_tot!=null)kpi.push('☀️ '+T('{0}% aus PV',[Math.round(s.pv_tot/s.e_tot*100)]));
   // Mit Eigenregelung sind die Betriebsstunden echte Laufzeit (gemessen am
   // Verbrauch), nicht die Zeit, in der die Steckdose freigegeben war.
-  if(s.on_day)kpi.push('⏱ '+fmtDur(s.on_day)+(s.rw?' gelaufen':'')+' heute');
-  if(s.on_tot)kpi.push(fmtDur(s.on_tot)+' gesamt');
-  if(s.sw)kpi.push(s.sw+' Schaltungen');
+  if(s.on_day)kpi.push('⏱ '+T(s.rw?'{0} gelaufen heute':'{0} heute',[fmtDur(s.on_day)]));
+  if(s.on_tot)kpi.push(T('{0} gesamt',[fmtDur(s.on_tot)]));
+  if(s.sw)kpi.push(T('{0} Schaltungen',[s.sw]));
   setTxt('shkpi-'+s.idx,kpi.join(' · '));
   if(s.reach){
     setHtml('shlv-'+s.idx,
@@ -2076,8 +2090,8 @@ function updateShelly(s){
       var pips='';for(var k=0;k<need;k++)pips+='<span class="pip'+(k<have?' f':'')+'"></span>';
       var nx=slNextTxt();
       hyHtml='<div class="hyst '+(s.on?'off':'on')+'"><span class="pips">'+pips+'</span>'
-        +(s.on?'Ausschalten':'Einschalten')+' '+have+'/'+need
-        +(nx?'<span class="nx">&middot; n&auml;chste Bewertung '+nx+'</span>':'')+'</div>';
+        +T(s.on?'Ausschalten {0}/{1}':'Einschalten {0}/{1}',[have,need])
+        +(nx?'<span class="nx">&middot; '+T('nächste Bewertung {0}',[nx])+'</span>':'')+'</div>';
     }
   }
   setHtml('shhy-'+s.idx,hyHtml);
@@ -2085,7 +2099,7 @@ function updateShelly(s){
   if(s.lock>0){
     var maxL=s.on?(cfg.min_on_min||7)*60:(cfg.min_off_min||5)*60;
     var lp=Math.min(100,Math.round(s.lock/maxL*100));
-    lkHtml='<div class="lock-bar-wrap"><div class="lock-bar-lbl">Gesperrt noch '+Math.floor(s.lock/60)+'m '+(s.lock%60)+'s</div>'
+    lkHtml='<div class="lock-bar-wrap"><div class="lock-bar-lbl">'+T('Gesperrt noch {0}',[Math.floor(s.lock/60)+'m '+(s.lock%60)+'s'])+'</div>'
       +'<div class="lock-bar-track"><div class="lock-bar-fill" style="width:'+lp+'%"></div></div></div>';
   }
   setHtml('shlk-'+s.idx,lkHtml);
@@ -2093,16 +2107,14 @@ function updateShelly(s){
   // Gerät gerade nicht dem folgt, was man sonst erwarten würde.
   var ovHtml='';
   if(s.ov>0){
-    ovHtml='<div class="ovr"><svg><use href="#i-clock"/></svg>Befristet '+(s.on?'EIN':'AUS')+' &ndash; noch '
-      +fmtRest(s.ov)+(s.ova?', danach Automatik':'')
-      +'<button type="button" onclick="cancelTimer('+s.idx+','+(s.ova?1:0)+')">jetzt beenden</button></div>';
+    ovHtml='<div class="ovr"><svg><use href="#i-clock"/></svg>'+T(s.on?'Befristet EIN – noch {0}':'Befristet AUS – noch {0}',[fmtRest(s.ov)])+(s.ova?T(', danach Automatik'):'')
+      +'<button type="button" onclick="cancelTimer('+s.idx+','+(s.ova?1:0)+')">'+T('jetzt beenden')+'</button></div>';
   }else if(s.win===false){
-    ovHtml='<div class="win-closed"><svg><use href="#i-clock"/></svg>Ausserhalb des Freigabefensters &ndash; '
-      +'die Automatik schaltet jetzt nicht</div>';
+    ovHtml='<div class="win-closed"><svg><use href="#i-clock"/></svg>'+T('Ausserhalb des Freigabefensters – die Automatik schaltet jetzt nicht')+'</div>';
   }
   setHtml('shov-'+s.idx,ovHtml);
   setHtml('shsc-'+s.idx,schedHtml(s,'sh'));
-  setTxt('shp-'+s.idx,'Angepingt: '+pingTxt(s.ping));
+  setTxt('shp-'+s.idx,T('Angepingt: {0}',[pingTxt(s.ping)]));
   var cb=$('sha-'+s.idx);
   if(cb && document.activeElement!==cb && !(autoTog[s.idx] && (Date.now()-autoTog[s.idx])<4000)){
     if(cb.checked!==!!s.auto)cb.checked=!!s.auto;
@@ -2125,10 +2137,10 @@ function renderShelly(list){
   syncEvFilter(list);
 }
 function fmtAge(s){
-  if(s<0)return 'noch nie';
-  if(s<60)return 'vor '+s+'s';
-  if(s<3600)return 'vor '+Math.floor(s/60)+'m';
-  return 'vor '+Math.floor(s/3600)+'h';
+  if(s<0)return T('noch nie');
+  if(s<60)return T('vor {0}',[s+'s']);
+  if(s<3600)return T('vor {0}',[Math.floor(s/60)+'m']);
+  return T('vor {0}',[Math.floor(s/3600)+'h']);
 }
 function fmtSecs(v){
   if(v<60)return v+' s';
@@ -2139,7 +2151,7 @@ function fmtSecs(v){
 var lastSt=null;
 function slNextTxt(){
   if(!lastSt||lastSt.sl_next==null||lastSt.sl_next<0)return'';
-  return lastSt.sl_next<=0?'jetzt':('in '+fmtSecs(lastSt.sl_next));
+  return lastSt.sl_next<=0?T('jetzt'):T('in {0}',[fmtSecs(lastSt.sl_next)]);
 }
 // ── Statuszeile: was tut die Automatik gerade und was kommt als Nächstes ──────
 // Beantwortet ohne Kopfrechnen die zwei Fragen, die man vor dem Dashboard hat:
@@ -2152,17 +2164,17 @@ function updateStatusLine(d){
   var stale=(d.sl_age==null||d.sl_age<0||d.sl_age>Math.max(180,(cfg.sl_poll_min||10)*120));
   if(d.failsafe){
     cls='err';ico='i-warn';
-    main='Fail-Safe aktiv &ndash; Automatik abgeschaltet';
-    next='SolarLog '+fmtAge(d.sl_age==null?-1:d.sl_age)+' erreichbar. Die Automatik wird von selbst wieder scharf, sobald Daten ankommen.';
+    main=T('Fail-Safe aktiv – Automatik abgeschaltet');
+    next=T('SolarLog {0} erreichbar. Die Automatik wird von selbst wieder scharf, sobald Daten ankommen.',[fmtAge(d.sl_age==null?-1:d.sl_age)]);
   }else if(d.sl_age!=null&&d.sl_age<0){
     cls='idle';ico='i-server';
-    main='Warte auf die erste SolarLog-Abfrage';
-    next=(cfg.sl_ip?('Ziel: '+esc(cfg.sl_ip)):'')+(slNextTxt()?' &middot; n&auml;chster Versuch '+slNextTxt():'');
+    main=T('Warte auf die erste SolarLog-Abfrage');
+    next=(cfg.sl_ip?T('Ziel: {0}',[esc(cfg.sl_ip)]):'')+(slNextTxt()?' &middot; '+T('nächster Versuch {0}',[slNextTxt()]):'');
   }else if(stale){
     cls='warn';ico='i-warn';
-    main='SolarLog antwortet nicht';
-    next='Letzte Daten '+fmtAge(d.sl_age)+'. Die Automatik rechnet bis dahin mit dem letzten bekannten Wert'
-        +((cfg.sl_fsafe>0)?(', der Fail-Safe greift nach '+cfg.sl_fsafe+' min.'):'.');
+    main=T('SolarLog antwortet nicht');
+    next=T('Letzte Daten {0}. Die Automatik rechnet bis dahin mit dem letzten bekannten Wert',[fmtAge(d.sl_age)])
+        +((cfg.sl_fsafe>0)?T(', der Fail-Safe greift nach {0} min.',[cfg.sl_fsafe]):'.');
   }else{
     // Normalbetrieb: erst beschreiben was läuft, dann was als Nächstes ansteht
     var running=[],ready=[],forced=null,autoCount=0;
@@ -2174,15 +2186,15 @@ function updateStatusLine(d){
       // sonst behauptet die Statuszeile "Entfeuchter läuft", während er stillsteht.
       if(s.rw&&s.run!==1)ready.push(s.name); else running.push(s.name);
     });
-    if(forced)      main='Nachlauf: '+esc(forced.name)+' l&auml;uft ('+forced.rt_on+'/'+forced.rt_min+' min)';
-    else if(running.length===1) main=esc(running[0])+' l&auml;uft';
-    else if(running.length>1)   main=running.length+' Steckdosen laufen &middot; '+esc(running.join(', '));
-    else if(ready.length===1)   main=esc(ready[0])+' abrufbereit &ndash; kein Bedarf';
-    else if(ready.length>1)     main=ready.length+' Ger&auml;te abrufbereit &ndash; kein Bedarf';
-    else                        main='Keine Steckdose aktiv';
+    if(forced)      main=T('Nachlauf: {0} läuft ({1}/{2} min)',[esc(forced.name),forced.rt_on,forced.rt_min]);
+    else if(running.length===1) main=T('{0} läuft',[esc(running[0])]);
+    else if(running.length>1)   main=T('{0} Steckdosen laufen',[running.length])+' &middot; '+esc(running.join(', '));
+    else if(ready.length===1)   main=T('{0} abrufbereit – kein Bedarf',[esc(ready[0])]);
+    else if(ready.length>1)     main=T('{0} Geräte abrufbereit – kein Bedarf',[ready.length]);
+    else                        main=T('Keine Steckdose aktiv');
     if(running.length&&ready.length)
-      main+=' &middot; '+ready.length+' abrufbereit ohne Bedarf';
-    main+=' &middot; '+(surp>=0?'&Uuml;berschuss +':'Defizit ')+kw(Math.abs(surp))+' kW';
+      main+=' &middot; '+T('{0} abrufbereit ohne Bedarf',[ready.length]);
+    main+=' &middot; '+T(surp>=0?'Überschuss +{0} kW':'Defizit {0} kW',[kw(Math.abs(surp))]);
     cls=(running.length||surp>0)?'ok':'idle';
     ico=running.length?'i-plug':'i-bolt';
 
@@ -2190,10 +2202,8 @@ function updateStatusLine(d){
     // schaltet trotzdem nichts ein" – die Leistung käme aus dem Speicher.
     if(d.battblk){
       cls='warn';ico='i-batt';
-      main+=' &middot; Batterie entl&auml;dt';
-      next='Batterie-Vorrang: der Speicher deckt gerade eine L&uuml;cke ('+wInt(Math.abs(d.batt||0))
-          +' Entladung). Die Automatik schaltet nichts ein und laufende Ger&auml;te ab &ndash; Freigabe, '
-          +'sobald die Entladung unter '+wInt(Math.round((cfg.batt_grd||0)/2))+' f&auml;llt.';
+      main+=' &middot; '+T('Batterie entlädt');
+      next=T('Batterie-Vorrang: der Speicher deckt gerade eine Lücke ({0} Entladung). Die Automatik schaltet nichts ein und laufende Geräte ab – Freigabe, sobald die Entladung unter {1} fällt.',[wInt(Math.abs(d.batt||0)),wInt(Math.round((cfg.batt_grd||0)/2))]);
     }else{
       // Nächste Aktion: die dringendere von "schaltet gleich ab" und "schaltet gleich ein"
       var offCand=null,onCand=null,ndCand=null;
@@ -2206,26 +2216,25 @@ function updateStatusLine(d){
         else    { if(!onCand ||s.pri<onCand.pri) onCand=s;  }
       });
       if(offCand&&offCand.ft>0){
-        next=esc(offCand.name)+' schaltet in '+Math.max(1,(cfg.hyst_off||3)-offCand.ft)+' Messung(en) ab (Defizit)'
-            +(slNextTxt()?' &middot; n&auml;chste Bewertung '+slNextTxt():'');
+        next=T('{0} schaltet in {1} Messung(en) ab (Defizit)',[esc(offCand.name),Math.max(1,(cfg.hyst_off||3)-offCand.ft)])
+            +(slNextTxt()?' &middot; '+T('nächste Bewertung {0}',[slNextTxt()]):'');
         cls='warn';
       }else if(onCand){
         var need=(onCand.pw||0)+(cfg.on_margin||0);
         if(onCand.lock>0){
-          next=esc(onCand.name)+': AUS-Sperre noch '+fmtSecs(onCand.lock);
+          next=T('{0}: AUS-Sperre noch {1}',[esc(onCand.name),fmtSecs(onCand.lock)]);
         }else if(surp>=need){
-          next=esc(onCand.name)+' schaltet in '+Math.max(1,(cfg.hyst_on||3)-(onCand.ot||0))+' Messung(en) ein'
-              +(slNextTxt()?' &middot; n&auml;chste Bewertung '+slNextTxt():'');
+          next=T('{0} schaltet in {1} Messung(en) ein',[esc(onCand.name),Math.max(1,(cfg.hyst_on||3)-(onCand.ot||0))])
+              +(slNextTxt()?' &middot; '+T('nächste Bewertung {0}',[slNextTxt()]):'');
         }else{
-          next=esc(onCand.name)+' startet ab '+wInt(need)+' &Uuml;berschuss &ndash; es fehlen '+wInt(need-surp);
+          next=T('{0} startet ab {1} Überschuss – es fehlen {2}',[esc(onCand.name),wInt(need),wInt(need-surp)]);
         }
       }else if(ndCand){
-        next=esc(ndCand.name)+': eigener Sensor meldete keinen Bedarf &ndash; neuer Versuch in '
-            +fmtRest(ndCand.nd)+'.';
+        next=T('{0}: eigener Sensor meldete keinen Bedarf – neuer Versuch in {1}.',[esc(ndCand.name),fmtRest(ndCand.nd)]);
       }else if(!autoCount){
-        next='Keine Steckdose auf Automatik &ndash; es wird nichts selbstt&auml;tig geschaltet.';
+        next=T('Keine Steckdose auf Automatik – es wird nichts selbsttätig geschaltet.');
       }else if(!next){
-        next='Alle Automatik-Ger&auml;te im Zielzustand.';
+        next=T('Alle Automatik-Geräte im Zielzustand.');
       }
     }
   }
@@ -2310,14 +2319,14 @@ function updateCost(c){
   if(bt)bt.style.display=base>0?'':'none';
   setTxt('c-base',chf(base));
   var net=c.sell+c.saved-c.buy-base;
-  setHtml('c-net',(net>=0?'Heute unter dem Strich <b style="color:var(--green)">+'+chf(net)+'</b>'
-                         :'Heute unter dem Strich <b style="color:var(--red)">'+chf(net)+'</b>'));
+  setHtml('c-net',T('Heute unter dem Strich')+' '+(net>=0?'<b style="color:var(--green)">+'+chf(net)+'</b>'
+                         :'<b style="color:var(--red)">'+chf(net)+'</b>'));
 }
 function updateEnergy(e){
   if(!e)return;
   setTxt('e-dp',fmtKwh(e.dp,'+'));setTxt('e-dc',fmtKwh(e.dc,'-'));
   setTxt('e-dgi',fmtKwh(e.dgi,'-'));setTxt('e-dgo',fmtKwh(e.dgo,'+'));
-  setTxt('e-total','Gesamt: '+fmtKwh(e.tp,'+')+' produziert · '+fmtKwh(e.tc,'-')+' verbraucht');
+  setTxt('e-total',T('Gesamt: {0} produziert · {1} verbraucht',[fmtKwh(e.tp,'+'),fmtKwh(e.tc,'-')]));
   updateDonuts(e);
 }
 // ── Sparklines ───────────────────────────────────────────────────────────────
@@ -2386,7 +2395,7 @@ function updateSparks(){
   drawSparkBars('spk-g',pts.map(function(p){return -p[3];}),cv('--green'),cv('--red'));
   if(note){
     var t0=new Date(pts[0][0]*1000),t1=new Date(pts[pts.length-1][0]*1000);
-    note.textContent='Verlauf '+hhmm(t0)+' – '+hhmm(t1)+' (Mittelwert je 15 min)';
+    note.textContent=T('Verlauf {0} – {1} (Mittelwert je 15 min)',[hhmm(t0),hhmm(t1)]);
   }
 }
 function hhmm(d){return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
@@ -2414,13 +2423,13 @@ function drawDonut(id,segs,ctrVal,ctrLbl){
   ctx.fillStyle=cv('--ink');ctx.font='700 20px '+CFONT;
   ctx.fillText(ctrVal,cx,cy+3);
   ctx.fillStyle=cv('--ink3');ctx.font='600 9px '+CFONT;
-  ctx.fillText(ctrLbl,cx,cy+16);
+  ctx.fillText(T(ctrLbl),cx,cy+16);
   return true;
 }
 function donutLegend(id,segs){
   var el=$(id);if(!el)return;
   el.innerHTML=segs.map(function(s){
-    return '<span><i style="background:'+s.c+'"></i>'+esc(s.n)+' <b>'+s.v.toFixed(1)+' kWh</b></span>';
+    return '<span><i style="background:'+s.c+'"></i>'+esc(T(s.n))+' <b>'+s.v.toFixed(1)+' kWh</b></span>';
   }).join('');
 }
 function pct(a,b){return b>0.001?Math.round(a/b*100)+'%':'–';}
@@ -2450,7 +2459,7 @@ function updateDonuts(e){
   // Signatur zurücknehmen, sonst zeigten die Ringe nach dem Zurückwechseln bis zur
   // nächsten Zählerbewegung – also bis zu 10 Minuten – veraltete Werte.
   if(!okP||!okC)donutSig='';
-  setTxt('donut-sub',dp.toFixed(1)+' kWh erzeugt · '+dc.toFixed(1)+' kWh verbraucht');
+  setTxt('donut-sub',T('{0} kWh erzeugt · {1} kWh verbraucht',[dp.toFixed(1),dc.toFixed(1)]));
 }
 function initChart(){
   var c=$('chart'),ctx=c.getContext('2d'),W=c.parentElement.clientWidth,H=260;
@@ -2488,10 +2497,10 @@ function sanePts(a){if(!a||!a.length)return a||[];
 // pts (Tag): [epoch,prod,cons,grid,sh0..]; buckets (W/M/J): {t,pe,ce,fe,ie,pw,cw}
 function kwhSeries(bk,xl,lab){
   return {bars:true,unit:'kWh',x:xl,lab:lab||xl,series:[
-    {name:'Produktion',color:C_PROD,data:bk.map(function(o){return (o.pe||0)/1000;})},
-    {name:'Verbrauch',color:C_CONS,data:bk.map(function(o){return (o.ce||0)/1000;})},
-    {name:'Einspeisung',color:C_FEED,data:bk.map(function(o){return (o.fe||0)/1000;})},
-    {name:'Netzbezug',color:C_IMP,data:bk.map(function(o){return (o.ie||0)/1000;})}
+    {name:T('Produktion'),color:C_PROD,data:bk.map(function(o){return (o.pe||0)/1000;})},
+    {name:T('Verbrauch'),color:C_CONS,data:bk.map(function(o){return (o.ce||0)/1000;})},
+    {name:T('Einspeisung'),color:C_FEED,data:bk.map(function(o){return (o.fe||0)/1000;})},
+    {name:T('Netzbezug'),color:C_IMP,data:bk.map(function(o){return (o.ie||0)/1000;})}
   ]};
 }
 function bucketLabel(o){var d=new Date(o.t*1000);
@@ -2510,10 +2519,10 @@ function buildSeries(){
     if(histMode==='w'){
       var n=pts.length,t0=pts[0][0],t1=pts[n-1][0],span=Math.max(1,t1-t0);
       var nDev=(histData.n||0),dev=histData.dev||[];
-      var ser=[{name:'Produktion',color:C_PROD,data:pts.map(function(p){return p[1];})},
-               {name:'Verbrauch',color:C_CONS,data:pts.map(function(p){return p[2];})},
-               {name:'Überschuss',color:C_SURP,dash:true,data:pts.map(function(p){return Math.max(0,p[1]-p[2]);})}];
-      for(var i=0;i<nDev;i++){(function(ii){ser.push({name:dev[ii]||('Gerät '+(ii+1)),color:SHCOL[ii%SHCOL.length],thin:true,data:pts.map(function(p){return Math.max(0,p[4+ii]);})});})(i);}
+      var ser=[{name:T('Produktion'),color:C_PROD,data:pts.map(function(p){return p[1];})},
+               {name:T('Verbrauch'),color:C_CONS,data:pts.map(function(p){return p[2];})},
+               {name:T('Überschuss'),color:C_SURP,dash:true,data:pts.map(function(p){return Math.max(0,p[1]-p[2]);})}];
+      for(var i=0;i<nDev;i++){(function(ii){ser.push({name:dev[ii]||T('Gerät {0}',[ii+1]),color:SHCOL[ii%SHCOL.length],thin:true,data:pts.map(function(p){return Math.max(0,p[4+ii]);})});})(i);}
       var plotX=pts.map(function(p){return (p[0]-t0)/span;});
       var lab=pts.map(function(p){var d=new Date(p[0]*1000);
         return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' Uhr';});
@@ -2530,9 +2539,9 @@ function buildSeries(){
   if(!b.length)return null;
   if(histMode==='w'){
     var n2=b.length;
-    var ser2=[{name:'Produktion',color:C_PROD,data:b.map(function(o){return o.pw;})},
-              {name:'Verbrauch',color:C_CONS,data:b.map(function(o){return o.cw;})},
-              {name:'Überschuss',color:C_SURP,dash:true,data:b.map(function(o){return Math.max(0,o.pw-o.cw);})}];
+    var ser2=[{name:T('Produktion'),color:C_PROD,data:b.map(function(o){return o.pw;})},
+              {name:T('Verbrauch'),color:C_CONS,data:b.map(function(o){return o.cw;})},
+              {name:T('Überschuss'),color:C_SURP,dash:true,data:b.map(function(o){return Math.max(0,o.pw-o.cw);})}];
     var plx=b.map(function(o,i){return n2>1?i/(n2-1):0;});
     var xt2=[],ev=n2>12?Math.ceil(n2/8):1;for(var i2=0;i2<n2;i2++)if(i2%ev===0)xt2.push({f:n2>1?i2/(n2-1):0,t:bucketLabel(b[i2])});
     return {bars:false,unit:'W',plotX:plx,xticks:xt2,lab:b.map(bucketFull),series:ser2,fill:{a:0,b:1,c:C_SURP_F}};
@@ -2584,7 +2593,7 @@ function drawSeries(S){
   ctx.clearRect(0,0,W,H);
   chGeo=null;
   if(!S){ctx.fillStyle=cv('--ink3');ctx.font='12px '+CFONT;ctx.textAlign='center';
-    ctx.fillText(histRange==='day'?'Noch keine Verlaufsdaten – Erfassung alle 15 min':'Noch keine Daten für diesen Zeitraum',W/2,H/2);return;}
+    ctx.fillText(T(histRange==='day'?'Noch keine Verlaufsdaten – Erfassung alle 15 min':'Noch keine Daten für diesen Zeitraum'),W/2,H/2);return;}
   var maxV=0;for(j=0;j<S.series.length;j++)for(i=0;i<S.series[j].data.length;i++)if(S.series[j].data[i]>maxV)maxV=S.series[j].data[i];
   maxV=niceMax(maxV,S.unit);
   ctx.font='9px '+CFONT;
@@ -2683,7 +2692,7 @@ function chartInfo(){
     ok=bk.length>0;
     for(i=0;i<bk.length;i++){p+=bk[i].pe||0;c+=bk[i].ce||0;}
   }
-  el.textContent=ok?((p/1000).toFixed(1)+' kWh erzeugt · '+(c/1000).toFixed(1)+' kWh verbraucht'):'';
+  el.textContent=ok?T('{0} kWh erzeugt · {1} kWh verbraucht',[(p/1000).toFixed(1),(c/1000).toFixed(1)]):'';
 }
 function redrawChart(){var tt=$('chart-title');if(tt)tt.textContent=CT[histRange]||'Verlauf';
   var S=buildSeries();curS=S;
@@ -2729,7 +2738,7 @@ function stripBuild(){
       return{segs:segs,total:tot};
     };
     var onl=bits(i),runl=bits(4+i);
-    stripRows.push({i:i,name:(d.dev&&d.dev[i])||('Gerät '+(i+1)),
+    stripRows.push({i:i,name:(d.dev&&d.dev[i])||T('Gerät {0}',[i+1]),
                     col:SHCOL[i%SHCOL.length],segs:onl.segs,total:onl.total,
                     self:!!rwf[i],rsegs:runl.segs,rtotal:runl.total});
   }
@@ -2777,9 +2786,9 @@ function drawStrip(){
     ctx.textAlign='right';ctx.fillStyle=cv('--ink3');
     // Bei Eigenregelung ist die gelaufene Zeit die Aussage, nicht die Freigabezeit.
     var lbl=r.self
-      ? (r.rtotal?(fmtDur(r.rtotal)+' gelaufen ('+r.rsegs.length+'×)')
-                 :(r.total?'freigegeben, nicht gelaufen':'nicht gelaufen'))
-      : (r.total?(fmtDur(r.total)+' ('+r.segs.length+'×)'):'nicht gelaufen');
+      ? (r.rtotal?T('{0} gelaufen ({1}×)',[fmtDur(r.rtotal),r.rsegs.length])
+                 :T(r.total?'freigegeben, nicht gelaufen':'nicht gelaufen'))
+      : (r.total?(fmtDur(r.total)+' ('+r.segs.length+'×)'):T('nicht gelaufen'));
     ctx.fillText(lbl,x0+cw,yTop+9);
     rrect(ctx,x0,yTrack,cw,hT,4);ctx.fillStyle=cv('--tint2');ctx.fill();
     // Freigabe blass, echter Lauf voll deckend darüber – ohne die blasse Ebene wäre
@@ -2800,16 +2809,16 @@ function drawStrip(){
     if(r.self){sum+=r.rtotal;nseg+=r.rsegs.length;}
     else      {sum+=r.total; nseg+=r.segs.length;}
   });
-  setTxt('strip-sum',nseg?(fmtDur(sum)+' Laufzeit · '+nseg+(nseg===1?' Einschaltphase':' Einschaltphasen'))
-                         :'heute noch nichts geschaltet');
+  setTxt('strip-sum',nseg?T(nseg===1?'{0} Laufzeit · {1} Einschaltphase':'{0} Laufzeit · {1} Einschaltphasen',[fmtDur(sum),nseg])
+                         :T('heute noch nichts geschaltet'));
   stripSummary();
 }
 function stripSummary(){
   var info=$('strip-info');if(!info)return;
   var anySelf=stripRows.some(function(r){return r.self;});
   info.innerHTML=stripRows.length
-    ? ('Heute vom ersten bis zum letzten Messpunkt &ndash; zum Ablesen einer Laufzeit auf einen Balken zeigen.'
-       +(anySelf?' Blass = Steckdose freigegeben, deckend = Ger&auml;t lief wirklich.':''))
+    ? (T('Heute vom ersten bis zum letzten Messpunkt – zum Ablesen einer Laufzeit auf einen Balken zeigen.')
+       +(anySelf?T(' Blass = Steckdose freigegeben, deckend = Gerät lief wirklich.'):''))
     : '';
 }
 function stripPointer(e){
@@ -2829,12 +2838,12 @@ function stripPointer(e){
   if(row.self){
     // Der interessante Fall: freigegeben, aber nicht gelaufen – genau das erklärt
     // eine unerfüllte Mindest-Laufzeit.
-    h='<b>'+esc(row.name)+'</b> &middot; '+(rhit?span(rhit,' gelaufen')
-      :(hit?span(hit,' freigegeben, Ger&auml;t aus (kein Bedarf)')
-           :('um '+hhmm(new Date(t*1000))+' aus')));
+    h='<b>'+esc(row.name)+'</b> &middot; '+(rhit?span(rhit,T(' gelaufen'))
+      :(hit?span(hit,T(' freigegeben, Gerät aus (kein Bedarf)'))
+           :T('um {0} aus',[hhmm(new Date(t*1000))])));
   }else{
     h='<b>'+esc(row.name)+'</b> &middot; '+(hit?span(hit)
-      :('um '+hhmm(new Date(t*1000))+' aus'));
+      :T('um {0} aus',[hhmm(new Date(t*1000))]));
   }
   if(info.innerHTML!==h)info.innerHTML=h;   // gleicher Text -> kein Neuaufbau
 }
@@ -2907,7 +2916,7 @@ function populateYearSelect(){
     sel.value=(yrs.indexOf(prev)>=0)?prev:yrs[yrs.length-1];
   });
 }
-var DAILY_MONTH_NAMES=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+var DAILY_MONTH_NAMES=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'].map(function(x){return T(x);});
 function drawDailyChart(){
   var c=$('daily-chart');if(!c||!dailyData)return;
   var W=c.parentElement.clientWidth,H=260;
@@ -2921,7 +2930,7 @@ function drawDailyChart(){
   var rows=dailyData.filter(function(r){return Math.floor(r[0]/10000)===year;});
   if(!rows.length){
     ctx.fillStyle=cv('--ink3');ctx.font='12px '+CFONT;ctx.textAlign='center';
-    ctx.fillText(dailyData.length?('Keine Daten für '+(year||'?')):'Noch keine Langzeit-Historie importiert',W/2,H/2);
+    ctx.fillText(dailyData.length?T('Keine Daten für {0}',[year||'?']):T('Noch keine Langzeit-Historie importiert'),W/2,H/2);
     updateDailySummary([]);return;
   }
   var maxV=0;rows.forEach(function(r){maxV=Math.max(maxV,r[1],r[2]);});
@@ -2953,10 +2962,10 @@ function updateDailySummary(rows){
   rows.forEach(function(r){prod+=r[1];cons+=r[2];if(r[5]&2)low=true;});
   var auto=cons>0?Math.max(0,Math.min(100,Math.round((1-Math.max(0,cons-prod)/cons)*100))):0;
   el.innerHTML=
-    '<div class="stat"><small>Produktion</small><span class="val csol tnum">'+(prod/1000).toFixed(0)+' kWh</span></div>'+
-    '<div class="stat"><small>Verbrauch</small><span class="val ccon tnum">'+(cons/1000).toFixed(0)+' kWh</span></div>'+
-    '<div class="stat"><small>Autarkiegrad</small><span class="val tnum">'+auto+'%</span></div>'
-    +(low?'<div class="hint" style="grid-column:1/-1">Teilzeitraum mit geringerer Datenqualität (Inbetriebnahme/Umbau)</div>':'');
+    '<div class="stat"><small>'+T('Produktion')+'</small><span class="val csol tnum">'+(prod/1000).toFixed(0)+' kWh</span></div>'+
+    '<div class="stat"><small>'+T('Verbrauch')+'</small><span class="val ccon tnum">'+(cons/1000).toFixed(0)+' kWh</span></div>'+
+    '<div class="stat"><small>'+T('Autarkiegrad')+'</small><span class="val tnum">'+auto+'%</span></div>'
+    +(low?'<div class="hint" style="grid-column:1/-1">'+T('Teilzeitraum mit geringerer Datenqualität (Inbetriebnahme/Umbau)')+'</div>':'');
 }
 // ── Jahres-Heatmap (Kalenderraster) ──────────────────────────────────────────
 var HM_COL=['#e6ecf2','#b8e3d8','#6fcbb4','#2ea88a','#12705c'];
@@ -2997,7 +3006,7 @@ function drawHeatmap(){
 
   hmCells=[];
   ctx.font='8px '+CFONT;ctx.fillStyle=cv('--ink3');ctx.textAlign='right';
-  ['Mo','Mi','Fr','So'].forEach(function(n,k){
+  ['Mo','Mi','Fr','So'].map(function(x){return T(x);}).forEach(function(n,k){
     var row=[0,2,4,6][k];
     ctx.fillText(n,LEFT-4,TOP+row*cell+cell*0.75);
   });
@@ -3020,7 +3029,7 @@ function drawHeatmap(){
       ctx.fillText(DAILY_MONTH_NAMES[lastMon],x,TOP-4);
     }
   }
-  setTxt('hm-info',rows.length+' Tage \u00b7 Bestwert '+(maxV/1000).toFixed(1)+' kWh');
+  setTxt('hm-info',T('{0} Tage · Bestwert {1} kWh',[rows.length,(maxV/1000).toFixed(1)]));
 }
 (function(){
   var c=$('hm-chart');if(!c)return;
@@ -3030,8 +3039,7 @@ function drawHeatmap(){
       if(x>=q.x&&x<q.x+q.s&&y>=q.y&&y<q.y+q.s){hit=q.r;break;}}
     if(!hit){setTxt('hm-hover','');return;}
     var ds=String(hit[0]),dd=ds.slice(6,8)+'.'+ds.slice(4,6)+'.'+ds.slice(0,4);
-    setHtml('hm-hover','<b>'+dd+'</b>: '+(hit[1]/1000).toFixed(1)+' kWh erzeugt, '
-      +(hit[2]/1000).toFixed(1)+' kWh verbraucht');
+    setHtml('hm-hover','<b>'+dd+'</b>: '+T('{0} kWh erzeugt, {1} kWh verbraucht',[(hit[1]/1000).toFixed(1),(hit[2]/1000).toFixed(1)]));
   }
   var mv=rafPtr(hover);
   c.addEventListener('pointermove',mv,{passive:true});
@@ -3040,18 +3048,18 @@ function drawHeatmap(){
 })();
 function uploadDailyCsv(){
   var inp=$('daily-file');if(!inp.files||!inp.files[0])return;
-  var st=$('daily-upload-status');st.textContent='Lade hoch…';
+  var st=$('daily-upload-status');st.textContent=T('Lade hoch…');
   var fd=new FormData();fd.append('file',inp.files[0]);
   var xhr=new XMLHttpRequest();
   xhr.open('POST','/api/history_daily_import');
-  xhr.upload.onprogress=function(e){if(e.lengthComputable)st.textContent='Lade hoch… '+Math.round(e.loaded/e.total*100)+'%';};
+  xhr.upload.onprogress=function(e){if(e.lengthComputable)st.textContent=T('Lade hoch…')+' '+Math.round(e.loaded/e.total*100)+'%';};
   xhr.onload=function(){
-    var msg='Fehler';
+    var msg=T('Fehler');
     try{msg=JSON.parse(xhr.responseText).msg||msg;}catch(e){}
     st.textContent=msg;
     if(xhr.status===200)fetchDailyHistory();
   };
-  xhr.onerror=function(){st.textContent='Netzwerkfehler beim Hochladen';};
+  xhr.onerror=function(){st.textContent=T('Netzwerkfehler beim Hochladen');};
   xhr.send(fd);
   inp.value='';
 }
@@ -3066,7 +3074,7 @@ function updDismiss(){
 function updateBanner(u){
   var b=$('upd-banner');if(!b)return;
   var show=!!(u&&u.available&&!updDismissed(u.latest));
-  if(show){setTxt('upd-t','Version '+u.latest+' ist verfügbar');$('upd-link').href=u.url||'#';}
+  if(show){setTxt('upd-t',T('Version {0} ist verfügbar',[u.latest]));$('upd-link').href=u.url||'#';}
   b.style.display=show?'flex':'none';
 }
 function poll(){
@@ -3076,7 +3084,7 @@ function poll(){
     tweenW('sp',d.prod,'+');$('sp').classList.add('csol');
     tweenW('sc',d.cons,'-');$('sc').classList.add('ccon');
     var sg=$('sg');tweenW('sg',-d.grid,true);sg.className='val tnum '+(d.grid>=0?'cgn':'cgp');
-    $('ts').textContent=new Date().toLocaleTimeString('de-CH');
+    $('ts').textContent=new Date().toLocaleTimeString(LOC);
     updateSlAge(d.sl_age);
     updateAvgChip(d.avg_s);
     var surp=d.prod-d.cons,sp2=surp>=0?'+':'';
@@ -3124,10 +3132,7 @@ function updateHystHint(){
   var pm=parseInt($('f-sl-poll').value,10)||1;
   var on=parseInt($('f-hon').value,10)||0,off=parseInt($('f-hoff').value,10)||0;
   var tOn=hystTicks(on,pm),tOff=hystTicks(off,pm);
-  el.innerHTML='So lange muss der &Uuml;berschuss (bzw. das Defizit) anhalten, bevor geschaltet wird. '
-    +'Gez&auml;hlt wird in Abfragen &ndash; bei <b>'+pm+' min</b> Intervall sind das '
-    +'<b>'+tOn+'</b> Messung(en) zum Einschalten und <b>'+tOff+'</b> zum Abschalten. '
-    +'Als Dauer bleibt die Einstellung erhalten, wenn du das Intervall &auml;nderst.';
+  el.innerHTML=T('So lange muss der Überschuss (bzw. das Defizit) anhalten, bevor geschaltet wird. Gezählt wird in Abfragen – bei <b>{0} min</b> Intervall sind das <b>{1}</b> Messung(en) zum Einschalten und <b>{2}</b> zum Abschalten. Als Dauer bleibt die Einstellung erhalten, wenn du das Intervall änderst.',[pm,tOn,tOff]);
 }
 function loadCfg(c){
   if(!c)return;cfg=Object.assign({},c,{loaded:true});
@@ -3162,8 +3167,8 @@ function loadCfg(c){
   $('f-p-base').value=((c.p_base||0)/100).toFixed(2);
   $('f-hb-en').checked=!!c.hb_en;
   $('f-hb-url').value='';
-  setHtml('hb-url-hint',c.hb_url_set?'Eine Ping-URL ist gespeichert (wird aus Sicherheitsgr&uuml;nden nicht angezeigt).'
-                                    :'<b>Noch keine Ping-URL gesetzt</b> &ndash; es wird kein Lebenszeichen gesendet.');
+  setHtml('hb-url-hint',T(c.hb_url_set?'Eine Ping-URL ist gespeichert (wird aus Sicherheitsgründen nicht angezeigt).'
+                                    :'<b>Noch keine Ping-URL gesetzt</b> – es wird kein Lebenszeichen gesendet.'));
   $('f-hb-min').value=c.hb_min||15;
   $('f-mo-sl').value=(c.mo_sl!=null?c.mo_sl:15);
   $('f-mo-dev').value=(c.mo_dev!=null?c.mo_dev:15);
@@ -3180,6 +3185,7 @@ function loadCfg(c){
   $('f-mq-pfx').value=c.mq_pfx||'energyoptimizer';
   $('f-mq-disc').checked=c.mq_disc!==false;
   $('f-hostname').value=c.hostname||'energyoptimizer';
+  $('f-lang').value=c.lang||'de';
   var pt=location.port?':'+location.port:'';
   $('ipnote').innerHTML='<b>http://'+esc(c.hostname||'energyoptimizer')+'.local'+pt+'</b> &nbsp;|&nbsp; IP <b>'+esc(c.ip)+pt+'</b>';
   setBaseline();
@@ -3192,16 +3198,16 @@ function openDevOv(idx,prefill,kind){
   devOvIdx=idx;
   var d=prefill||(isExt?(cfg.ext&&cfg.ext[idx]):(cfg.shelly&&cfg.shelly[idx]))||{};
   devOvId=d.id||'';
-  $('dov-ttl').textContent=(isExt?'Externer Schalter ':'Gerät ')+(idx+1);
+  $('dov-ttl').textContent=T(isExt?'Externer Schalter {0}':'Gerät {0}',[idx+1]);
   $('dov-ip-row').style.display=isExt?'none':'';
   $('dov-idline').style.display=isExt?'none':'';
   // Der Hinweis zu den externen Schaltern steckt hinter dem Info-Icon neben "Name";
   // bei einer echten Steckdose verschwindet das Icon samt aufgeklapptem Text.
   $('dov-ext-ib').style.display=isExt?'':'none';
   if(!isExt)infoClose('devext');
-  if(!isExt)$('dov-idline').innerHTML=d.id?('&#128279; ID: '+esc(d.id)):'ID wird beim n&auml;chsten Poll gelernt';
+  if(!isExt)$('dov-idline').innerHTML=d.id?('&#128279; ID: '+esc(d.id)):T('ID wird beim nächsten Poll gelernt');
   $('dov-name').value=d.name||'';
-  $('dov-name').placeholder=isExt?'z. B. Fingerbot Küche':'z. B. Boiler';
+  $('dov-name').placeholder=T(isExt?'z. B. Fingerbot Küche':'z. B. Boiler');
   $('dov-ip').value=d.ip||'';
   $('dov-pw').value=d.pw||0;
   $('dov-pw').min=isExt?0:1;
@@ -3300,7 +3306,7 @@ function schDraw(){
   if(schList.length<MAX_SCHED_UI)
     h+='<button type="button" class="sch-add" onclick="schAdd()"><span>+</span>Programm hinzuf&uuml;gen</button>';
   else
-    h+='<div class="sch-none">Mehr als '+MAX_SCHED_UI+' Programme je Ger&auml;t sind nicht vorgesehen.</div>';
+    h+='<div class="sch-none">'+T('Mehr als {0} Programme je Gerät sind nicht vorgesehen.',[MAX_SCHED_UI])+'</div>';
   el.innerHTML=h;
   for(var k=0;k<schList.length;k++){schDays(k,schList[k].d);schInfo(k);}
 }
@@ -3330,14 +3336,14 @@ function schToggle(i){
 function schInfo(i){
   var el=$('sch-i-'+i);if(!el)return;
   var on=$('sch-on-'+i)&&$('sch-on-'+i).checked;
-  if(!on){el.textContent='Programm ausgesetzt';return;}
+  if(!on){el.textContent=T('Programm ausgesetzt');return;}
   var s=schT2M($('sch-s-'+i).value),e=schT2M($('sch-e-'+i).value),d=schMask(i);
-  if(s<0||e<0){el.textContent='Ungültige Zeit';return;}
-  if(s===e){el.textContent='Start und Ende gleich – das Programm läuft nie';return;}
-  if(!d){el.textContent='Kein Wochentag gewählt – das Programm läuft nie';return;}
+  if(s<0||e<0){el.textContent=T('Ungültige Zeit');return;}
+  if(s===e){el.textContent=T('Start und Ende gleich – das Programm läuft nie');return;}
+  if(!d){el.textContent=T('Kein Wochentag gewählt – das Programm läuft nie');return;}
   var dur=e-s;if(dur<0)dur+=1440;
-  var days=(d===0x7F)?'täglich':WDN.filter(function(n,k){return d>>k&1;}).join(' ');
-  el.textContent=days+' · '+Math.floor(dur/60)+' h '+(dur%60)+' min'+(e<s?' (über Mitternacht)':'');
+  var days=(d===0x7F)?T('täglich'):WDN.filter(function(n,k){return d>>k&1;}).join(' ');
+  el.textContent=days+' · '+Math.floor(dur/60)+' h '+(dur%60)+' min'+(e<s?T(' (über Mitternacht)'):'');
 }
 // Serverformat: nur die tatsächlich vorhandenen Programme, in der Reihenfolge des
 // Dialogs. Ein gelöschtes Programm hinterlässt keine Lücke mehr.
@@ -3350,7 +3356,7 @@ function schCollect(){
   }
   return parts.join(';');
 }
-var WDN=['Mo','Di','Mi','Do','Fr','Sa','So'];
+var WDN=['Mo','Di','Mi','Do','Fr','Sa','So'].map(function(x){return T(x);});
 function renderWdays(mask){
   var el=$('dov-wd');if(!el)return;
   if(!mask)mask=0x7F;   // keine Auswahl = keine Einschränkung
@@ -3377,7 +3383,7 @@ function saveDevOv(){
   if(!isExt){
     var ip=$('dov-ip').value.trim();
     if(ip && !/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)){
-      $('dov-msg').textContent='Ungültige IP-Adresse';$('dov-msg').style.display='block';return;
+      $('dov-msg').textContent=T('Ungültige IP-Adresse');$('dov-msg').style.display='block';return;
     }
     data[pfx+i+'_ip']=ip;
     data[pfx+i+'_id']=devOvId;
@@ -3396,31 +3402,31 @@ function saveDevOv(){
   data[pfx+i+'_we']=$('dov-we').value||24;
   data[pfx+i+'_wd']=wdaysMask();
   data[pfx+i+'_sch']=schCollect();
-  ovShow(ovSpin(),'Speichern&hellip;','',0);
+  ovShow(ovSpin(),T('Speichern…'),'',0);
   api('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
   .then(function(d){
     if(d.ok){
-      ovShow(ovOk(),'Gespeichert!','',100,'var(--green)');
+      ovShow(ovOk(),T('Gespeichert!'),'',100,'var(--green)');
       cfg.loaded=false;
       setTimeout(function(){saveOv.style.display='none';closeDevOv();poll();},900);
     }else{
       saveOv.style.display='none';
-      $('dov-msg').textContent='Fehler: '+d.msg;$('dov-msg').style.display='block';
+      $('dov-msg').textContent=T('Fehler: {0}',[d.msg]);$('dov-msg').style.display='block';
     }
   }).catch(function(ex){
     saveOv.style.display='none';
-    $('dov-msg').textContent='Netzwerkfehler: '+ex;$('dov-msg').style.display='block';
+    $('dov-msg').textContent=T('Netzwerkfehler: {0}',[ex]);$('dov-msg').style.display='block';
   });
 }
 function removeDevOv(){
   var i=devOvIdx;if(i==null)return;
   var isExt=(devOvKind==='ext');
-  if(!confirm((isExt?'Externen Schalter':'Gerät')+' wirklich entfernen?'))return;
+  if(!confirm(T(isExt?'Externen Schalter wirklich entfernen?':'Gerät wirklich entfernen?')))return;
   var pfx=isExt?'e':'s';
   var data={};
   data[pfx+i+'_name']='';
   if(!isExt){data[pfx+i+'_ip']='';data[pfx+i+'_id']='';}
-  ovShow(ovSpin(),'Entfernen&hellip;','',0);
+  ovShow(ovSpin(),T('Entfernen…'),'',0);
   api('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
   .then(function(){
     saveOv.style.display='none';
@@ -3472,7 +3478,7 @@ function extSkeleton(s){
 function emptyExtSkeleton(i){
   return'<div class="shelly-card s-empty" id="exc-'+i+'">'
     +'<div class="sc-empty-ico"><svg><use href="#i-plus"/></svg></div>'
-    +'<div class="sc-empty-txt">Externer Schalter '+(i+1)+' einrichten</div>'
+    +'<div class="sc-empty-txt">'+T('Externer Schalter {0} einrichten',[i+1])+'</div>'
     +'<button type="button" class="btn bscan" onclick="openDevOv('+i+',null,\'ext\')"><svg><use href="#i-plus"/></svg>Hinzuf&uuml;gen</button>'
     +'</div>';
 }
@@ -3484,7 +3490,7 @@ function updateExt(s){
   setHtml('exb-'+s.idx,s.on
     ?'<span class="badge" style="background:rgba(52,199,89,.16);color:#0a8e3f">EIN</span>'
     :'<span class="badge" style="background:rgba(120,120,128,.16);color:#666">AUS</span>');
-  setTxt('exmeta-'+s.idx,(s.pw||0)+' W (nom.) · Prio '+s.pri+' · MQTT');
+  setTxt('exmeta-'+s.idx,T('{0} W (nom.) · Prio {1}',[s.pw||0,s.pri])+' · MQTT');
   setHtml('exrt-'+s.idx,runtimeHtml(s));
   var hyHtml='';
   if(s.auto&&!(s.lock>0)){
@@ -3492,7 +3498,7 @@ function updateExt(s){
     if(have>0){
       var pips='';for(var k=0;k<need;k++)pips+='<span class="pip'+(k<have?' f':'')+'"></span>';
       hyHtml='<div class="hyst '+(s.on?'off':'on')+'"><span class="pips">'+pips+'</span>'
-        +(s.on?'Ausschalten':'Einschalten')+' '+have+'/'+need+'</div>';
+        +T(s.on?'Ausschalten {0}/{1}':'Einschalten {0}/{1}',[have,need])+'</div>';
     }
   }
   setHtml('exhy-'+s.idx,hyHtml);
@@ -3500,18 +3506,16 @@ function updateExt(s){
   if(s.lock>0){
     var maxL=s.on?(cfg.min_on_min||7)*60:(cfg.min_off_min||5)*60;
     var lp=Math.min(100,Math.round(s.lock/maxL*100));
-    lkHtml='<div class="lock-bar-wrap"><div class="lock-bar-lbl">Gesperrt noch '+Math.floor(s.lock/60)+'m '+(s.lock%60)+'s</div>'
+    lkHtml='<div class="lock-bar-wrap"><div class="lock-bar-lbl">'+T('Gesperrt noch {0}',[Math.floor(s.lock/60)+'m '+(s.lock%60)+'s'])+'</div>'
       +'<div class="lock-bar-track"><div class="lock-bar-fill" style="width:'+lp+'%"></div></div></div>';
   }
   setHtml('exlk-'+s.idx,lkHtml);
   var ovHtml='';
   if(s.ov>0){
-    ovHtml='<div class="ovr"><svg><use href="#i-clock"/></svg>Befristet '+(s.on?'EIN':'AUS')+' &ndash; noch '
-      +fmtRest(s.ov)+(s.ova?', danach Automatik':'')
-      +'<button type="button" onclick="cancelExtTimer('+s.idx+','+(s.ova?1:0)+')">jetzt beenden</button></div>';
+    ovHtml='<div class="ovr"><svg><use href="#i-clock"/></svg>'+T(s.on?'Befristet EIN – noch {0}':'Befristet AUS – noch {0}',[fmtRest(s.ov)])+(s.ova?T(', danach Automatik'):'')
+      +'<button type="button" onclick="cancelExtTimer('+s.idx+','+(s.ova?1:0)+')">'+T('jetzt beenden')+'</button></div>';
   }else if(s.win===false){
-    ovHtml='<div class="win-closed"><svg><use href="#i-clock"/></svg>Ausserhalb des Freigabefensters &ndash; '
-      +'die Automatik schaltet jetzt nicht</div>';
+    ovHtml='<div class="win-closed"><svg><use href="#i-clock"/></svg>'+T('Ausserhalb des Freigabefensters – die Automatik schaltet jetzt nicht')+'</div>';
   }
   setHtml('exov-'+s.idx,ovHtml);
   setHtml('exsc-'+s.idx,schedHtml(s,'ext'));
@@ -3534,7 +3538,7 @@ function renderExt(list){
   list.forEach(updateExt);
 }
 function doRestart(){
-  if(confirm('EnergyOptimizer wirklich neu starten?'))
+  if(confirm(T('EnergyOptimizer wirklich neu starten?')))
     api('/api/restart',{method:'POST'}).then(function(){setTimeout(function(){location.reload();},6000);});
 }
 function doLogout(){
@@ -3547,19 +3551,19 @@ function dlLoadStats(){
   api('/api/history/stats').then(function(d){
     if(wl){
       var w='';
-      if(d.werr)w='⚠ Letzter Schreibversuch fehlgeschlagen – Dateisystem voll oder defekt.';
-      else if(d.fs_total&&d.fs_used/d.fs_total>0.8)w='⚠ Speicher zu '+Math.round(d.fs_used/d.fs_total*100)+' % belegt – Verlauf exportieren und löschen.';
-      else if(d.max&&d.bytes>d.max*0.8)w='Hinweis: ab '+fmtSize(d.max)+' wird der älteste Teil des Verlaufs automatisch verworfen. Vorher exportieren, wenn du ihn vollständig behalten willst.';
+      if(d.werr)w=T('⚠ Letzter Schreibversuch fehlgeschlagen – Dateisystem voll oder defekt.');
+      else if(d.fs_total&&d.fs_used/d.fs_total>0.8)w=T('⚠ Speicher zu {0} % belegt – Verlauf exportieren und löschen.',[Math.round(d.fs_used/d.fs_total*100)]);
+      else if(d.max&&d.bytes>d.max*0.8)w=T('Hinweis: ab {0} wird der älteste Teil des Verlaufs automatisch verworfen. Vorher exportieren, wenn du ihn vollständig behalten willst.',[fmtSize(d.max)]);
       wl.textContent=w;wl.style.display=w?'block':'none';
     }
-    if(!d.exists){el.textContent='Noch keine Daten aufgezeichnet.';return;}
-    var since=d.first?new Date(d.first*1000).toLocaleDateString('de-CH'):'?';
-    el.textContent=fmtSize(d.bytes)+' seit '+since+' – Speicher: '+fmtSize(d.fs_used)+' / '+fmtSize(d.fs_total)+' belegt';
-  }).catch(function(){el.textContent='Nicht verfügbar.';});
+    if(!d.exists){el.textContent=T('Noch keine Daten aufgezeichnet.');return;}
+    var since=d.first?new Date(d.first*1000).toLocaleDateString(LOC):'?';
+    el.textContent=T('{0} seit {1} – Speicher: {2} / {3} belegt',[fmtSize(d.bytes),since,fmtSize(d.fs_used),fmtSize(d.fs_total)]);
+  }).catch(function(){el.textContent=T('Nicht verfügbar.');});
 }
 function dlExport(){location.href='/api/history/export';}
 function dlClear(){
-  if(!confirm('Gesamten Langzeit-Verlauf wirklich unwiderruflich löschen? Vorher exportieren nicht vergessen!'))return;
+  if(!confirm(T('Gesamten Langzeit-Verlauf wirklich unwiderruflich löschen? Vorher exportieren nicht vergessen!')))return;
   api('/api/history/clear',{method:'POST'}).then(function(){dlLoadStats();});
 }
 var saveOv=null;
@@ -3588,18 +3592,19 @@ $('sf').addEventListener('submit',function(e){
   ['mq_en','mq_disc','hb_en','sl_dev'].forEach(function(k){data[k]=(k in data)?'true':'false';});
   // Eingabe in Franken, API und Gerät rechnen in ganzen Rappen
   ['p_buy','p_feed','p_base'].forEach(function(k){if(k in data)data[k]=Math.round((parseFloat(data[k])||0)*100);});
-  ovShow(ovSpin(),'Speichern&hellip;','',0);
+  ovShow(ovSpin(),T('Speichern…'),'',0);
   api('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
   .then(function(d){
     if(d.ok&&!d.reboot){
       cfg.loaded=false;setDirty(false);
+      if(data.lang&&data.lang!==(window.LANG||'de')){location.reload();return;}
       // Abgewiesene Felder wie einen Fehler stehen lassen (nicht im Overlay, das
       // nach 1,2 s verschwindet): der Rest ist gespeichert, dieses Feld aber nicht.
       if(d.warn){
         saveOv.style.display='none';
         var w=$('msg-err');w.textContent=d.warn;w.style.display='block';
       }else{
-        ovShow(ovOk(),'Gespeichert!','Einstellungen &uuml;bernommen',100,'var(--green)');
+        ovShow(ovOk(),T('Gespeichert!'),T('Einstellungen übernommen'),100,'var(--green)');
         // Erledigte Kategorie zuklappen und zur Uebersichtsliste zurueck: sonst
         // bleibt nach dem Speichern dieselbe Unterseite offen stehen und es sieht
         // aus, als sei nichts passiert. Nur im sauberen Fall – wurde ein Feld
@@ -3608,12 +3613,12 @@ $('sf').addEventListener('submit',function(e){
       }
     }else if(d.ok){
       var t=5;
-      ovShow(ovOk(),'Gespeichert!','Neustart in '+t+'s neu&hellip;',100,'var(--green)');
+      ovShow(ovOk(),T('Gespeichert!'),T('Neustart in {0}s…',[t]),100,'var(--green)');
       var ti=setInterval(function(){t--;
-        if(t>0){$('ov-sub').innerHTML='Neustart in '+t+'s neu&hellip;';}
+        if(t>0){$('ov-sub').innerHTML=T('Neustart in {0}s…',[t]);}
         else{clearInterval(ti);
           $('ov-fill').style.width='0%';
-          ovShow(ovSpin(),'Neustart l&auml;uft&hellip;','Warte auf Verbindung&hellip;',0,'var(--blue)');
+          ovShow(ovSpin(),T('Neustart läuft…'),T('Warte auf Verbindung…'),0,'var(--blue)');
           setTimeout(function(){$('ov-fill').style.width='90%';},80);
           var tries=0,pi=setInterval(function(){
             api('/api/status').then(function(){clearInterval(pi);location.reload();})
@@ -3623,16 +3628,16 @@ $('sf').addEventListener('submit',function(e){
       },1000);
     }else{
       saveOv.style.display='none';
-      var err=$('msg-err');err.textContent='Fehler: '+d.msg;err.style.display='block';
+      var err=$('msg-err');err.textContent=T('Fehler: {0}',[d.msg]);err.style.display='block';
     }
   }).catch(function(ex){
     saveOv.style.display='none';
-    var err=$('msg-err');err.textContent='Netzwerkfehler: '+ex;err.style.display='block';
+    var err=$('msg-err');err.textContent=T('Netzwerkfehler: {0}',[ex]);err.style.display='block';
   });
 });
 var scanTmr=null;
 function startScan(){
-  $('scan-st').innerHTML='Suche l&auml;uft&hellip; (ca. 15-30 s)';
+  $('scan-st').textContent=T('Suche läuft… (ca. 15-30 s)');
   $('scan-res').innerHTML='';
   api('/api/discover',{method:'POST'}).then(function(){
     if(scanTmr)clearInterval(scanTmr);
@@ -3642,9 +3647,9 @@ function startScan(){
 function pollScan(){
   api('/api/discover').then(function(d){
     var st=$('scan-st');
-    if(d.done){st.innerHTML=d.count+' Ger&auml;t(e) gefunden';clearInterval(scanTmr);}
-    else if(d.running){st.innerHTML='Suche l&auml;uft&hellip;';}
-    else{st.innerHTML='Warte auf Scan-Start&hellip;';}
+    if(d.done){st.innerHTML=T('{0} Gerät(e) gefunden',[d.count]);clearInterval(scanTmr);}
+    else if(d.running){st.textContent=T('Suche läuft…');}
+    else{st.textContent=T('Warte auf Scan-Start…');}
     var h='';
     (d.devices||[]).forEach(function(dev){
       h+='<div class="scan-dev"><div><div class="nm">'+esc(dev.name)+'</div>'
@@ -3667,7 +3672,7 @@ $('scan-res').addEventListener('click',function(e){
 function addDev(ip,name,id){
   var idx=Math.min(lastShellyCount,MAX_SHELLY_UI-1);
   openDevOv(idx,{name:name,ip:ip,id:id,pw:0,pri:idx+1,rt:0,rw:0,io:0,auto:false});
-  $('scan-st').textContent='\u2713 '+name+' \u2192 Steckdose '+(idx+1)+' \u2013 bitte pr\u00fcfen & speichern';
+  $('scan-st').textContent='\u2713 '+T('{0} → Steckdose {1} – bitte prüfen & speichern',[name,idx+1]);
 }
 // ── Sonnenstand, Diagnose ────────────────────────────────────────────────────
 // Sonnenhöhe im Browser rechnen (gleiches Verfahren wie sun.h auf dem Gerät) –
@@ -3686,15 +3691,14 @@ function updateSunHint(){
   var la=parseFloat(($('f-lat')||{}).value),lo=parseFloat(($('f-lon')||{}).value);
   if(isNaN(la)||isNaN(lo)){setTxt('sun-now','');return;}
   var e=sunElev(la,lo);
-  setHtml('sun-now','Sonnenh&ouml;he jetzt: <b>'+e.toFixed(0)+'&deg;</b> &ndash; '
-    +(e>=10?'der W&auml;chter w&uuml;rde jetzt greifen.':'unter 10&deg;, der W&auml;chter ruht.'));
+  setHtml('sun-now',T(e>=10?'Sonnenhöhe jetzt: <b>{0}°</b> – der Wächter würde jetzt greifen.':'Sonnenhöhe jetzt: <b>{0}°</b> – unter 10°, der Wächter ruht.',[e.toFixed(0)]));
 }
 (function(){['f-lat','f-lon'].forEach(function(id){var e=$(id);if(e)e.addEventListener('input',updateSunHint);});})();
 function loadRaw(){
   setTxt('raw-main','Lade…');setTxt('raw-dev','Lade…');
   api('/api/solarlog/raw').then(function(d){
-    setTxt('raw-main',d.main||'(noch keine Antwort empfangen)');
-    setTxt('raw-dev', d.dev ||'(noch keine Geräteabfrage gelaufen)');
+    setTxt('raw-main',d.main||T('(noch keine Antwort empfangen)'));
+    setTxt('raw-dev', d.dev ||T('(noch keine Geräteabfrage gelaufen)'));
     var devs=d.devs||[],h='';
     if(devs.length){
       h='<table class="devtab"><tr><th>#</th><th>Ger&auml;t</th><th>Status</th><th style="text-align:right">Leistung</th><th style="text-align:right">bisher max.</th></tr>';
@@ -3704,29 +3708,26 @@ function loadRaw(){
           +'<td class="n">'+(x.w!=null?(x.w+' W'):'&ndash;')+'</td>'
           +'<td class="n">'+(x.max?(x.max+' W'):'&ndash;')+'</td></tr>';
       });
-      h+='</table><div class="hint" style="margin-top:6px">Abfrage vor '+(d.age>=0?d.age+' s':'&ndash;')
-        +'. Der Status ist herstellerabh&auml;ngiger Klartext und wird nur angezeigt. Als ausgefallen gilt '
-        +'nur eine Position, die <b>schon einmal produziert hat</b> (Spalte &bdquo;bisher max.&ldquo;) und jetzt '
-        +'bei 0 W steht, w&auml;hrend andere liefern &ndash; Objekt 782 enth&auml;lt auch Z&auml;hler.</div>';
+      h+='</table><div class="hint" style="margin-top:6px">'+T('Abfrage vor {0}. Der Status ist herstellerabhängiger Klartext und wird nur angezeigt. Als ausgefallen gilt nur eine Position, die <b>schon einmal produziert hat</b> (Spalte „bisher max.“) und jetzt bei 0 W steht, während andere liefern – Objekt 782 enthält auch Zähler.',[d.age>=0?d.age+' s':'–'])+'</div>';
     }
     setHtml('raw-devs',h);
-  }).catch(function(){setTxt('raw-main','Fehler beim Abrufen');});
+  }).catch(function(){setTxt('raw-main',T('Fehler beim Abrufen'));});
 }
 // ── Selbsttest ───────────────────────────────────────────────────────────────
 var ST_ICO=['&#10003;','!','&#10005;','&ndash;'];
 var stTimer=null;
 function renderSelftest(d){
   var el=$('st-list');if(!el)return;
-  if(d.running){el.innerHTML='<div class="hint">Test l&auml;uft&hellip; (SolarLog und jede Steckdose werden wirklich abgefragt)</div>';return;}
+  if(d.running){el.innerHTML='<div class="hint">'+T('Test läuft… (SolarLog und jede Steckdose werden wirklich abgefragt)')+'</div>';return;}
   var it=(d&&d.items)||[];
   if(!it.length){el.innerHTML='';return;}
   var bad=it.filter(function(x){return x.s===2;}).length,warn=it.filter(function(x){return x.s===1;}).length;
   var head='<div class="hint" style="margin-bottom:6px">'
-    +(bad?('<b style="color:var(--red)">'+bad+' Fehler</b>'):'<b style="color:var(--green)">Kein Fehler</b>')
-    +(warn?(' &middot; '+warn+' Hinweis(e)'):'')+' &middot; vor '+(d.age>=0?d.age+' s':'&ndash;')+'</div>';
+    +(bad?('<b style="color:var(--red)">'+T('{0} Fehler',[bad])+'</b>'):'<b style="color:var(--green)">'+T('Kein Fehler')+'</b>')
+    +(warn?(' &middot; '+T('{0} Hinweis(e)',[warn])):'')+' &middot; '+(d.age>=0?T('vor {0}',[d.age+' s']):'&ndash;')+'</div>';
   el.innerHTML=head+it.map(function(x){
     return '<div class="st-row"><div class="st-i s'+x.s+'">'+ST_ICO[x.s]+'</div>'
-      +'<div><div class="st-n">'+esc(x.n)+'</div><div class="st-d">'+esc(x.d)+'</div></div></div>';
+      +'<div><div class="st-n">'+esc(T(x.n))+'</div><div class="st-d">'+esc(T(x.d))+'</div></div></div>';
   }).join('');
 }
 function pollSelftest(){
@@ -3736,12 +3737,12 @@ function pollSelftest(){
   }).catch(function(){});
 }
 function runSelftest(){
-  setHtml('st-list','<div class="hint">Test wird gestartet&hellip;</div>');
+  setHtml('st-list','<div class="hint">'+T('Test wird gestartet…')+'</div>');
   api('/api/selftest',{method:'POST'}).then(function(){
     if(stTimer)clearInterval(stTimer);
     stTimer=setInterval(pollSelftest,1500);
     setTimeout(pollSelftest,1500);
-  }).catch(function(){setHtml('st-list','<div class="hint">Start fehlgeschlagen</div>');});
+  }).catch(function(){setHtml('st-list','<div class="hint">'+T('Start fehlgeschlagen')+'</div>');});
 }
 // ── Konfigurations-Sicherung ─────────────────────────────────────────────────
 function cfgExport(){
@@ -3751,17 +3752,17 @@ function cfgExport(){
 function cfgImport(){
   var inp=$('cfg-file');if(!inp.files||!inp.files[0])return;
   var f=inp.files[0];inp.value='';
-  if(!confirm('Einstellungen aus "'+f.name+'" übernehmen? Die aktuellen Werte werden überschrieben.'))return;
-  setTxt('cfg-msg','Lese Datei…');
+  if(!confirm(T('Einstellungen aus "{0}" übernehmen? Die aktuellen Werte werden überschrieben.',[f.name])))return;
+  setTxt('cfg-msg',T('Lese Datei…'));
   var r=new FileReader();
   r.onload=function(){
     api('/api/config/import',{method:'POST',headers:{'Content-Type':'application/json'},body:r.result})
     .then(function(d){
       setTxt('cfg-msg',(d&&d.msg)||'Unbekannte Antwort');
       if(d&&d.ok){cfg.loaded=false;poll();}
-    }).catch(function(){setTxt('cfg-msg','Fehler beim Import');});
+    }).catch(function(){setTxt('cfg-msg',T('Fehler beim Import'));});
   };
-  r.onerror=function(){setTxt('cfg-msg','Datei konnte nicht gelesen werden');};
+  r.onerror=function(){setTxt('cfg-msg',T('Datei konnte nicht gelesen werden'));};
   r.readAsText(f);
 }
 function fmtMb(b){return b>=1073741824?(b/1073741824).toFixed(1)+' GB':Math.round(b/1048576)+' MB';}
@@ -3770,7 +3771,7 @@ function pollSys(){
   api('/api/sysinfo').then(function(d){
     var pct=Math.round((d.mem_total-d.mem_free)*100/d.mem_total);
     var mb=$('sys-mem-bar');mb.style.width=pct+'%';mb.style.background=barCol(pct);
-    $('sys-mem-txt').textContent=fmtMb(d.mem_free)+' frei / '+fmtMb(d.mem_total);
+    $('sys-mem-txt').textContent=T('{0} frei / {1}',[fmtMb(d.mem_free),fmtMb(d.mem_total)]);
     $('sys-cpu').innerHTML=d.cpu+'<span class="unit">%</span>';
     $('sys-proc').innerHTML=d.proc+'<span class="unit">%</span>';
     $('sys-temp').innerHTML=d.temp?d.temp.toFixed(1)+'<span class="unit">&deg;C</span>':'&ndash;';
@@ -3781,28 +3782,28 @@ function pollSys(){
     if(d.disk_total){
       var dp=Math.round((d.disk_total-d.disk_free)*100/d.disk_total);
       var db=$('sys-disk-bar');db.style.width=dp+'%';db.style.background=dp<75?'var(--green)':dp<90?'var(--orange)':'var(--red)';
-      setTxt('sys-disk-txt',fmtMb(d.disk_free)+' frei / '+fmtMb(d.disk_total));
+      setTxt('sys-disk-txt',T('{0} frei / {1}',[fmtMb(d.disk_free),fmtMb(d.disk_total)]));
     }
     var pt=d.port&&d.port!==80?':'+d.port:'';
-    setHtml('sys-net','Adresse: '+(d.mdns?'<b>http://'+esc(d.mdns)+pt+'</b> &middot; ':'')+'IP '+esc(d.ip)+pt
+    setHtml('sys-net',T('Adresse:')+' '+(d.mdns?'<b>http://'+esc(d.mdns)+pt+'</b> &middot; ':'')+'IP '+esc(d.ip)+pt
       +(d.mdns_err?'<br><span style="color:var(--orange)">&#9888; '+esc(d.mdns_err)+'</span>':''));
     var se=$('sys-save-err');if(se)se.style.display=d.save_err?'block':'none';
     var up=d.update;
     if(up){
-      var t='Installiert: <b>'+esc(up.current)+'</b>';
-      if(!up.enabled)t+=' &middot; Update-Prüfung ausgeschaltet';
-      else if(up.available)t+=' &middot; <span style="color:var(--blue)">Neu: <b>'+esc(up.latest)+'</b></span>'
-        +(up.url?' &middot; <a href="'+esc(up.url)+'" target="_blank" rel="noopener">Was ist neu?</a>':'');
-      else if(up.age<0)t+=' &middot; noch nicht geprüft';
-      else if(up.error)t+=' &middot; Prüfung fehlgeschlagen';
-      else t+=' &middot; aktuell';
+      var t=T('Installiert:')+' <b>'+esc(up.current)+'</b>';
+      if(!up.enabled)t+=' &middot; '+T('Update-Prüfung ausgeschaltet');
+      else if(up.available)t+=' &middot; <span style="color:var(--blue)">'+T('Neu:')+' <b>'+esc(up.latest)+'</b></span>'
+        +(up.url?' &middot; <a href="'+esc(up.url)+'" target="_blank" rel="noopener">'+T('Was ist neu?')+'</a>':'');
+      else if(up.age<0)t+=' &middot; '+T('noch nicht geprüft');
+      else if(up.error)t+=' &middot; '+T('Prüfung fehlgeschlagen');
+      else t+=' &middot; '+T('aktuell');
       setHtml('upd-state',t);
     }
     var n=d.heartbeat;
     if(n){
-      setHtml('hb-state',n.hb_age<0?'Noch kein Lebenszeichen gesendet.'
-        :('Letztes Lebenszeichen vor '+fmtAge(n.hb_age).replace('vor ','')
-          +(n.hb_ok?'':' &ndash; <b style="color:var(--red)">fehlgeschlagen</b>')));
+      setHtml('hb-state',n.hb_age<0?T('Noch kein Lebenszeichen gesendet.')
+        :(T('Letztes Lebenszeichen {0}',[fmtAge(n.hb_age)])
+          +(n.hb_ok?'':' &ndash; <b style="color:var(--red)">'+T('fehlgeschlagen')+'</b>')));
     }
   }).catch(function(){});
 }
@@ -3815,8 +3816,8 @@ function alarmSince(a){
   if(a.since){var d=new Date(a.since*1000),p=function(v){return(v<10?'0':'')+v;};
     var t=p(d.getHours())+':'+p(d.getMinutes());
     if(d.toDateString()!==new Date().toDateString())t=p(d.getDate())+'.'+p(d.getMonth()+1)+'. '+t;
-    return 'seit '+t;}
-  return 'seit '+(a.mins||0)+' min';
+    return T('seit {0}',[t]);}
+  return T('seit {0}',[(a.mins||0)+' min']);
 }
 function renderAlarms(d){
   var box=$('alarms');if(!box)return;
@@ -3826,9 +3827,9 @@ function renderAlarms(d){
   list.forEach(function(a){
     h+='<div class="alarm s'+a.sev+(a.acked?' ack':'')+'">'
       +'<div class="alarm-i"><svg><use href="#'+(a.sev>=2?'i-warn':'i-warn')+'"/></svg></div>'
-      +'<div class="alarm-b"><div class="alarm-t">'+esc(a.name)+'</div>'
-      +'<div class="alarm-d">'+esc(a.detail||'')+' &middot; '+alarmSince(a)+'</div></div>'
-      +(a.acked?'':'<button type="button" class="alarm-ack" onclick="ackAlarm('+a.id+')">Quittieren</button>')
+      +'<div class="alarm-b"><div class="alarm-t">'+esc(T(a.name))+'</div>'
+      +'<div class="alarm-d">'+esc(T(a.detail||''))+' &middot; '+alarmSince(a)+'</div></div>'
+      +(a.acked?'':'<button type="button" class="alarm-ack" onclick="ackAlarm('+a.id+')">'+T('Quittieren')+'</button>')
       +'</div>';
   });
   box.innerHTML=h;box.style.display='block';
@@ -3856,12 +3857,13 @@ var EV_RST={0:'unbekannt',1:'Kaltstart (Stromzufuhr)',2:'externer Reset',3:'Soft
   4:'Absturz (Ausnahme/Panic)',5:'Interrupt-Watchdog',6:'Task-Watchdog',7:'Watchdog',
   8:'Deep-Sleep',9:'Unterspannung (Brownout)',10:'SDIO',11:'USB',12:'JTAG',13:'eFuse-Fehler',
   14:'Spannungseinbruch',15:'CPU blockiert'};
-var EV_R={1:'&Uuml;berschuss reichte',2:'Defizit &uuml;ber Ausschalt-Puffer',3:'manuell',
-  4:'&uuml;ber MQTT',5:'Schlechtwetter-Nachlauf',6:'Nachlauf beendet',7:'Fail-Safe',
+var EV_R={1:'Überschuss reichte',2:'Defizit über Ausschalt-Puffer',3:'manuell',
+  4:'über MQTT',5:'Schlechtwetter-Nachlauf',6:'Nachlauf beendet',7:'Fail-Safe',
   8:'Befehl fehlgeschlagen',9:'ausserhalb des Freigabefensters',10:'Befristung abgelaufen',
-  11:'Batterie-Vorrang &ndash; Speicher entl&auml;dt',
-  12:'Ger&auml;t zeigt keinen Bedarf (Eigenregelung)',18:'Zeitschaltuhr',
+  11:'Batterie-Vorrang – Speicher entlädt',
+  12:'Gerät zeigt keinen Bedarf (Eigenregelung)',18:'Zeitschaltuhr',
   19:'Tageslimit erreicht'};
+function evR(rs){return EV_R[rs]?esc(T(EV_R[rs])):'';}
 function evTime(ep,up){
   if(!ep)return '+'+(up<3600?Math.round(up/60)+'m':Math.round(up/3600)+'h');
   var d=new Date(ep*1000),p=function(v){return (v<10?'0':'')+v;};
@@ -3869,51 +3871,51 @@ function evTime(ep,up){
   if(d.toDateString()===new Date().toDateString())return t;
   return p(d.getDate())+'.'+p(d.getMonth()+1)+'. '+t;
 }
-function evName(tx,dev){return tx?esc(tx):(dev>=0?'Steckdose '+(dev+1):'System');}
+function evName(tx,dev){return tx?esc(tx):(dev>=0?T('Steckdose {0}',[dev+1]):T('System'));}
 function evRow(e){
   var ep=e[0],up=e[1],ty=e[2],dev=e[3],rs=e[4],fl=e[5],sp=e[6],tx=e[7]||'';
   var on=(fl&1)!==0,hasSp=(fl&2)!==0,nm=evName(tx,dev);
   var ic='i-bolt',cls='',t='',m='';
   if(ty===2){                                   // Schaltung
     ic='i-power';
-    if(rs===8){cls='err';t=nm+': Schaltbefehl fehlgeschlagen';}
-    else{cls=on?'on':'off';t=nm+(on?' EIN':' AUS');}
-    m=EV_R[rs]||'';
-    if(hasSp)m+=(m?' &middot; ':'')+'&Uuml;berschuss '+(sp>=0?'+':'&minus;')+wInt(Math.abs(sp));
+    if(rs===8){cls='err';t=T('{0}: Schaltbefehl fehlgeschlagen',[nm]);}
+    else{cls=on?'on':'off';t=nm+' '+T(on?'EIN':'AUS');}
+    m=evR(rs);
+    if(hasSp)m+=(m?' &middot; ':'')+T('Überschuss')+' '+(sp>=0?'+':'&minus;')+wInt(Math.abs(sp));
   }else if(ty===3){                             // Erreichbarkeit
     ic='i-wifi';cls=on?'on':'err';
-    t=nm+(on?' wieder erreichbar':' nicht erreichbar');
-    m=on?'':'Mehrere Abfragen in Folge ohne Antwort';
+    t=T(on?'{0} wieder erreichbar':'{0} nicht erreichbar',[nm]);
+    m=on?'':T('Mehrere Abfragen in Folge ohne Antwort');
   }else if(ty===4){                             // Automatik-Schalter
     ic='i-sliders';cls=on?'on':'off';
-    t=nm+': Automatik '+(on?'ein':'aus');m=EV_R[rs]||'';
+    t=T(on?'{0}: Automatik ein':'{0}: Automatik aus',[nm]);m=evR(rs);
   }else if(ty===5){                             // SolarLog
     ic='i-server';cls=on?'on':'err';
-    t=on?'SolarLog wieder erreichbar':'SolarLog antwortet nicht';m=esc(tx);
+    t=T(on?'SolarLog wieder erreichbar':'SolarLog antwortet nicht');m=esc(T(tx));
   }else if(ty===6){                             // Fail-Safe
     ic='i-warn';cls=on?'err':'on';
-    t=on?'Fail-Safe ausgel&ouml;st &ndash; Automatik abgeschaltet':'Fail-Safe aufgehoben';m=esc(tx);
+    t=T(on?'Fail-Safe ausgelöst – Automatik abgeschaltet':'Fail-Safe aufgehoben');m=esc(T(tx));
   }else if(ty===7){                             // IP-Wechsel
     ic='i-refresh';cls='warn';
-    t='Steckdose '+(dev+1)+': neue IP '+esc(tx);m='per Ger&auml;te-ID wiedergefunden';
+    t=T('Steckdose {0}: neue IP {1}',[dev+1,esc(tx)]);m=T('per Geräte-ID wiedergefunden');
   }else if(ty===8){                             // Einstellungen
-    ic='i-save';t='Einstellungen gespeichert';m=EV_R[rs]||'';
+    ic='i-save';t=T('Einstellungen gespeichert');m=evR(rs);
   }else if(ty===1){                             // Neustart
     ic='i-chip';cls=on?'warn':'';
-    t='Neustart &ndash; '+(EV_RST[rs]||'unbekannt');m=esc(tx);
+    t=T('Neustart')+' &ndash; '+esc(T(EV_RST[rs]||'unbekannt'));m=esc(T(tx));
   }else if(ty===9){                             // Fehler
-    ic='i-warn';cls='err';t='Systemfehler';m=esc(tx);
+    ic='i-warn';cls='err';t=T('Systemfehler');m=esc(T(tx));
   }else if(ty===10){                            // Störung der Alarmzentrale
     ic='i-warn';cls=on?'err':'on';
-    t=esc(tx)+(on?'':' &ndash; behoben');
-    m=on?'St&ouml;rung erkannt':'Entwarnung';
+    t=esc(T(tx))+(on?'':' &ndash; '+T('behoben'));
+    m=T(on?'Störung erkannt':'Entwarnung');
   }else if(ty===11){                            // Fehlanmeldungen
-    ic='i-warn';cls='err';t='Wiederholte Fehlanmeldungen';m=esc(tx);
+    ic='i-warn';cls='err';t=T('Wiederholte Fehlanmeldungen');m=esc(T(tx));
   }else if(ty===12){                            // Eigenregelung: Betrieb erkannt/beendet
     ic='i-info';cls=on?'on':'off';
-    t=nm+(on?' l&auml;uft an':' l&auml;uft nicht mehr');
-    m='am gemessenen Verbrauch der Steckdose erkannt';
-  }else{t='Ereignis '+ty;m=esc(tx);}
+    t=T(on?'{0} läuft an':'{0} läuft nicht mehr',[nm]);
+    m=T('am gemessenen Verbrauch der Steckdose erkannt');
+  }else{t=T('Ereignis {0}',[ty]);m=esc(T(tx));}
   return '<div class="ev"><div class="ev-i '+cls+'"><svg><use href="#'+ic+'"/></svg></div>'
     +'<div class="ev-b"><div class="ev-t">'+t+'</div>'+(m?'<div class="ev-m">'+m+'</div>':'')+'</div>'
     +'<div class="ev-ts">'+evTime(ep,up)+'</div></div>';
@@ -3926,13 +3928,13 @@ function fetchEvents(){
     evBusy=false;
     var rows=(d&&d.ev)||[];
     setHtml('ev-list',rows.length?rows.map(evRow).join('')
-      :'<div class="hint" style="padding:14px 0;text-align:center">Noch keine Ereignisse aufgezeichnet.</div>');
-    setTxt('ev-info',(d&&d.n)?(d.n+' gespeichert'):'');
+      :'<div class="hint" style="padding:14px 0;text-align:center">'+T('Noch keine Ereignisse aufgezeichnet.')+'</div>');
+    setTxt('ev-info',(d&&d.n)?T('{0} gespeichert',[d.n]):'');
   }).catch(function(){evBusy=false;});
 }
 function evExport(){location.href='/api/events/export';}
 function evClear(){
-  if(!confirm('Ereignisprotokoll unwiderruflich löschen?'))return;
+  if(!confirm(T('Ereignisprotokoll unwiderruflich löschen?')))return;
   api('/api/events/clear',{method:'POST'}).then(fetchEvents).catch(function(){});
 }
 // Filter-Auswahl an die aktuell eingerichteten Steckdosen anpassen
@@ -3973,8 +3975,8 @@ function ideaRow(i){
     +(i.text?'<div class="idea-x">'+esc(i.text)+'</div>':'')
     +'<div class="idea-m"><span class="badge b-st'+i.status+'">'+esc(IDEA_ST[i.status]||'')+'</span>'
     +'<span class="badge b-off">'+esc(IDEA_AR[i.area]||'')+'</span>'
-    +(i.prio===2?'<span class="badge b-lock">hohe Priorität</span>':'')
-    +(i.prio===0?'<span class="badge b-off">niedrige Priorität</span>':'')
+    +(i.prio===2?'<span class="badge b-lock">'+T('hohe Priorität')+'</span>':'')
+    +(i.prio===0?'<span class="badge b-off">'+T('niedrige Priorität')+'</span>':'')
     +'<span class="idea-nr">#'+i.id+(i.updated?' · '+ideaDate(i.updated):'')+'</span>'
     +'</div></div>'
     +'<div class="idea-act">'
@@ -3996,7 +3998,7 @@ function ideaLoad(){
     ideaMax=(d&&d.max)||ideaMax;
     setHtml('idea-list',ideaCache.length
       ?ideaCache.slice().sort(ideaSort).map(ideaRow).join('')
-      :'<div class="empty">Noch nichts notiert &ndash; „Neue Verbesserung“ legt den ersten Punkt an.</div>');
+      :'<div class="empty">'+T('Noch nichts notiert – „Neue Verbesserung“ legt den ersten Punkt an.')+'</div>');
     ideaLeft();
   }).catch(function(){});
 }
@@ -4004,7 +4006,7 @@ function ideaErr(m){var e=$('idea-msg');if(!e)return;e.textContent=m;e.style.dis
 function ideaLeft(){
   var el=$('idea-left');if(!el)return;
   var left=IDEA_X_MAX-ideaBytes($('idea-text').value);
-  el.textContent=ideaCache.length+' von '+ideaMax+' Notizen belegt · noch '+left+' Zeichen';
+  el.textContent=T('{0} von {1} Notizen belegt · noch {2} Zeichen',[ideaCache.length,ideaMax,left]);
   el.classList.toggle('warn',left<60);
 }
 function ideaOpen(o){
@@ -4021,7 +4023,7 @@ function ideaOpen(o){
 }
 function ideaNew(){
   if(ideaCache.length>=ideaMax){
-    ideaErr('Es sind bereits '+ideaMax+' Notizen gespeichert. Bitte zuerst erledigte löschen.');
+    ideaErr(T('Es sind bereits {0} Notizen gespeichert. Bitte zuerst erledigte löschen.',[ideaMax]));
     return;
   }
   ideaOpen(null);
@@ -4036,21 +4038,21 @@ function ideaCancel(){
 }
 function ideaSave(){
   var t=$('idea-title').value.trim(),x=$('idea-text').value;
-  if(!t){ideaErr('Bitte einen Titel angeben.');return;}
-  if(ideaBytes(t)>IDEA_T_MAX){ideaErr('Titel zu lang – bitte kürzen (Umlaute zählen doppelt).');return;}
-  if(ideaBytes(x)>IDEA_X_MAX){ideaErr('Beschreibung zu lang – bitte kürzen (Umlaute zählen doppelt).');return;}
+  if(!t){ideaErr(T('Bitte einen Titel angeben.'));return;}
+  if(ideaBytes(t)>IDEA_T_MAX){ideaErr(T('Titel zu lang – bitte kürzen (Umlaute zählen doppelt).'));return;}
+  if(ideaBytes(x)>IDEA_X_MAX){ideaErr(T('Beschreibung zu lang – bitte kürzen (Umlaute zählen doppelt).'));return;}
   api('/api/ideas',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({id:ideaEditId,title:t,text:x,
       area:+$('idea-area').value,prio:+$('idea-prio').value,status:+$('idea-status').value})})
   .then(function(d){
-    if(!d||!d.ok){ideaErr((d&&d.msg)||'Speichern fehlgeschlagen.');return;}
+    if(!d||!d.ok){ideaErr((d&&d.msg)||T('Speichern fehlgeschlagen.'));return;}
     ideaCancel();ideaLoad();
-  }).catch(function(){ideaErr('Keine Verbindung zum Gerät.');});
+  }).catch(function(){ideaErr(T('Keine Verbindung zum Gerät.'));});
 }
 function ideaDel(id){
-  if(!confirm('Notiz #'+id+' unwiderruflich löschen?'))return;
+  if(!confirm(T('Notiz #{0} unwiderruflich löschen?',[id])))return;
   api('/api/ideas/delete?id='+id,{method:'POST'}).then(function(d){
-    if(d&&!d.ok){ideaErr(d.msg||'Löschen fehlgeschlagen.');return;}
+    if(d&&!d.ok){ideaErr(d.msg||T('Löschen fehlgeschlagen.'));return;}
     if(ideaEditId===id)ideaCancel();
     ideaLoad();
   }).catch(function(){});
@@ -4065,7 +4067,7 @@ function api(url,opts){
   });
 }
 var DM={
-  names:['Boiler','W\u00e4rmepumpe','Wallbox','Poolpumpe'],
+  names:['Boiler','W\u00e4rmepumpe','Wallbox','Poolpumpe'].map(function(x){return T(x);}),
   ips:['192.168.1.51','192.168.1.52','192.168.1.53','192.168.1.54'],
   ids:['shellyplus1pm-a8032ab1','shellyplus1pm-b4e62de8','shellypro1-c0490e44','shellyplug-s-d8bf2e90'],
   pw:[2000,1800,11000,900],pri:[1,2,3,4],auto:[true,true,false,true],rt:[0,90,0,30],
@@ -4118,7 +4120,7 @@ function demoCfg(){
     p_buy:22,p_feed:8,p_base:1928,
     hb_en:true,hb_url_set:true,hb_min:15,
     mo_sl:15,mo_dev:15,mo_np:45,mo_inv:30,sl_dev:true,lat:47.05,lon:8.31,
-    mq_en:false,mq_host:'',mq_port:1883,mq_user:'',mq_pfx:'energyoptimizer',mq_disc:true};
+    mq_en:false,mq_host:'',mq_port:1883,mq_user:'',mq_pfx:'energyoptimizer',mq_disc:true,lang:(window.LANG||'de'),hostname:'energyoptimizer'};
 }
 var DSCAN={running:false,done:false,t:0};
 function mock(url,opts){
@@ -4134,10 +4136,10 @@ function mock(url,opts){
       heartbeat:{hb_age:420,hb_ok:true}};}
   if(url.indexOf('/api/alarms/ack')===0){DM.alAck=true;return{ok:true};}
   if(url==='/api/alarms'){
-    var al=[{id:3,name:'Wechselrichter ohne Leistung',sev:2,since:Math.floor(Date.now()/1000)-5400,
-             mins:90,acked:!!DM.alAck,detail:'WR Süd: 0 W (andere liefern 2140 W)'},
-            {id:7,name:'Steckdose 3 nicht erreichbar',sev:1,since:Math.floor(Date.now()/1000)-1200,
-             mins:20,acked:false,detail:'Wallbox (192.168.1.53) antwortet nicht'}];
+    var al=[{id:3,name:T('Wechselrichter ohne Leistung'),sev:2,since:Math.floor(Date.now()/1000)-5400,
+             mins:90,acked:!!DM.alAck,detail:T('{0}: 0 W (andere liefern {1} W)',[T('WR Süd'),2140])},
+            {id:7,name:T('Steckdose {0} nicht erreichbar',[3]),sev:1,since:Math.floor(Date.now()/1000)-1200,
+             mins:20,acked:false,detail:T('{0} ({1}) antwortet nicht',['Wallbox','192.168.1.53'])}];
     return{al:al,n:al.filter(function(a){return !a.acked;}).length,max:2};
   }
   if(url==='/api/selftest'){
@@ -4145,25 +4147,25 @@ function mock(url,opts){
     if(!DM.stAt)return{running:false,done:false,age:-1,items:[]};
     if(Date.now()-DM.stAt<3000)return{running:true,done:false,age:-1,items:[]};
     return{running:false,done:true,age:Math.round((Date.now()-DM.stAt)/1000),items:[
-      {n:'Ethernet',s:0,d:'Verbunden, IP 192.168.1.99'},
-      {n:'Uhrzeit (NTP)',s:0,d:'01.08.2026 21:40'},
-      {n:'SolarLog',s:0,d:'192.168.1.40: 4210 W Produktion, 2680 W Verbrauch'},
-      {n:'Steckdose 1: Boiler',s:0,d:'Erreichbar, EIN, 1980 W'},
-      {n:'Steckdose 3: Wallbox',s:2,d:'192.168.1.53 antwortet nicht'},
-      {n:'Steckdose 4: Poolpumpe',s:1,d:'Erreichbar und EIN, zieht aber 0 W – Verbraucher oder Sicherung prüfen'},
-      {n:'Dateisystem',s:0,d:'0 von 25 MB belegt'},
-      {n:'Einstellungsspeicher',s:0,d:'In Ordnung'},
-      {n:'MQTT',s:3,d:'Nicht aktiviert'},
-      {n:'Heartbeat',s:0,d:'Letztes Lebenszeichen vor 420 s'},
-      {n:'Alarmzentrale',s:1,d:'2 offene Störung(en) – siehe Dashboard'}]};
+      {n:T('Netzwerk'),s:0,d:T('Verbunden, IP {0}',['192.168.1.99'])},
+      {n:T('Uhrzeit'),s:0,d:'01.08.2026 21:40'},
+      {n:'SolarLog',s:0,d:T('{0}: {1} W Produktion, {2} W Verbrauch',['192.168.1.40',4210,2680])},
+      {n:T('Steckdose {0}',[1])+': '+DM.names[0],s:0,d:T('Erreichbar, EIN, {0} W',[1980])},
+      {n:T('Steckdose {0}',[3])+': Wallbox',s:2,d:T('{0} antwortet nicht',['192.168.1.53'])},
+      {n:T('Steckdose {0}',[4])+': '+DM.names[3],s:1,d:T('Erreichbar und EIN, zieht aber 0 W – Verbraucher oder Sicherung prüfen')},
+      {n:T('Datenverzeichnis'),s:0,d:T('{0} von {1} MB belegt',[0,25])},
+      {n:T('Einstellungsspeicher'),s:0,d:T('In Ordnung')},
+      {n:'MQTT',s:3,d:T('Nicht aktiviert')},
+      {n:'Heartbeat',s:0,d:T('Letztes Lebenszeichen vor {0} s',[420])},
+      {n:T('Alarmzentrale'),s:1,d:T('{0} offene Störung(en) – siehe Dashboard',[2])}]};
   }
-  if(url==='/api/config/import')return{ok:true,msg:'Einstellungen übernommen. Passwörter und Heartbeat-URL bleiben unverändert.'};
+  if(url==='/api/config/import')return{ok:true,msg:T('Einstellungen übernommen. Passwörter und Heartbeat-URL bleiben unverändert.')};
   if(url==='/api/solarlog/raw')return{
     main:'{"801":{"170":{"101":"4210","110":"2680","105":"18240"}},"858":[]}',
     dev:'{"740":{"0":"10.0.0.1 / SN123","1":"10.0.0.2 / SN456","2":"Err"},"608":{"0":"Power","1":"Shutdown"},"782":{"0":"2140","1":"0"}}',
-    age:120,devs:[{i:0,name:'WR Nord',st:'Power',w:2140,max:4100},
-                  {i:1,name:'WR Süd',st:'Shutdown',w:0,max:3900},
-                  {i:2,name:'Zähler',st:'FeedIn',w:524,max:0}]};
+    age:120,devs:[{i:0,name:T('WR Nord'),st:'Power',w:2140,max:4100},
+                  {i:1,name:T('WR Süd'),st:'Shutdown',w:0,max:3900},
+                  {i:2,name:T('Zähler'),st:'FeedIn',w:524,max:0}]};
   if(url.indexOf('/api/ideas/delete')===0){
     var di=+(url.match(/id=(\d+)/)||[])[1];
     DM.ideas=(DM.ideas||[]).filter(function(o){return o.id!==di;});
@@ -4172,11 +4174,11 @@ function mock(url,opts){
   if(url==='/api/ideas'){
     if(!DM.ideas)DM.ideas=[
       {id:1,status:0,prio:2,area:1,created:0,updated:Math.floor(Date.now()/1000)-86400,
-       title:'Tagesertrag als Stundenbalken',text:'Im Dashboard zusätzlich zur Kurve je Stunde ein Balken – auf dem Handy leichter abzulesen.'},
+       title:T('Tagesertrag als Stundenbalken'),text:T('Im Dashboard zusätzlich zur Kurve je Stunde ein Balken – auf dem Handy leichter abzulesen.')},
       {id:2,status:1,prio:1,area:3,created:0,updated:Math.floor(Date.now()/1000)-3600,
-       title:'Sperrzeit je Gerät statt global',text:'Die Wallbox braucht eine längere Mindest-EIN-Zeit als der Boiler.'},
+       title:T('Sperrzeit je Gerät statt global'),text:T('Die Wallbox braucht eine längere Mindest-EIN-Zeit als der Boiler.')},
       {id:3,status:2,prio:0,area:6,created:0,updated:Math.floor(Date.now()/1000)-604800,
-       title:'Ereignisprotokoll als CSV',text:''}];
+       title:T('Ereignisprotokoll als CSV'),text:''}];
     if(m==='POST'){
       var b=JSON.parse((opts&&opts.body)||'{}');
       var e=null;
@@ -4199,7 +4201,7 @@ function mock(url,opts){
       E.push([nowE-5400,46820,2,1,2,1,-640,DM.names[1]]);
       E.push([nowE-9000,43220,4,1,3,1,0,DM.names[1]]);
       E.push([nowE-21600,30620,5,-1,0,1,0,'192.168.1.40']);
-      E.push([nowE-22100,30120,6,-1,0,1,0,'seit 31 min']);
+      E.push([nowE-22100,30120,6,-1,0,1,0,T('seit {0}',['31 min'])]);
       E.push([nowE-46000,10,1,-1,6,1,0,'Start #47']);
       DM.ev=E;
     }
@@ -4215,8 +4217,8 @@ function mock(url,opts){
     if(m==='POST'){DSCAN={running:true,done:false,t:Date.now()};return{ok:true};}
     var el=(Date.now()-DSCAN.t)/1000;
     if(DSCAN.running&&el>4){DSCAN.running=false;DSCAN.done=true;}
-    var devs=DSCAN.done?[{ip:'192.168.1.61',name:'Shelly Garage',model:'Plus 1PM',id:'shellyplus1pm-aa11bb'},
-      {ip:'192.168.1.62',name:'Shelly Keller',model:'Plug S',id:'shellyplug-s-cc22dd'}]:[];
+    var devs=DSCAN.done?[{ip:'192.168.1.61',name:T('Shelly Garage'),model:'Plus 1PM',id:'shellyplus1pm-aa11bb'},
+      {ip:'192.168.1.62',name:T('Shelly Keller'),model:'Plug S',id:'shellyplug-s-cc22dd'}]:[];
     return{running:DSCAN.running,done:DSCAN.done,count:devs.length,devices:devs};
   }
   if(/\/api\/shelly\/(\d+)\/(on|off|autoon|autooff)/.test(url)){
@@ -4288,8 +4290,8 @@ function mock(url,opts){
 // Über die Adresse …/#kiosk direkt erreichbar, damit ein Tablet ohne Umweg über
 // das Dashboard startet, und mit Wake Lock, damit der Bildschirm anbleibt.
 var kioskWL=null;
-var KWD=['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
-var KMO=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+var KWD=['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'].map(function(x){return T(x);});
+var KMO=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'].map(function(x){return T(x);});
 function kioskLock(){
   if(navigator.wakeLock&&navigator.wakeLock.request)
     navigator.wakeLock.request('screen').then(function(w){kioskWL=w;}).catch(function(){});
@@ -4313,17 +4315,17 @@ function updateKiosk(d){
   if(!kioskActive())return;
   var now=new Date(),e=d.energy||{};
   setTxt('k-clock',hhmm(now));
-  setTxt('k-date',KWD[now.getDay()]+', '+now.getDate()+'. '+KMO[now.getMonth()]+' '+now.getFullYear());
+  setTxt('k-date',T('{0}, {1}. {2} {3}',[KWD[now.getDay()],now.getDate(),KMO[now.getMonth()],now.getFullYear()]));
   setTxt('k-prod',wInt(d.prod));
-  setTxt('k-prod-d',e.dp!=null?(e.dp.toFixed(1)+' kWh heute'):'');
+  setTxt('k-prod-d',e.dp!=null?T('{0} kWh heute',[e.dp.toFixed(1)]):'');
   setTxt('k-cons',wInt(d.cons));
-  setTxt('k-cons-d',e.dc!=null?(e.dc.toFixed(1)+' kWh heute'):'');
+  setTxt('k-cons-d',e.dc!=null?T('{0} kWh heute',[e.dc.toFixed(1)]):'');
   var imp=d.grid>0;
   setTxt('k-grid-l',imp?'Netzbezug':'Einspeisung');
   setTxt('k-net',wInt(Math.abs(d.grid)));
   var kn=$('k-net');if(kn)kn.className=imp?'cgn':'cgp';
-  setTxt('k-net-d',imp?(e.dgi!=null?(e.dgi.toFixed(1)+' kWh bezogen'):'')
-                      :(e.dgo!=null?(e.dgo.toFixed(1)+' kWh eingespeist'):''));
+  setTxt('k-net-d',imp?(e.dgi!=null?T('{0} kWh bezogen',[e.dgi.toFixed(1)]):'')
+                      :(e.dgo!=null?T('{0} kWh eingespeist',[e.dgo.toFixed(1)]):''));
   var surp=d.prod-d.cons;
   setTxt('k-surp',(surp>=0?'+':'-')+wInt(Math.abs(surp)));
   var ks=$('k-surp');if(ks)ks.className=surp>=0?'cgp':'cgn';
@@ -4335,22 +4337,22 @@ function updateKiosk(d){
     // Zahl und würde die Kachel als einzige zweizeilig machen.
     var bdir=d.batt>50?'lädt':d.batt<-50?'liefert':'im Ruhezustand';
     setTxt('k-batt',wInt(Math.abs(d.batt)));
-    setTxt('k-batt-d',bdir+(d.soc!=null?(' · '+Math.round(d.soc)+' % geladen'):''));
+    setTxt('k-batt-d',T(bdir)+(d.soc!=null?(' · '+T('{0} % geladen',[Math.round(d.soc)])):''));
   }
   setHtml('k-chips',(d.shelly||[]).map(function(s){
     // Eigenregelung: eine freigegebene, aber stillstehende Steckdose ist auf der
     // Wandanzeige sonst von einem laufenden Gerät nicht zu unterscheiden.
     var ready=(s.rw&&s.on&&s.reach&&s.run!==1);
     return '<span class="k-chip'+(s.on&&s.reach&&!ready?' on':'')+'">'+esc(s.name)+' &middot; '
-      +(!s.reach?'offline':ready?'bereit':(s.on?wInt(s.apower):'aus'))+'</span>';
+      +(!s.reach?'offline':ready?T('bereit'):(s.on?wInt(s.apower):T('aus')))+'</span>';
   }).join(''));
   var al=$('k-al');
   if(al){
-    if(d.al_n>0){al.style.display='';al.textContent=d.al_n+(d.al_n===1?' offene Störung':' offene Störungen');}
+    if(d.al_n>0){al.style.display='';al.textContent=T(d.al_n===1?'{0} offene Störung':'{0} offene Störungen',[d.al_n]);}
     else al.style.display='none';
   }
-  setTxt('k-foot','SolarLog '+fmtAge(d.sl_age==null?-1:d.sl_age)+(d.failsafe?' · Fail-Safe aktiv':'')
-    +(d.battblk?' · Batterie-Vorrang aktiv':''));
+  setTxt('k-foot','SolarLog '+fmtAge(d.sl_age==null?-1:d.sl_age)+(d.failsafe?' · '+T('Fail-Safe aktiv'):'')
+    +(d.battblk?' · '+T('Batterie-Vorrang aktiv'):''));
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&kioskActive())kioskOff();});
 // Der Wake Lock geht verloren, sobald der Tab in den Hintergrund gerät – beim

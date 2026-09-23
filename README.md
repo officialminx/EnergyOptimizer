@@ -29,6 +29,7 @@
 - **Energy tracking:** daily and lifetime counters per plug with PV share, 15-minute history, a daily archive and CSV export.
 - **Monitoring:** detects Solar-Log outages, unreachable plugs and inverter faults and shows them on the dashboard, plus a heartbeat ping for external uptime monitors.
 - **Home Assistant:** MQTT with auto-discovery.
+- **German and English:** pick the interface language in the settings; a setup wizard guides you through the first start.
 - **Mobile-first UI:** installable as a home-screen web app on iPhone and Android, with light and dark mode and a kiosk view for wall displays.
 
 <p align="center">
@@ -61,12 +62,14 @@ docker compose up -d
 ```
 
 Open **http://energyoptimizer.local** in your browser. On first start, EnergyOptimizer asks you
-to set a password for the web interface. Then enter your Solar-Log address and password under
-**Einstellungen → SolarLog** and add your plugs under **Geräte**.
+to choose German or English and to set a password for the web interface. A short setup wizard
+then connects your Solar-Log, finds your Shelly plugs and sets the network name. Everything can
+be changed later under **Settings**; the wizard can be run again under
+**Settings → Language & setup**.
 
 > The `.local` name is announced over mDNS. If your network doesn't resolve it, use the IP
 > address of the Raspberry Pi instead. You can change the name under
-> **Einstellungen → Netzwerk**.
+> **Settings → Network**.
 
 ## Updating
 
@@ -114,7 +117,7 @@ Everything is stored in `./data`: settings, energy counters, history, the daily 
 event log and notes. Copying this folder is a complete backup.
 
 To move a configuration from another installation, export it under
-**Einstellungen → Daten & Sicherung → Konfiguration sichern** and import it on the new one.
+**Settings → Data & backup → Back up configuration** and import it on the new one.
 Passwords and the heartbeat URL are not included in the export and need to be entered again.
 
 ## Configuration
@@ -129,7 +132,7 @@ variables in `docker-compose.yml`:
 | `EO_BIND` | `0.0.0.0` | Address the web server listens on |
 | `EO_DATA_DIR` | `/data` | Data folder inside the container |
 | `EO_LOG_LEVEL` | `INFO` | Set to `DEBUG` to log every Solar-Log request |
-| `EO_HOSTNAME` | `energyoptimizer` | Network name on first start (later: **Einstellungen → Netzwerk**) |
+| `EO_HOSTNAME` | `energyoptimizer` | Network name on first start (later: **Settings → Network**) |
 | `EO_MDNS` | `1` | Set to `0` to disable the `.local` announcement |
 | `EO_UPDATE_CHECK` | `1` | Set to `0` to disable the check for new releases on GitHub |
 | `EO_SCAN_SUBNET` | host subnet | Subnet for Shelly discovery, e.g. `192.168.1.0/24` |
@@ -155,7 +158,7 @@ EnergyOptimizer uses the same client as
 4. Send the `SolarLog` session cookie with every request, and log in again on `ACCESS DENIED`.
 
 The raw Solar-Log response and the account that logged in are shown under
-**Einstellungen → SolarLog → Diagnose (Rohantwort)**.
+**Settings → Solar-Log → Diagnostics (raw answer)**.
 
 ## Development
 

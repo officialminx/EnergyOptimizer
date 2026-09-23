@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 from .clock import CLOCK
+from .i18n import tr
 from .storage import load_json, save_json
 
 IDEA_MAX = 30
@@ -100,26 +101,31 @@ class Ideas:
             })
         return {"max": IDEA_MAX, "n": len(out), "ideas": out}
 
-    def markdown(self) -> str:
+    def markdown(self, lang: str = "de") -> str:
+        def t(text: str, **kw) -> str:
+            return tr(text, lang, **kw)
+
         def when(ep: int) -> str:
-            return CLOCK.local(ep).strftime("%Y-%m-%d %H:%M") if ep else "unbekannt"
+            return CLOCK.local(ep).strftime("%Y-%m-%d %H:%M") if ep else t("unbekannt")
 
         items = sorted(self.items, key=lambda i: i["id"])
         per = [sum(1 for i in items if i["status"] == s) for s in range(4)]
         out = [
-            "# Verbesserungen – EnergyOptimizer\n\n",
-            f"Exportiert am {when(int(CLOCK.time()))} ({len(items)} von {IDEA_MAX} Notizen belegt).\n",
-            f"Offen: {per[0]} · Eingeplant: {per[1]} · Umgesetzt: {per[2]} · Verworfen: {per[3]}\n\n",
-            "Bearbeitet werden die Notizen in der Web-Oberfläche unter\n"
-            "Einstellungen → Verbesserungen. Status per API umstellen:\n"
-            "`POST /api/ideas` mit `{\"id\":<nr>,\"status\":2}` (0=offen, 1=eingeplant,\n"
-            "2=umgesetzt, 3=verworfen).\n\n---\n\n",
+            t("# Verbesserungen – EnergyOptimizer") + "\n\n",
+            t("Exportiert am {when} ({n} von {max} Notizen belegt).",
+              when=when(int(CLOCK.time())), n=len(items), max=IDEA_MAX) + "\n",
+            t("Offen: {a} · Eingeplant: {b} · Umgesetzt: {c} · Verworfen: {d}",
+              a=per[0], b=per[1], c=per[2], d=per[3]) + "\n\n",
+            t("Bearbeitet werden die Notizen in der Web-Oberfläche unter Einstellungen → Verbesserungen. "
+              "Status per API umstellen:") + "\n"
+            "`POST /api/ideas` " + t("mit") + " `{\"id\":<nr>,\"status\":2}` (0=" + t("offen") + ", 1="
+            + t("eingeplant") + ",\n2=" + t("umgesetzt") + ", 3=" + t("verworfen") + ").\n\n---\n\n",
         ]
         for r in items:
             out.append(
                 f"## [#{r['id']}] {r['title']}\n\n"
-                f"- Status: {STATUS_TXT[r['status']]}\n- Priorität: {PRIO_TXT[r['prio']]}\n"
-                f"- Bereich: {AREA_TXT[r['area']]}\n"
-                f"- Angelegt: {when(r.get('created', 0))} · Geändert: {when(r.get('updated', 0))}\n\n"
-                f"{r['text'] or '_(keine weitere Beschreibung)_'}\n\n---\n\n")
+                f"- Status: {t(STATUS_TXT[r['status']])}\n- {t('Priorität')}: {t(PRIO_TXT[r['prio']])}\n"
+                f"- {t('Bereich')}: {t(AREA_TXT[r['area']])}\n"
+                f"- {t('Angelegt')}: {when(r.get('created', 0))} · {t('Geändert')}: {when(r.get('updated', 0))}\n\n"
+                f"{r['text'] or t('_(keine weitere Beschreibung)_')}\n\n---\n\n")
         return "".join(out)

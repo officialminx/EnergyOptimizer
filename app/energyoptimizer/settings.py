@@ -17,6 +17,7 @@ from typing import Any
 
 from . import sched
 from .const import MAX_EXT, MAX_SHELLY
+from .i18n import tr
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -256,9 +257,10 @@ class SettingsStore:
     def apply(self, doc: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], str]:
         """Übernimmt ein Formular/Import-Dokument. Rückgabe: (alt, neu, Warnungen)."""
         warn: list[str] = []
+        lang = doc["lang"] if doc.get("lang") in LANGS else self.cfg.get("lang", "de")
 
         def note(feld: str, why: str) -> None:
-            warn.append(f"{feld}: {why}.")
+            warn.append(f"{tr(feld, lang)}: {tr(why, lang)}.")
 
         orig = copy.deepcopy(self.cfg)
         t = copy.deepcopy(self.cfg)
@@ -274,7 +276,7 @@ class SettingsStore:
                 t["web_pass"] = doc["web_pass"]
             else:
                 note("Web-Passwort nicht geändert",
-                     f"{MIN_PASSWORD_LEN} bis {MAX_PASSWORD_LEN} Zeichen erforderlich")
+                     tr("{a} bis {b} Zeichen erforderlich", lang, a=MIN_PASSWORD_LEN, b=MAX_PASSWORD_LEN))
         if _is_str(doc.get("hostname")):
             host = normalize_hostname(doc["hostname"])
             if host:

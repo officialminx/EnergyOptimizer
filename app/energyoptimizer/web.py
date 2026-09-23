@@ -655,7 +655,8 @@ class WebApi:
             return web.json_response({"ok": False, "msg": "JSON Fehler"}, status=400)
         ok, iid, err, nf = self.eo.ideas.upsert(doc)
         if not ok:
-            return web.json_response({"ok": False, "msg": err.replace('"', "'")}, status=404 if nf else 400)
+            return web.json_response({"ok": False, "msg": tr(err, self.lang).replace('"', "'")},
+                                     status=404 if nf else 400)
         return web.json_response({"ok": True, "id": iid})
 
     async def h_ideas_delete(self, req):
@@ -664,12 +665,13 @@ class WebApi:
         except ValueError:
             iid = 0
         if not self.eo.ideas.delete(iid):
-            return web.json_response({"ok": False, "msg": "Notiz nicht gefunden"}, status=404)
+            return web.json_response({"ok": False, "msg": tr("Notiz nicht gefunden", self.lang)}, status=404)
         return web.json_response({"ok": True})
 
     async def h_ideas_export(self, req):
-        return web.Response(text=self.eo.ideas.markdown(), content_type="text/markdown", charset="utf-8",
-                            headers={"Content-Disposition": 'attachment; filename="verbesserungen.md"'})
+        return web.Response(text=self.eo.ideas.markdown(self.lang), content_type="text/markdown", charset="utf-8",
+                            headers={"Content-Disposition": 'attachment; filename="%s"' % (
+                                "improvements.md" if self.lang == "en" else "verbesserungen.md")})
 
     async def h_alarm_ack(self, req):
         try:
@@ -692,12 +694,12 @@ class WebApi:
     async def h_config_import(self, req):
         doc = await self._json_body(req)
         if doc is None:
-            return web.json_response({"ok": False, "msg": "Datei ist kein gültiges JSON"}, status=400)
+            return web.json_response({"ok": False, "msg": tr("Datei ist kein gültiges JSON", self.lang)}, status=400)
         if not isinstance(doc.get("eo_config"), int) or isinstance(doc.get("eo_config"), bool):
-            return web.json_response({"ok": False, "msg": "Das ist keine EnergyOptimizer-Sicherung"},
+            return web.json_response({"ok": False, "msg": tr("Das ist keine EnergyOptimizer-Sicherung", self.lang)},
                                      status=400)
         warn = self.eo.apply_settings(doc, "Import")
-        msg = "Einstellungen übernommen. Passwörter und Heartbeat-URL bleiben unverändert."
+        msg = tr("Einstellungen übernommen. Passwörter und Heartbeat-URL bleiben unverändert.", self.lang)
         if warn:
             msg += " " + warn
         return web.json_response({"ok": True, "msg": msg.replace('"', "'")})

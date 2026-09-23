@@ -182,6 +182,28 @@ async def test_setup_language_and_page_lang(fresh):
     assert '<html lang="de">' in await r.text()
 
 
+async def test_server_messages_follow_language(client):
+    r = await client.post("/api/save", json={"lang": "en", "hostname": "kein name!", "web_pass": "kurz"})
+    warn = (await r.json())["warn"]
+    assert "Network name not applied" in warn and "6 to 64 characters required" in warn
+    r = await client.post("/api/config/import", json={"no": "backup"})
+    assert (await r.json())["msg"] == "This is not an EnergyOptimizer backup"
+    await client.post("/api/ideas", json={"title": "Test", "prio": 2})
+    md = await (await client.get("/api/ideas/export")).text()
+    assert md.startswith("# Improvements") and "Priority: high" in md
+    r = await client.post("/api/save", json={"lang": "de", "hostname": "kein name!"})
+    assert "Name im Netzwerk nicht übernommen" in (await r.json())["warn"]
+
+
+def test_shared_dictionary_is_consistent():
+    """Every entry has an English text, and no English text is itself a German key,
+    otherwise i18n.js would translate a text twice."""
+    from energyoptimizer.i18n import EN
+    assert len(EN) > 500
+    assert all(isinstance(v, str) and v for v in EN.values())
+    assert not [k for k, v in EN.items() if v in EN and v != k]
+
+
 async def test_existing_install_skips_wizard(tmp_path):
     import json as _json
     (tmp_path / "settings.json").write_text(_json.dumps({"web_pass": "geheim1"}))
