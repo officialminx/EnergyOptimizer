@@ -1124,6 +1124,8 @@ details.coll.sub .det-body{padding:0 14px 14px}
     <div class="pane" data-pane="ctrl">
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Steuerung</div></div>
       <div class="card">
+        <div class="trow" style="margin-top:0"><label class="tgl"><input type="checkbox" name="auto_en" id="f-auto-en"><span class="sl"></span></label><span class="auto-lbl">Automatik aktiv<i class="ib" data-i="auto-en"></i></span></div>
+        <div class="ip" data-i="auto-en">Hauptschalter für die ganze Steuerung. Aus lässt alle Steckdosen, wie sie gerade sind: kein Einschalten bei Überschuss, kein Abschalten bei Defizit, kein Nachlauf. Handbefehle und Wochenprogramme funktionieren weiter. In Home Assistant heisst dieser Schalter <b>Optimizer</b>.</div>
         <div class="g2">
           <div class="field"><label>Einschalt-Puffer (W)<i class="ib" data-i="marg"></i></label><input type="number" name="on_margin" id="f-onm" min="0" max="30000"></div>
           <div class="field"><label>Ausschalt-Puffer (W)</label><input type="number" name="off_margin" id="f-offm" min="0" max="30000"></div>
@@ -1338,7 +1340,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
         <label>Benutzername <small>(optional)</small></label><input type="text" name="mq_user" id="f-mq-user" autocomplete="off">
         <label>Passwort <small>(leer = unver&auml;ndert)</small></label><input type="password" name="mq_pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="new-password">
         <div class="trow"><label class="tgl"><input type="checkbox" name="mq_disc" id="f-mq-disc"><span class="sl"></span></label><span class="auto-lbl">Home-Assistant-Discovery<i class="ib" data-i="mqd"></i></span></div>
-        <div class="ip" data-i="mqd">Ver&ouml;ffentlicht Sensoren/Schalter automatisch in Home Assistant (MQTT-Integration muss dort aktiv sein).</div>
+        <div class="ip" data-i="mqd">Legt die Anlage und jede Steckdose automatisch als Gerät in Home Assistant an, mit denselben Entitäten wie die Integration <b>ha-energyoptimizer</b>: verfügbarer Überschuss, geschaltete Last, Hauptschalter, veraltete Messwerte und Batterie-Vorrang, dazu je Steckdose Status, Laufzeit heute, Automatik und ob der Optimizer sie eingeschaltet hat. In Home Assistant muss die MQTT-Integration mit demselben Broker eingerichtet sein.</div>
       </div>
     </div>
 
@@ -2170,6 +2172,10 @@ function updateStatusLine(d){
     cls='idle';ico='i-server';
     main=T('Warte auf die erste SolarLog-Abfrage');
     next=(cfg.sl_ip?T('Ziel: {0}',[esc(cfg.sl_ip)]):'')+(slNextTxt()?' &middot; '+T('nächster Versuch {0}',[slNextTxt()]):'');
+  }else if(cfg.auto_en===false){
+    cls='warn';ico='i-sliders';
+    main=T('Automatik ausgeschaltet');
+    next=T('Die Steckdosen bleiben, wie sie sind. Einschalten unter Einstellungen → Steuerung oder in Home Assistant.');
   }else if(stale){
     cls='warn';ico='i-warn';
     main=T('SolarLog antwortet nicht');
@@ -3179,6 +3185,7 @@ function loadCfg(c){
   $('f-lon').value=(c.lon!=null?c.lon:8.31);
   updateSunHint();
   $('f-mq-en').checked=!!c.mq_en;
+  $('f-auto-en').checked=c.auto_en!==false;
   $('f-mq-host').value=c.mq_host||'';
   $('f-mq-port').value=c.mq_port||1883;
   $('f-mq-user').value=c.mq_user||'';
@@ -3589,7 +3596,7 @@ $('sf').addEventListener('submit',function(e){
   // aber laengst ins Geraete-Overlay gewandert: das Formular hat diese Felder nicht
   // mehr, also schickte jedes Speichern der Einstellungsseite s0_auto..s3_auto='false'
   // mit und schaltete die Automatik aller Steckdosen ab.
-  ['mq_en','mq_disc','hb_en','sl_dev'].forEach(function(k){data[k]=(k in data)?'true':'false';});
+  ['mq_en','mq_disc','hb_en','sl_dev','auto_en'].forEach(function(k){data[k]=(k in data)?'true':'false';});
   // Eingabe in Franken, API und Gerät rechnen in ganzen Rappen
   ['p_buy','p_feed','p_base'].forEach(function(k){if(k in data)data[k]=Math.round((parseFloat(data[k])||0)*100);});
   ovShow(ovSpin(),T('Speichern…'),'',0);
@@ -4120,7 +4127,7 @@ function demoCfg(){
     p_buy:22,p_feed:8,p_base:1928,
     hb_en:true,hb_url_set:true,hb_min:15,
     mo_sl:15,mo_dev:15,mo_np:45,mo_inv:30,sl_dev:true,lat:47.05,lon:8.31,
-    mq_en:false,mq_host:'',mq_port:1883,mq_user:'',mq_pfx:'energyoptimizer',mq_disc:true,lang:(window.LANG||'de'),hostname:'energyoptimizer'};
+    mq_en:false,mq_host:'',mq_port:1883,mq_user:'',mq_pfx:'energyoptimizer',mq_disc:true,auto_en:true,lang:(window.LANG||'de'),hostname:'energyoptimizer'};
 }
 var DSCAN={running:false,done:false,t:0};
 function mock(url,opts){

@@ -28,7 +28,7 @@
 - **Schedules and limits:** time windows, weekly programs, a minimum daily runtime with a bad-weather fallback, daily caps and timed manual overrides.
 - **Energy tracking:** daily and lifetime counters per plug with PV share, 15-minute history, a daily archive and CSV export.
 - **Monitoring:** detects Solar-Log outages, unreachable plugs and inverter faults and shows them on the dashboard, plus a heartbeat ping for external uptime monitors.
-- **Home Assistant:** MQTT with auto-discovery.
+- **Home Assistant:** MQTT auto-discovery with the same entities as the [ha-energyoptimizer](https://github.com/officialminx/ha-energyoptimizer) integration, including a master switch.
 - **German and English:** pick the interface language in the settings; a setup wizard guides you through the first start.
 - **Mobile-first UI:** installable as a home-screen web app on iPhone and Android, with light and dark mode and a kiosk view for wall displays.
 
@@ -113,6 +113,30 @@ Safari and choose **Share → Add to Home Screen** to use it like an app.
 
 `energyoptimizer.local` only resolves on your home network. Over Tailscale, use the Tailscale
 name of the Raspberry Pi instead.
+
+## Home Assistant
+
+EnergyOptimizer announces itself to Home Assistant over MQTT. Set up the
+[MQTT integration](https://www.home-assistant.io/integrations/mqtt/) in Home Assistant, then enter
+the same broker under **Settings → MQTT / Home Assistant** and leave **Home Assistant discovery**
+on. The entities match the [ha-energyoptimizer](https://github.com/officialminx/ha-energyoptimizer)
+integration, so dashboards and automations work with either:
+
+| Device | Entity | Meaning |
+| --- | --- | --- |
+| EnergyOptimizer | Available surplus | Production minus consumption, the power the control distributes |
+| EnergyOptimizer | Managed load | Power of the loads the optimizer switched on |
+| EnergyOptimizer | Optimizer (switch) | Master switch; off leaves every load as it is |
+| EnergyOptimizer | Readings stale | The Solar-Log readings stopped arriving |
+| EnergyOptimizer | Battery has priority | The home battery is discharging, loads are held back |
+| Each plug | Status | `off`, `waiting`, `surplus`, `catchup`, `manual`, `blocked`, `disabled`, `external` or `schedule` |
+| Each plug | Runtime today | Minutes the load ran today |
+| Each plug | Switched on by the optimizer | On while the optimizer, not a person, keeps it on |
+| Each plug | Automatic (switch) | Whether the plug takes part in the surplus control |
+
+Every plug also has its on/off switch, power, energy and reachability. Production, consumption,
+grid, battery and the lifetime energy counters belong to the EnergyOptimizer device. Entity names
+follow the interface language.
 
 ## Backup and migration
 
