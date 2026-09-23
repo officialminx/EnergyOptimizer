@@ -27,7 +27,7 @@
 - **Battery guard:** holds loads back while the home battery is discharging.
 - **Schedules and limits:** time windows, weekly programs, a minimum daily runtime with a bad-weather fallback, daily caps and timed manual overrides.
 - **Energy tracking:** daily and lifetime counters per plug with PV share, 15-minute history, a daily archive and CSV export.
-- **Alerts:** push notifications via [ntfy](https://ntfy.sh) for outages, unreachable plugs and inverter faults, plus a heartbeat for external monitoring.
+- **Monitoring:** detects Solar-Log outages, unreachable plugs and inverter faults and shows them on the dashboard, plus a heartbeat ping for external uptime monitors.
 - **Home Assistant:** MQTT with auto-discovery.
 - **Mobile-first UI:** installable as a home-screen web app on iPhone and Android, with light and dark mode and a kiosk view for wall displays.
 
@@ -115,7 +115,7 @@ event log and notes. Copying this folder is a complete backup.
 
 To move a configuration from another installation, export it under
 **Einstellungen → Daten & Sicherung → Konfiguration sichern** and import it on the new one.
-Passwords and the ntfy topic are not included in the export and need to be entered again.
+Passwords and the heartbeat URL are not included in the export and need to be entered again.
 
 ## Configuration
 

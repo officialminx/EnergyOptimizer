@@ -21,7 +21,7 @@ from .history import History
 from .ideas import Ideas
 from .mdns import Mdns
 from .mqtt import Mqtt
-from .notify import Notifier
+from .heartbeat import Heartbeat
 from .settings import SettingsStore
 from .solarlog import SolarData, SolarDevices, SolarLogReader
 from .storage import load_json, save_json
@@ -50,7 +50,7 @@ class EnergyOptimizer:
         self.ideas = Ideas(data_dir)
         self.devices = Devices(self)
         self.alarms = Alarms(self)
-        self.notify = Notifier(self)
+        self.heartbeat = Heartbeat(self)
         self.mqtt = Mqtt(self)
         self.sysinfo = SysInfo(data_dir)
         self.mdns = Mdns(port)
@@ -91,7 +91,7 @@ class EnergyOptimizer:
         loop = asyncio.get_running_loop()
         self._tasks = [
             loop.create_task(self.network_task(), name="network"),
-            loop.create_task(self.notify.run(), name="notify"),
+            loop.create_task(self.heartbeat.run(), name="heartbeat"),
             loop.create_task(self.mqtt.run(), name="mqtt"),
             loop.create_task(self.update_task(), name="updates"),
         ]
@@ -303,15 +303,7 @@ class EnergyOptimizer:
             add("MQTT", ST_OK, f"Verbunden mit {cfg['mq_host']}:{cfg['mq_port']}")
         else:
             add("MQTT", ST_FAIL, f"Aktiviert, aber keine Verbindung zu {cfg['mq_host']}:{cfg['mq_port']}")
-        ns = self.notify.state()
-        if not ns["cfg"]:
-            add("Benachrichtigungen", ST_WARN, "Kein Topic gesetzt – Störungen werden nicht gemeldet")
-        elif ns["age"] < 0:
-            add("Benachrichtigungen", ST_OK, "Eingerichtet, bisher nichts gesendet")
-        elif ns["last"]:
-            add("Benachrichtigungen", ST_OK, f"{ns['ok']} zugestellt, letzte vor {ns['age']} s")
-        else:
-            add("Benachrichtigungen", ST_FAIL, f"Letzter Versand fehlgeschlagen: {ns['err']}")
+        ns = self.heartbeat.state()
         if not cfg["hb_en"]:
             add("Heartbeat", ST_SKIP, "Nicht aktiviert")
         elif ns["hb_age"] < 0:

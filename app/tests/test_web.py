@@ -110,10 +110,10 @@ async def test_save_compacts_devices_and_export_import_roundtrip(client):
     r = await client.post("/api/save", json={
         "s1_ip": "192.168.1.60", "s1_name": "Pool", "s1_pw": "900", "s1_auto": "true",
         "s1_sch": "480,600,31,1", "e2_name": "Wallbox", "e2_pw": "4000",
-        "on_margin": "250", "nt_srv": "http://ntfy.example.com", "sl_pass": "",
+        "on_margin": "250", "hb_url": "http://hc.example.com/ping", "sl_pass": "",
     })
     d = await r.json()
-    assert d["ok"] and "ntfy-Server nicht übernommen" in d["warn"]
+    assert d["ok"] and "Heartbeat-URL nicht übernommen" in d["warn"]
     c = client.eo.settings.cfg
     assert c["sh_count"] == 1 and c["shelly"][0]["ip"] == "192.168.1.60"
     assert c["shelly"][0]["auto"] is True and c["shelly"][0]["pw"] == 900

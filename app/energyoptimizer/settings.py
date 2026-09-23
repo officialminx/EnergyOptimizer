@@ -61,8 +61,6 @@ def defaults() -> dict[str, Any]:
         "min_on_min": 7, "min_off_min": 5, "fw_start": 20, "fw_end": 24,
         "sl_fsafe": 30, "batt_grd": 100,
         "p_buy": 0, "p_feed": 0, "p_base": 0,
-        "nt_en": False, "nt_srv": "https://ntfy.sh", "nt_top": "", "nt_sev": 1,
-        "nt_qs": 22, "nt_qe": 7,
         "hb_en": False, "hb_url": "", "hb_min": 15,
         "mo_sl": 15, "mo_dev": 15, "mo_np": 45, "mo_inv": 30,
         "lat": 47.05, "lon": 8.31, "sl_dev": False,
@@ -341,21 +339,6 @@ class SettingsStore:
             if b is not None:
                 t[k] = b
 
-        as_bool("nt_en")
-        if nonempty_str("nt_srv"):
-            ok, why = url_is_https_ok(doc["nt_srv"])
-            if ok:
-                t["nt_srv"] = doc["nt_srv"]
-            else:
-                note("ntfy-Server nicht übernommen", why)
-        if nonempty_str("nt_top"):
-            t["nt_top"] = "" if doc["nt_top"] == "-" else doc["nt_top"]
-        if has("nt_sev"):
-            t["nt_sev"] = _clamp(_as_int(doc["nt_sev"]), 0, 2)
-        if has("nt_qs"):
-            t["nt_qs"] = _clamp(_as_int(doc["nt_qs"]), 0, 23)
-        if has("nt_qe"):
-            t["nt_qe"] = _clamp(_as_int(doc["nt_qe"]), 0, 23)
         as_bool("hb_en")
         if nonempty_str("hb_url"):
             u = doc["hb_url"]
@@ -486,9 +469,6 @@ class SettingsStore:
                   "sl_poll_min", "sl_avg_s", "sl_fsafe", "batt_grd", "on_margin",
                   "off_margin", "hyst_on_s", "hyst_off_s", "min_on_min", "min_off_min",
                   "fw_start", "fw_end", "p_buy", "p_feed", "p_base"):
-            doc[k] = c[k]
-        doc["nt_en"] = "true" if c["nt_en"] else "false"
-        for k in ("nt_srv", "nt_sev", "nt_qs", "nt_qe"):
             doc[k] = c[k]
         doc["hb_en"] = "true" if c["hb_en"] else "false"
         for k in ("hb_min", "mo_sl", "mo_dev", "mo_np", "mo_inv"):

@@ -1087,12 +1087,10 @@ details.coll.sub .det-body{padding:0 14px 14px}
       <button type="button" class="set-row" data-set="prices"><span class="set-ico"><svg><use href="#i-coin"/></svg></span>
         <span class="set-tx"><span class="set-t">Strompreise</span><span class="set-s">Bezug, Einspeisung, Grundpreis</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
-    <div class="set-grp">Meldungen &amp; Integrationen</div>
+    <div class="set-grp">&Uuml;berwachung &amp; Integrationen</div>
     <div class="set-list">
-      <button type="button" class="set-row" data-set="notify"><span class="set-ico"><svg><use href="#i-bell"/></svg></span>
-        <span class="set-tx"><span class="set-t">Benachrichtigungen</span><span class="set-s">ntfy-Push, Ruhezeit, Heartbeat</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="watch"><span class="set-ico"><svg><use href="#i-search"/></svg></span>
-        <span class="set-tx"><span class="set-t">&Uuml;berwachung</span><span class="set-s">W&auml;chter, Standort, Wechselrichter</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <span class="set-tx"><span class="set-t">&Uuml;berwachung</span><span class="set-s">W&auml;chter, Wechselrichter, Heartbeat</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="mqtt"><span class="set-ico"><svg><use href="#i-chip"/></svg></span>
         <span class="set-tx"><span class="set-t">MQTT / Home Assistant</span><span class="set-s">Broker, Discovery</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
@@ -1272,47 +1270,6 @@ details.coll.sub .det-body{padding:0 14px 14px}
       </div>
     </div>
 
-    <div class="pane" data-pane="notify">
-      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Benachrichtigungen</div></div>
-      <div class="card">
-        <div class="trow" style="margin-top:0"><label class="tgl"><input type="checkbox" name="nt_en" id="f-nt-en"><span class="sl"></span></label><span class="auto-lbl">Benachrichtigungen aktiv<i class="ib" data-i="nt"></i></span></div>
-        <div class="ip" data-i="nt">St&ouml;rmeldungen als Push aufs Handy. In der <b>ntfy</b>-App denselben Topic abonnieren &ndash;
-          der Topic-Name ist bei ntfy.sh das einzige Geheimnis, deshalb einen langen zuf&auml;lligen verwenden.</div>
-        <label>Server</label><input type="text" name="nt_srv" id="f-nt-srv" placeholder="https://ntfy.sh">
-        <label>Topic <small>(leer = unver&auml;ndert, &bdquo;-&ldquo; l&ouml;scht)</small></label>
-        <input type="text" name="nt_top" id="f-nt-top" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="off">
-        <button type="button" class="btn bscan" style="width:100%;margin-top:8px" onclick="genTopic()"><svg><use href="#i-refresh"/></svg>Zuf&auml;lligen Topic erzeugen</button>
-        <div class="hint" id="nt-top-hint" style="margin-top:6px"></div>
-        <div class="g2" style="margin-top:6px">
-          <div class="field"><label>Ab Schweregrad<i class="ib" data-i="ntsev"></i></label>
-            <select name="nt_sev" id="f-nt-sev"><option value="0">Info</option><option value="1">Warnung</option><option value="2">nur Kritisch</option></select>
-          </div>
-          <div class="field"><label>Ruhezeit von&ndash;bis (Std)</label>
-            <div class="g2"><input type="number" name="nt_qs" id="f-nt-qs" min="0" max="23"><input type="number" name="nt_qe" id="f-nt-qe" min="0" max="23"></div>
-          </div>
-        </div>
-        <div class="ip" data-i="ntsev">Der <b>Schweregrad</b> legt fest, ab wann &uuml;berhaupt eine Push
-          herausgeht &ndash; darunter bleibt die Meldung in der Alarmzentrale und im Protokoll stehen.
-          In der <b>Ruhezeit</b> werden nur noch <b>kritische</b> Meldungen gesendet, damit eine flatternde
-          Steckdose nachts niemanden weckt. Gleiche Start- und Endstunde = keine Ruhezeit.</div>
-        <button type="button" class="btn bscan" style="width:100%;margin-top:8px" onclick="notifyTest()"><svg><use href="#i-bolt"/></svg>Testmeldung senden</button>
-        <div class="hint" id="nt-test-msg" style="margin-top:6px"></div>
-        <div class="hint" id="nt-state"></div>
-      </div>
-      <div class="card">
-        <div class="card-h"><div class="card-t"><svg><use href="#i-clock"/></svg>Heartbeat (Dead-Man-Switch)<i class="ib" data-i="hb"></i></div></div>
-        <div class="ip" data-i="hb">Das Ger&auml;t meldet sich regelm&auml;ssig bei einem externen Dienst (z.&nbsp;B. healthchecks.io).
-          Bleibt das Lebenszeichen aus, alarmiert <b>der Dienst</b> &ndash; nur so f&auml;llt auch ein Stromausfall
-          oder ein h&auml;ngender Server auf, der selbst nichts mehr senden kann.</div>
-        <div class="trow"><label class="tgl"><input type="checkbox" name="hb_en" id="f-hb-en"><span class="sl"></span></label><span class="auto-lbl">Heartbeat aktiv</span></div>
-        <label>Ping-URL <small>(leer = unver&auml;ndert, &bdquo;-&ldquo; l&ouml;scht)</small></label>
-        <input type="text" name="hb_url" id="f-hb-url" placeholder="https://hc-ping.com/&lt;uuid&gt;" autocomplete="off">
-        <div class="hint" id="hb-url-hint" style="margin-top:6px"></div>
-        <label>Intervall (min)</label><input type="number" name="hb_min" id="f-hb-min" min="1" max="1440">
-        <div class="hint" id="hb-state"></div>
-      </div>
-    </div>
-
     <div class="pane" data-pane="watch">
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">&Uuml;berwachung</div></div>
       <div class="card">
@@ -1326,7 +1283,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
         </div>
         <div class="ip" data-i="mo">Entpr&auml;llung der vier W&auml;chter: eine St&ouml;rung gilt erst als aktiv,
           wenn sie so lange <b>ununterbrochen</b> anliegt. Das verhindert, dass ein kurz flatterndes
-          Ger&auml;t nachts eine Meldungslawine ausl&ouml;st. Je Zeile <b>0 = dieser W&auml;chter aus.</b></div>
+          Ger&auml;t st&auml;ndig neue St&ouml;rungen ausl&ouml;st. Je Zeile <b>0 = dieser W&auml;chter aus.</b></div>
         <div class="subhead">
           <div class="subhead-t"><svg><use href="#i-sun"/></svg>Standort<i class="ib" data-i="loc"></i></div>
           <div class="ip" data-i="loc">F&uuml;r die Sonnenstandsberechnung. Erst wenn die Sonne rechnerisch &uuml;ber 10&deg; steht,
@@ -1344,6 +1301,18 @@ details.coll.sub .det-body{padding:0 14px 14px}
             eines <b>einzelnen</b> Ger&auml;ts &ndash; genau der Fall, der sonst monatelang unbemerkt bleibt.</div>
           <div class="trow"><label class="tgl"><input type="checkbox" name="sl_dev" id="f-sl-dev"><span class="sl"></span></label><span class="auto-lbl">Ger&auml;teabfrage aktiv</span></div>
         </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t"><svg><use href="#i-clock"/></svg>Heartbeat (Dead-Man-Switch)<i class="ib" data-i="hb"></i></div></div>
+        <div class="ip" data-i="hb">Das Ger&auml;t meldet sich regelm&auml;ssig bei einem externen Dienst (z.&nbsp;B. healthchecks.io).
+          Bleibt das Lebenszeichen aus, alarmiert <b>der Dienst</b> &ndash; nur so f&auml;llt auch ein Stromausfall
+          oder ein h&auml;ngender Server auf, der selbst nichts mehr senden kann.</div>
+        <div class="trow"><label class="tgl"><input type="checkbox" name="hb_en" id="f-hb-en"><span class="sl"></span></label><span class="auto-lbl">Heartbeat aktiv</span></div>
+        <label>Ping-URL <small>(leer = unver&auml;ndert, &bdquo;-&ldquo; l&ouml;scht)</small></label>
+        <input type="text" name="hb_url" id="f-hb-url" placeholder="https://hc-ping.com/&lt;uuid&gt;" autocomplete="off">
+        <div class="hint" id="hb-url-hint" style="margin-top:6px"></div>
+        <label>Intervall (min)</label><input type="number" name="hb_min" id="f-hb-min" min="1" max="1440">
+        <div class="hint" id="hb-state"></div>
       </div>
     </div>
 
@@ -1447,7 +1416,7 @@ details.coll.sub .det-body{padding:0 14px 14px}
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Daten &amp; Sicherung</div></div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-save"/></svg>Konfiguration sichern<i class="ib" data-i="cfg"></i></div></div>
-        <div class="ip" data-i="cfg">Alle Einstellungen als JSON-Datei. <b>Passw&ouml;rter, der ntfy-Topic und die
+        <div class="ip" data-i="cfg">Alle Einstellungen als JSON-Datei. <b>Passw&ouml;rter und die
           Heartbeat-URL sind bewusst nicht enthalten</b> &ndash; solche Dateien landen erfahrungsgem&auml;ss
           in Backups und Chats.
           Der Import durchl&auml;uft dieselbe Pr&uuml;fung wie das normale Speichern.</div>
@@ -3191,13 +3160,6 @@ function loadCfg(c){
   $('f-p-buy').value=((c.p_buy||0)/100).toFixed(2);
   $('f-p-feed').value=((c.p_feed||0)/100).toFixed(2);
   $('f-p-base').value=((c.p_base||0)/100).toFixed(2);
-  $('f-nt-en').checked=!!c.nt_en;
-  $('f-nt-srv').value=c.nt_srv||'https://ntfy.sh';
-  $('f-nt-sev').value=String(c.nt_sev!=null?c.nt_sev:1);
-  $('f-nt-qs').value=(c.nt_qs!=null?c.nt_qs:22);
-  $('f-nt-qe').value=(c.nt_qe!=null?c.nt_qe:7);
-  setHtml('nt-top-hint',c.nt_top_set?'Ein Topic ist gespeichert (wird aus Sicherheitsgr&uuml;nden nicht angezeigt).'
-                                    :'<b>Noch kein Topic gesetzt</b> &ndash; ohne Topic wird nichts gesendet.');
   $('f-hb-en').checked=!!c.hb_en;
   $('f-hb-url').value='';
   setHtml('hb-url-hint',c.hb_url_set?'Eine Ping-URL ist gespeichert (wird aus Sicherheitsgr&uuml;nden nicht angezeigt).'
@@ -3623,7 +3585,7 @@ $('sf').addEventListener('submit',function(e){
   // aber laengst ins Geraete-Overlay gewandert: das Formular hat diese Felder nicht
   // mehr, also schickte jedes Speichern der Einstellungsseite s0_auto..s3_auto='false'
   // mit und schaltete die Automatik aller Steckdosen ab.
-  ['mq_en','mq_disc','nt_en','hb_en','sl_dev'].forEach(function(k){data[k]=(k in data)?'true':'false';});
+  ['mq_en','mq_disc','hb_en','sl_dev'].forEach(function(k){data[k]=(k in data)?'true':'false';});
   // Eingabe in Franken, API und Gerät rechnen in ganzen Rappen
   ['p_buy','p_feed','p_base'].forEach(function(k){if(k in data)data[k]=Math.round((parseFloat(data[k])||0)*100);});
   ovShow(ovSpin(),'Speichern&hellip;','',0);
@@ -3707,26 +3669,7 @@ function addDev(ip,name,id){
   openDevOv(idx,{name:name,ip:ip,id:id,pw:0,pri:idx+1,rt:0,rw:0,io:0,auto:false});
   $('scan-st').textContent='\u2713 '+name+' \u2192 Steckdose '+(idx+1)+' \u2013 bitte pr\u00fcfen & speichern';
 }
-// ── Benachrichtigungen: Test, Topic-Erzeugung, Sonnenstand, Diagnose ─────────
-function genTopic(){
-  // 20 Zeichen aus dem Zufallsgenerator des Browsers – bei ntfy.sh ist der Topic
-  // das einzige Geheimnis, ein ratbarer Name wäre eine offene Tür.
-  var cs='abcdefghijkmnpqrstuvwxyz23456789',out='eo-',a=new Uint8Array(20);
-  (window.crypto||window.msCrypto).getRandomValues(a);
-  for(var i=0;i<a.length;i++)out+=cs[a[i]%cs.length];
-  $('f-nt-top').value=out;
-  $('f-nt-en').checked=true;
-  setHtml('nt-top-hint','Neuer Topic erzeugt. <b>Erst nach dem Speichern aktiv</b> &ndash; '
-    +'denselben Namen in der ntfy-App abonnieren.');
-  checkDirty();   // per Skript gesetzte Werte feuern kein 'input'/'change'
-}
-function notifyTest(){
-  setTxt('nt-test-msg','Sende Testmeldung…');
-  api('/api/notify/test',{method:'POST'}).then(function(d){
-    setTxt('nt-test-msg',(d&&d.msg)||'Unbekannte Antwort');
-    setTimeout(pollSys,4000);
-  }).catch(function(){setTxt('nt-test-msg','Fehler beim Senden der Anfrage');});
-}
+// ── Sonnenstand, Diagnose ────────────────────────────────────────────────────
 // Sonnenhöhe im Browser rechnen (gleiches Verfahren wie sun.h auf dem Gerät) –
 // so sieht man beim Eintragen der Koordinaten sofort, ob sie plausibel sind.
 function sunElev(lat,lon){
@@ -3855,19 +3798,8 @@ function pollSys(){
       else t+=' &middot; aktuell';
       setHtml('upd-state',t);
     }
-    var n=d.notify;
+    var n=d.heartbeat;
     if(n){
-      var t;
-      if(!n.cfg)t='Nicht aktiv &ndash; Topic fehlt oder Benachrichtigungen sind ausgeschaltet.';
-      else if(n.age<0)t='Aktiv, bisher noch nichts gesendet.';
-      else t='Zuletzt vor '+fmtAge(n.age).replace('vor ','')+': '
-        +(n.last?'<b style="color:var(--green)">erfolgreich</b>':'<b style="color:var(--red)">fehlgeschlagen</b> ('+esc(n.err||'')+')')
-        +' &middot; '+n.ok+' zugestellt, '+n.fail+' aufgegeben.';
-      // Verworfene Meldungen sind der stillste Fehlerfall: sie wurden nie gesendet
-      // und tauchen sonst nirgends auf.
-      if(n.drop)t+=' <b style="color:var(--red)">'+n.drop+' verworfen</b> '
-        +'(Stundenkontingent oder Warteschlange voll).';
-      setHtml('nt-state',t);
       setHtml('hb-state',n.hb_age<0?'Noch kein Lebenszeichen gesendet.'
         :('Letztes Lebenszeichen vor '+fmtAge(n.hb_age).replace('vor ','')
           +(n.hb_ok?'':' &ndash; <b style="color:var(--red)">fehlgeschlagen</b>')));
@@ -4184,7 +4116,6 @@ function demoCfg(){
     on_margin:150,off_margin:200,hyst_on_s:180,hyst_off_s:180,hyst_on:3,hyst_off:3,min_on_min:7,min_off_min:5,
     batt_grd:100,fw_start:20,fw_end:24,sh_count:4,ip:'192.168.1.99',shelly:sh,
     p_buy:22,p_feed:8,p_base:1928,
-    nt_en:true,nt_srv:'https://ntfy.sh',nt_top_set:true,nt_sev:1,nt_qs:22,nt_qe:7,
     hb_en:true,hb_url_set:true,hb_min:15,
     mo_sl:15,mo_dev:15,mo_np:45,mo_inv:30,sl_dev:true,lat:47.05,lon:8.31,
     mq_en:false,mq_host:'',mq_port:1883,mq_user:'',mq_pfx:'energyoptimizer',mq_disc:true};
@@ -4200,7 +4131,7 @@ function mock(url,opts){
       disk_free:21e9,disk_total:29e9,uptime:DM.uptime,temp:46+Math.random()*5,
       cpu:6+Math.round(Math.random()*10),proc:1+Math.round(Math.random()*3),
       boots:47,rst_txt:'Container-Start',version:'demo',update:{current:'0.0.1',latest:'0.0.2',available:true,url:'#',enabled:true,error:'',age:120},ip:'192.168.1.20',port:80,mdns:'energyoptimizer.local',mdns_err:'',
-      notify:{cfg:true,ok:12,fail:0,age:240,last:true,err:'',hb_age:420,hb_ok:true}};}
+      heartbeat:{hb_age:420,hb_ok:true}};}
   if(url.indexOf('/api/alarms/ack')===0){DM.alAck=true;return{ok:true};}
   if(url==='/api/alarms'){
     var al=[{id:3,name:'Wechselrichter ohne Leistung',sev:2,since:Math.floor(Date.now()/1000)-5400,
@@ -4209,7 +4140,6 @@ function mock(url,opts){
              mins:20,acked:false,detail:'Wallbox (192.168.1.53) antwortet nicht'}];
     return{al:al,n:al.filter(function(a){return !a.acked;}).length,max:2};
   }
-  if(url==='/api/notify/test')return{ok:true,msg:'Testmeldung eingereiht – Ergebnis erscheint gleich hier.'};
   if(url==='/api/selftest'){
     if(m==='POST'){DM.stAt=Date.now();return{ok:true};}
     if(!DM.stAt)return{running:false,done:false,age:-1,items:[]};
@@ -4224,11 +4154,10 @@ function mock(url,opts){
       {n:'Dateisystem',s:0,d:'0 von 25 MB belegt'},
       {n:'Einstellungsspeicher',s:0,d:'In Ordnung'},
       {n:'MQTT',s:3,d:'Nicht aktiviert'},
-      {n:'Benachrichtigungen',s:0,d:'12 zugestellt, letzte vor 240 s'},
       {n:'Heartbeat',s:0,d:'Letztes Lebenszeichen vor 420 s'},
       {n:'Alarmzentrale',s:1,d:'2 offene Störung(en) – siehe Dashboard'}]};
   }
-  if(url==='/api/config/import')return{ok:true,msg:'Einstellungen übernommen. Passwörter und ntfy-Topic bleiben unverändert.'};
+  if(url==='/api/config/import')return{ok:true,msg:'Einstellungen übernommen. Passwörter und Heartbeat-URL bleiben unverändert.'};
   if(url==='/api/solarlog/raw')return{
     main:'{"801":{"170":{"101":"4210","110":"2680","105":"18240"}},"858":[]}',
     dev:'{"740":{"0":"10.0.0.1 / SN123","1":"10.0.0.2 / SN456","2":"Err"},"608":{"0":"Power","1":"Shutdown"},"782":{"0":"2140","1":"0"}}',

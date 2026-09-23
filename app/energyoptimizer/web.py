@@ -16,7 +16,7 @@ from aiohttp import web
 from . import __version__, sched
 from .clock import CLOCK
 from .const import (
-    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, NS_CRIT, NS_WARN, RST_TXT,
+    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, RST_TXT,
     RUN_START_GRACE_S,
 )
 from .settings import MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, hyst_off_ticks, hyst_on_ticks
@@ -105,10 +105,6 @@ class WebApi:
         if self.fails >= AUTH_ALERT_AFTER and (not self.alert_t or now - self.alert_t >= AUTH_ALERT_REPEAT_S):
             self.alert_t = now
             self.eo.events.log(EV_AUTHFAIL, -1, ER_NONE, True, f"{self.fails} Fehlversuche")
-            self.eo.notify.send(NS_WARN, "Wiederholte Fehlanmeldungen",
-                                f"{self.fails} fehlgeschlagene Anmeldeversuche am Web-Interface. "
-                                "Falls das nicht du warst: Passwort ändern und prüfen, wer im Netz ist.",
-                                "lock")
 
     def note_success(self) -> None:
         self.fails = 0
@@ -217,7 +213,6 @@ class WebApi:
         r.add_get("/api/ideas/export", self.h_ideas_export)
         r.add_get("/api/alarms", _json(lambda: self.eo.alarms.build()))
         r.add_post("/api/alarms/ack", self.h_alarm_ack)
-        r.add_post("/api/notify/test", self.h_notify_test)
         r.add_post("/api/selftest", self.h_selftest_start)
         r.add_get("/api/selftest", _json(lambda: self.eo.selftest_json()))
         r.add_get("/api/config/export", self.h_config_export)
@@ -429,14 +424,13 @@ class WebApi:
                                  "sl_poll_min", "sl_avg_s", "on_margin", "off_margin", "hyst_on_s",
                                  "hyst_off_s", "min_on_min", "min_off_min", "fw_start", "fw_end",
                                  "sl_fsafe", "batt_grd", "sh_count", "p_buy", "p_feed", "p_base",
-                                 "nt_en", "nt_srv", "nt_sev", "nt_qs", "nt_qe", "hb_en", "hb_min",
+                                 "hb_en", "hb_min",
                                  "mo_sl", "mo_dev", "mo_np", "mo_inv", "sl_dev", "lat", "lon",
                                  "mq_en", "mq_host", "mq_port", "mq_user", "mq_disc")}
         cf["hostname"] = c["hostname"]
         cf["hyst_on"] = hyst_on_ticks(c)
         cf["hyst_off"] = hyst_off_ticks(c)
         cf["ip"] = req_host_ip()
-        cf["nt_top_set"] = bool(c["nt_top"])
         cf["hb_url_set"] = bool(c["hb_url"])
         cf["mq_pfx"] = c["mq_pfx"]
         cf["shelly"] = [
@@ -537,7 +531,7 @@ class WebApi:
             "version": __version__, "build": os.environ.get("EO_BUILD", "dev"),
             "ip": req_host_ip(), "port": eo.port,
             "mdns": f"{host}.local" if eo.mdns.enabled else "", "mdns_err": eo.mdns.error,
-            "notify": eo.notify.state(), "update": eo.updates.state(),
+            "heartbeat": eo.heartbeat.state(), "update": eo.updates.state(),
         })
         return web.json_response(d)
 
@@ -602,15 +596,6 @@ class WebApi:
         self.eo.alarms.ack(i)
         return web.json_response({"ok": True})
 
-    async def h_notify_test(self, req):
-        c = self.eo.settings.cfg
-        if not c["nt_en"] or not c["nt_top"]:
-            return web.json_response({"ok": False, "msg": "Benachrichtigungen sind nicht aktiviert oder "
-                                                          "es fehlt der Topic."})
-        self.eo.notify.send(NS_CRIT, "EnergyOptimizer – Testmeldung",
-                            "Wenn diese Meldung ankommt, funktioniert die Alarmierung.", "bell")
-        return web.json_response({"ok": True, "msg": "Testmeldung eingereiht – Ergebnis erscheint gleich hier."})
-
     async def h_selftest_start(self, req):
         self.eo.request_selftest()
         return web.json_response({"ok": True})
@@ -629,7 +614,7 @@ class WebApi:
             return web.json_response({"ok": False, "msg": "Das ist keine EnergyOptimizer-Sicherung"},
                                      status=400)
         warn = self.eo.apply_settings(doc, "Import")
-        msg = "Einstellungen übernommen. Passwörter, ntfy-Topic und Heartbeat-URL bleiben unverändert."
+        msg = "Einstellungen übernommen. Passwörter und Heartbeat-URL bleiben unverändert."
         if warn:
             msg += " " + warn
         return web.json_response({"ok": True, "msg": msg.replace('"', "'")})
