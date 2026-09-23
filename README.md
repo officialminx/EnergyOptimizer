@@ -89,8 +89,11 @@ Run this on the Raspberry Pi, in the folder that contains `docker-compose.yml`:
 docker compose exec energyoptimizer python -m energyoptimizer reset-password
 ```
 
-Reload the web interface within a few seconds and set a new password. All other settings stay
-unchanged.
+The command asks for the new password twice. A few seconds later it applies and you can sign in
+with it; the web interface is protected the whole time. All other settings stay unchanged.
+
+EnergyOptimizer stores only a salted scrypt hash of the password. After five wrong attempts the
+login locks for one second, and each further wrong attempt doubles the lock, up to 15 minutes.
 
 ## Remote access with Tailscale
 

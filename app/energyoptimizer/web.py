@@ -16,6 +16,7 @@ from aiohttp import web
 from . import __version__, sched
 from .clock import CLOCK
 from .i18n import tr
+from .passwords import verify_password
 from .const import (
     ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, RST_TXT,
     RUN_START_GRACE_S,
@@ -28,6 +29,8 @@ _LOGGER = logging.getLogger(__name__)
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 AUTH_ALERT_AFTER = 10
 AUTH_ALERT_REPEAT_S = 900
+AUTH_MAX_LOCK_S = 900       # longest lock after repeated wrong passwords
+AUTH_FAIL_FORGET_S = 900    # failures are forgotten after this long without one
 
 
 def _json(fn):
@@ -56,6 +59,7 @@ class WebApi:
         self.fails = 0
         self.last_fail = 0.0
         self.block_until = 0.0
+        self._basic_cache = b""
         self.alert_t = 0.0
 
     # ── Anmeldung (Cookie eo_auth = SHA-256(secret ‖ passwort)[:16] hex) ─────
@@ -84,6 +88,18 @@ class WebApi:
     def token(self) -> str:
         return hashlib.sha256(self.secret + self.web_pass.encode()).digest()[:16].hex()
 
+    def _basic_ok(self, header: str, pw: str) -> bool:
+        """Scripts send Basic auth with every request; hashing each time would
+        cost tens of milliseconds, so a verified header is remembered for the
+        current password."""
+        key = hashlib.sha256(self.secret + header.encode() + self.web_pass.encode()).digest()
+        if self._basic_cache == key:
+            return True
+        if verify_password(pw, self.web_pass):
+            self._basic_cache = key
+            return True
+        return False
+
     def block_remaining(self) -> int:
         if not self.block_until:
             return 0
@@ -97,12 +113,14 @@ class WebApi:
         if self.block_remaining() > 0:
             return
         now = CLOCK.mono()
-        if self.last_fail and now - self.last_fail > 60:
+        if self.last_fail and now - self.last_fail > AUTH_FAIL_FORGET_S:
             self.fails = 0
             self.alert_t = 0.0
         self.last_fail = now
         self.fails += 1
-        wait = 5 if self.fails >= 10 else (2 if self.fails >= 5 else 0)
+        # From the fifth failure on, each further one doubles the lock: 1 s, 2 s,
+        # 4 s … up to 15 minutes, which makes guessing a password impractical.
+        wait = min(AUTH_MAX_LOCK_S, 2 ** (self.fails - 5)) if self.fails >= 5 else 0
         if wait:
             self.block_until = now + wait
             _LOGGER.warning("[Auth] %d Fehlversuche – Passwortprüfung für %ds gesperrt", self.fails, wait)
@@ -137,7 +155,7 @@ class WebApi:
                     user, _, pw = base64.b64decode(auth[6:]).decode().partition(":")
                 except (ValueError, UnicodeDecodeError):
                     user, pw = "", ""
-                if user == "admin" and hmac.compare_digest(pw.encode(), self.web_pass.encode()):
+                if user == "admin" and self._basic_ok(auth, pw):
                     return True
             self.note_failure()
             return False
@@ -334,7 +352,7 @@ class WebApi:
         if self.setup_required:
             return web.json_response({"ok": False, "setup": True}, status=409)
         pw = doc.get("pw") if isinstance(doc.get("pw"), str) else ""
-        if not hmac.compare_digest(pw.encode(), self.web_pass.encode()):
+        if not await asyncio.to_thread(verify_password, pw, self.web_pass):
             self.note_failure()
             w = self.block_remaining()
             return web.json_response({"ok": False, "wait": w} if w else {"ok": False}, status=401)

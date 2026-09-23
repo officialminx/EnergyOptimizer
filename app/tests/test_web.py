@@ -41,27 +41,41 @@ async def test_first_start_requires_password_setup(fresh):
     assert r.status == 403
     r = await fresh.post("/api/setup", json={"pw": "geheim1"})
     assert r.status == 200 and "eo_auth=" in r.headers["Set-Cookie"]
-    assert fresh.eo.settings.cfg["web_pass"] == "geheim1"
+    stored = fresh.eo.settings.cfg["web_pass"]
+    assert stored.startswith("scrypt$") and "geheim1" not in stored
+    assert "geheim1" not in open(fresh.eo.settings.path).read()
     r = await fresh.get("/api/status")
     assert r.status == 200
     # Danach ist die Einrichtung gesperrt: niemand kann das Passwort so überschreiben.
     r = await fresh.post("/api/setup", json={"pw": "anderes1"})
-    assert r.status == 409 and fresh.eo.settings.cfg["web_pass"] == "geheim1"
+    assert r.status == 409 and fresh.eo.settings.cfg["web_pass"] == stored
 
 
-async def test_password_reset_flag(client, tmp_path):
+async def test_password_reset_sets_new_password_directly(client, tmp_path, monkeypatch):
+    import getpass
+    import sys
     from energyoptimizer.__main__ import reset_password
-    import os
-    os.environ["EO_DATA_DIR"] = str(tmp_path)
-    try:
-        assert reset_password() == 0
-    finally:
-        del os.environ["EO_DATA_DIR"]
+    from energyoptimizer.passwords import verify_password
+    monkeypatch.setenv("EO_DATA_DIR", str(client.eo.data_dir))
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True, raising=False)
+    answers = iter(["neues-pw1", "neues-pw1"])
+    monkeypatch.setattr(getpass, "getpass", lambda prompt="": next(answers))
+    assert reset_password() == 0
     client.eo.check_password_reset()
-    assert client.eo.settings.cfg["web_pass"] == ""
-    assert not (tmp_path / "RESET_PASSWORD").exists()
+    # The new password applies at once; the setup page never opens.
+    assert verify_password("neues-pw1", client.eo.settings.cfg["web_pass"])
     r = await client.get("/api/status")
-    assert r.status == 401 and (await r.json())["setup"] is True
+    assert r.status == 401 and (await r.json())["setup"] is False
+    r = await client.post("/api/setup", json={"pw": "fremdes1"})
+    assert r.status == 409
+    # A reset file without a valid hash changes nothing.
+    import os
+    with open(os.path.join(client.eo.data_dir, "RESET_PASSWORD"), "w") as f:
+        f.write("reset\n")
+    client.eo.check_password_reset()
+    assert verify_password("neues-pw1", client.eo.settings.cfg["web_pass"])
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False, raising=False)
+    assert reset_password() == 2
 
 
 async def test_status_shape(client):
@@ -81,7 +95,8 @@ async def test_status_shape(client):
 
 
 async def test_password_login_flow(client):
-    client.eo.settings.cfg["web_pass"] = "pw1"
+    from energyoptimizer.passwords import hash_password
+    client.eo.settings.cfg["web_pass"] = hash_password("pw1")
     r = await client.get("/api/status")
     assert r.status == 401 and (await r.json()) == {"ok": False, "auth": False, "setup": False}
     r = await client.get("/")
@@ -92,15 +107,43 @@ async def test_password_login_flow(client):
     assert r.status == 200 and "eo_auth=" in r.headers["Set-Cookie"]
     r = await client.get("/api/status")
     assert r.status == 200
+    import base64
+    basic = {"Authorization": "Basic " + base64.b64encode(b"admin:pw1").decode()}
+    for _ in range(2):
+        r = await client.get("/api/status", headers=basic, cookies={})
+        assert r.status == 200
 
 
 async def test_brute_force_brake(client):
-    client.eo.settings.cfg["web_pass"] = "pw1"
+    from energyoptimizer.passwords import hash_password
+    client.eo.settings.cfg["web_pass"] = hash_password("pw1")
     codes = []
     for _ in range(6):
         r = await client.post("/api/login", json={"pw": "x"})
         codes.append(r.status)
     assert 429 in codes
+
+
+def test_lock_doubles_with_each_failure():
+    from energyoptimizer import web as webmod
+    api = webmod.WebApi.__new__(webmod.WebApi)
+    api.fails, api.last_fail, api.block_until, api.alert_t = 0, 0.0, 0.0, 0.0
+
+    class Events:
+        def log(self, *a):
+            pass
+
+    class Eo:
+        events = Events()
+
+    api.eo = Eo()
+    waits = []
+    for _ in range(20):
+        api.block_until = 0.0
+        api.note_failure()
+        waits.append(api.block_remaining())
+    assert waits[:4] == [0, 0, 0, 0] and waits[4] == 1 and waits[5] == 2 and waits[6] == 4
+    assert max(waits) == webmod.AUTH_MAX_LOCK_S
 
 
 async def test_cross_origin_post_is_rejected(client):
@@ -211,6 +254,10 @@ async def test_existing_install_skips_wizard(tmp_path):
     st = Settings(str(tmp_path))
     st.load()
     assert st.cfg["wizard_done"] is True and st.cfg["lang"] == "de"
+    # The plain-text password of an older install is replaced by its hash.
+    from energyoptimizer.passwords import verify_password
+    assert verify_password("geheim1", st.cfg["web_pass"])
+    assert "geheim1" not in (tmp_path / "settings.json").read_text()
 
 
 async def test_solarlog_test_endpoint(client):

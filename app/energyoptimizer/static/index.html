@@ -1374,9 +1374,9 @@ details.coll.sub .det-body{padding:0 14px 14px}
         <label>Web-Interface Passwort <small>(leer = unver&auml;ndert)</small><i class="ib" data-i="pw"></i></label><input type="password" name="web_pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="new-password">
         <div class="ip" data-i="pw">Sch&uuml;tzt die gesamte Oberfl&auml;che (6 bis 64 Zeichen); f&uuml;r
           Skripte mit Basic-Auth ist der Benutzername <b>admin</b>. Nach einer &Auml;nderung m&uuml;ssen sich
-          alle Ger&auml;te neu anmelden. Passwort vergessen? Auf dem Server
+          alle Ger&auml;te neu anmelden. Gespeichert wird nur ein Hash, nie das Passwort selbst. Passwort vergessen? Auf dem Server
           <code>docker compose exec energyoptimizer python -m energyoptimizer reset-password</code>
-          ausf&uuml;hren und danach ein neues Passwort festlegen.</div>
+          ausf&uuml;hren und dort das neue Passwort eingeben.</div>
         <button type="button" class="btn boff" style="width:100%;margin-top:12px" onclick="doLogout()"><svg><use href="#i-power"/></svg>Abmelden</button>
       </div>
     </div>

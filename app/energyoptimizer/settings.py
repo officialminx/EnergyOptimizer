@@ -18,6 +18,7 @@ from typing import Any
 from . import sched
 from .const import MAX_EXT, MAX_SHELLY
 from .i18n import tr
+from .passwords import hash_password, is_hash
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -223,6 +224,12 @@ class SettingsStore:
                         entry["sch"] = sched.from_str(entry["sch"])
                     base[key][i] = entry
         self.cfg = base
+        if not isinstance(base["web_pass"], str):
+            base["web_pass"] = ""
+        if base["web_pass"] and not is_hash(base["web_pass"]):
+            # Older installs kept the password in plain text: replace it with its hash.
+            base["web_pass"] = hash_password(base["web_pass"])
+            self.save()
 
     def _apply_env_bootstrap(self, c: dict) -> None:
         """Erststart: Werte aus Umgebungsvariablen übernehmen (docker-compose)."""
@@ -234,7 +241,7 @@ class SettingsStore:
         if env.get("EO_SOLARLOG_PASSWORD"):
             c["sl_pass"] = env["EO_SOLARLOG_PASSWORD"]
         if env.get("EO_WEB_PASSWORD"):
-            c["web_pass"] = env["EO_WEB_PASSWORD"]
+            c["web_pass"] = hash_password(env["EO_WEB_PASSWORD"])
         host = normalize_hostname(env.get("EO_HOSTNAME", ""))
         if host:
             c["hostname"] = host
@@ -273,7 +280,7 @@ class SettingsStore:
 
         if nonempty_str("web_pass"):
             if MIN_PASSWORD_LEN <= len(doc["web_pass"]) <= MAX_PASSWORD_LEN:
-                t["web_pass"] = doc["web_pass"]
+                t["web_pass"] = hash_password(doc["web_pass"])
             else:
                 note("Web-Passwort nicht geändert",
                      tr("{a} bis {b} Zeichen erforderlich", lang, a=MIN_PASSWORD_LEN, b=MAX_PASSWORD_LEN))

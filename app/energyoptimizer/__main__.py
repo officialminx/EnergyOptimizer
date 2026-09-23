@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import getpass
 import logging
 import os
 import signal
@@ -12,6 +13,8 @@ from aiohttp import web
 
 from . import __version__
 from .app import RESET_FLAG, EnergyOptimizer
+from .passwords import hash_password
+from .settings import MAX_PASSWORD_LEN, MIN_PASSWORD_LEN
 from .web import WebApi
 
 
@@ -20,16 +23,31 @@ def data_dir() -> str:
 
 
 def reset_password() -> int:
-    """Legt die Reset-Markierung ab; die laufende App löscht das Passwort binnen Sekunden."""
+    """Asks for a new password in the terminal and hands its hash to the running
+    app, which switches to it within seconds. The web interface stays protected
+    the whole time: there is no moment without a password."""
+    if not sys.stdin.isatty():
+        print("Bitte im Terminal ausführen, damit das neue Passwort abgefragt werden kann:\n"
+              "  docker compose exec energyoptimizer python -m energyoptimizer reset-password",
+              file=sys.stderr)
+        return 2
+    pw = getpass.getpass("Neues Web-Passwort: ")
+    if not MIN_PASSWORD_LEN <= len(pw) <= MAX_PASSWORD_LEN:
+        print(f"Das Passwort muss {MIN_PASSWORD_LEN} bis {MAX_PASSWORD_LEN} Zeichen lang sein.",
+              file=sys.stderr)
+        return 1
+    if getpass.getpass("Wiederholen: ") != pw:
+        print("Die Passwörter stimmen nicht überein.", file=sys.stderr)
+        return 1
     path = os.path.join(data_dir(), RESET_FLAG)
     try:
-        with open(path, "w", encoding="ascii") as f:
-            f.write("reset\n")
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="ascii") as f:
+            f.write(hash_password(pw) + "\n")
     except OSError as err:
         print(f"{path} konnte nicht geschrieben werden: {err}", file=sys.stderr)
         return 1
-    print("Passwort-Reset angefordert. Die Oberfläche in ein paar Sekunden neu laden "
-          "und ein neues Passwort festlegen.")
+    print("Neues Passwort gespeichert. Es gilt in ein paar Sekunden; danach damit anmelden.")
     return 0
 
 

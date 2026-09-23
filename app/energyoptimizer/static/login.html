@@ -38,7 +38,7 @@ button:active{transform:scale(.97)}
 <input type="password" id="pw" autocomplete="current-password" autofocus>
 <button type="submit">Anmelden</button>
 <div class="err" id="err">Falsches Passwort</div>
-<details class="help"><summary>Passwort vergessen?</summary><p style="margin-top:8px">Auf dem Server im Ordner der <code>docker-compose.yml</code> ausführen:<br><code>docker compose exec energyoptimizer python -m energyoptimizer reset-password</code><br>Danach diese Seite neu laden und ein neues Passwort festlegen.</p></details>
+<details class="help"><summary>Passwort vergessen?</summary><p style="margin-top:8px">Auf dem Server im Ordner der <code>docker-compose.yml</code> ausführen:<br><code>docker compose exec energyoptimizer python -m energyoptimizer reset-password</code><br>Dort das neue Passwort zweimal eingeben und dich nach ein paar Sekunden damit anmelden.</p></details>
 </form><script>
 document.getElementById('lf').addEventListener('submit',function(e){e.preventDefault();
 var pw=document.getElementById('pw').value;
