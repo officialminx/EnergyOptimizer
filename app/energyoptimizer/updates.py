@@ -1,7 +1,8 @@
 """Prüft auf GitHub, ob eine neuere Version veröffentlicht wurde.
 
-Fragt alle 6 Stunden das neueste Release des Repositorys ab (ohne Token; das
-Limit von 60 Anfragen pro Stunde reicht bei weitem). Installiert wird nichts:
+Fragt einmal pro Woche das neueste Release des Repositorys ab (ohne Token; das
+Limit von 60 Anfragen pro Stunde reicht bei weitem). Zusätzlich lässt sich die
+Prüfung jederzeit per Knopf in der Oberfläche auslösen. Installiert wird nichts:
 die Oberfläche zeigt nur einen Hinweis mit dem Befehl für das Update.
 """
 
@@ -18,7 +19,7 @@ from .clock import CLOCK
 
 _LOGGER = logging.getLogger(__name__)
 
-CHECK_INTERVAL_S = 6 * 3600
+CHECK_INTERVAL_S = 7 * 24 * 3600
 RETRY_S = 1800
 FIRST_CHECK_S = 60
 DEFAULT_REPO = "officialminx/energyoptimizer"
@@ -56,7 +57,14 @@ class UpdateCheck:
             "current": self.current, "latest": self.latest, "available": self.available,
             "url": self.url, "enabled": self.enabled, "error": self.error,
             "age": int(CLOCK.mono() - self.checked_t) if self.checked_t else -1,
+            "interval": CHECK_INTERVAL_S,
         }
+
+    async def check_now(self, session: aiohttp.ClientSession) -> dict:
+        """Manuelle Prüfung (Knopf); setzt auch den Wochentakt neu."""
+        if self.enabled:
+            await self.check(session)
+        return self.state()
 
     def due(self) -> bool:
         return self.enabled and CLOCK.mono() >= self._next
