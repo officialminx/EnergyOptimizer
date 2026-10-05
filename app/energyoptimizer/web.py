@@ -45,6 +45,24 @@ def _read(name: str, mode: str = "r"):
         return f.read()
 
 
+ASSET_TYPES = {".css": "text/css", ".js": "application/javascript"}
+
+
+def _load_assets() -> dict[str, tuple[bytes, str]]:
+    """Stylesheet and scripts of the main page, read once at start."""
+    out: dict[str, tuple[bytes, str]] = {}
+    for root, _dirs, files in os.walk(STATIC):
+        for fn in files:
+            ext = os.path.splitext(fn)[1]
+            if ext not in ASSET_TYPES:
+                continue
+            full = os.path.join(root, fn)
+            rel = os.path.relpath(full, STATIC).replace(os.sep, "/")
+            with open(full, "rb") as f:
+                out[rel] = (f.read(), ASSET_TYPES[ext])
+    return out
+
+
 class WebApi:
     def __init__(self, eo) -> None:
         self.eo = eo
@@ -54,7 +72,14 @@ class WebApi:
         self.wizard_html = _read("wizard.html")
         self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
         self.icon = _read("icon.png", "rb")
-        self.etag = hashlib.sha256((self.index_html + self.i18n_js).encode()).hexdigest()[:8]
+        self.assets = _load_assets()
+        h = hashlib.sha256((self.index_html + self.i18n_js).encode())
+        for name in sorted(self.assets):
+            h.update(self.assets[name][0])
+        self.etag = h.hexdigest()[:8]
+        # Stylesheet and scripts are referenced with ?v=<etag>, so a new version is
+        # always fetched while unchanged files come from the browser cache.
+        self.index_html = self.index_html.replace("{{V}}", self.etag)
         self.secret = self._load_secret()
         self.fails = 0
         self.last_fail = 0.0
@@ -210,6 +235,7 @@ class WebApi:
         r.add_get("/", self.h_index)
         r.add_get("/wizard", self.h_wizard)
         r.add_get("/i18n.js", self.h_i18n)
+        r.add_get("/static/{path:.+}", self.h_asset)
         r.add_get("/api/status", self.h_status)
         r.add_post("/api/login", self.h_login)
         r.add_post("/api/setup", self.h_setup)
@@ -281,6 +307,15 @@ class WebApi:
         if self.setup_required or not self.is_authed(req):
             raise web.HTTPFound("/")
         return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
+
+    async def h_asset(self, req):
+        asset = self.assets.get(req.match_info["path"])
+        if asset is None:
+            raise web.HTTPNotFound()
+        cache = ("public, max-age=31536000, immutable" if req.query.get("v") == self.etag
+                 else "no-cache")
+        return web.Response(body=asset[0], content_type=asset[1], charset="utf-8",
+                            headers={"Cache-Control": cache})
 
     async def h_i18n(self, req):
         return web.Response(text=self.i18n_js, content_type="application/javascript",
