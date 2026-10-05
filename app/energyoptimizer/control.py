@@ -257,7 +257,7 @@ def simulate(points: list[list], n_shelly: int, cfg: dict, tz, params: Params,
         else:
             sim_import += sim_grid * h
     out_loads = []
-    for k, sl in sims.items():
+    for sl in sims.values():
         out_loads.append({"kind": sl.kind, "idx": sl.idx, "name": sl.name, "pw": sl.pw,
                           "on": sl.intervals, "kwh": round(sl.wh / 1000, 2),
                           "pv_kwh": round(sl.pv_wh / 1000, 2)})

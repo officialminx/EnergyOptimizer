@@ -20,7 +20,6 @@ common result of every data source (see sources.py).
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
@@ -121,7 +120,7 @@ class SolarLogClient:
                 text = await response.text(errors="replace")
                 cookies = {k: m.value for k, m in response.cookies.items()}
                 status = response.status
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise SolarLogError(f"Timeout while connecting to Solar-Log at {self.host}") from err
         except aiohttp.ClientError as err:
             raise SolarLogError(f"Cannot connect to Solar-Log at {self.host}: {err}") from err
@@ -230,7 +229,7 @@ class SolarLogClient:
 
     async def _retry_login_hashed(self, username: str) -> tuple[str, dict[str, str]]:
         """Second login attempt with the bcrypt-hashed password."""
-        import bcrypt  # noqa: PLC0415
+        import bcrypt
 
         salt = (await self.request(REQ_SALT, allow_relogin=False)).get("550", {})
         salt = salt.get("104") if isinstance(salt, dict) else None

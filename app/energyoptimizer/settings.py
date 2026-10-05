@@ -15,8 +15,14 @@ from typing import Any
 
 from . import sched
 from .const import (
-    MAX_EXT, MAX_SHELLY, SH_POLL_DEFAULT_S, SH_POLL_MAX_S, SH_POLL_MIN_S, SRC_POLL_DEFAULT_S,
-    SRC_POLL_MAX_S, SRC_POLL_MIN_S,
+    MAX_EXT,
+    MAX_SHELLY,
+    SH_POLL_DEFAULT_S,
+    SH_POLL_MAX_S,
+    SH_POLL_MIN_S,
+    SRC_POLL_DEFAULT_S,
+    SRC_POLL_MAX_S,
+    SRC_POLL_MIN_S,
 )
 from .i18n import tr
 from .passwords import hash_password, is_hash
@@ -124,10 +130,7 @@ def ip_looks_valid(s: Any) -> bool:
     parts = s.split(".")
     if len(parts) != 4:
         return False
-    for p in parts:
-        if not p.isdigit() or len(p) > 3 or int(p) > 255:
-            return False
-    return True
+    return all(p.isdigit() and len(p) <= 3 and int(p) <= 255 for p in parts)
 
 
 def host_looks_valid(s: Any) -> bool:

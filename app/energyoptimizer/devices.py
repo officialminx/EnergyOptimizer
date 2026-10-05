@@ -38,10 +38,32 @@ import aiohttp
 from . import control, sched
 from .clock import CLOCK
 from .const import (
-    BATT_GUARD_RELEASE_FACTOR, ER_CMD_FAIL, ER_DAY_CAP, ER_FAILSAFE, ER_FORCED, ER_FORCED_END,
-    ER_MANUAL, ER_MQTT, ER_NO_DEMAND, ER_NONE, ER_SCHEDULE, ER_TIMER, ER_WINDOW, EV_AUTOMODE,
-    EV_FAILSAFE, EV_IPMOVE, EV_REACH, EV_RUN, EV_SWITCH, MAX_EXT, MAX_SHELLY, ND_RETRY_S,
-    RUN_START_GRACE_S, SCHED_RETRY_S, SHELLY_CMD_LOCK_S, SHELLY_FAIL_RECOVER,
+    BATT_GUARD_RELEASE_FACTOR,
+    ER_CMD_FAIL,
+    ER_DAY_CAP,
+    ER_FAILSAFE,
+    ER_FORCED,
+    ER_FORCED_END,
+    ER_MANUAL,
+    ER_MQTT,
+    ER_NO_DEMAND,
+    ER_NONE,
+    ER_SCHEDULE,
+    ER_TIMER,
+    ER_WINDOW,
+    EV_AUTOMODE,
+    EV_FAILSAFE,
+    EV_IPMOVE,
+    EV_REACH,
+    EV_RUN,
+    EV_SWITCH,
+    MAX_EXT,
+    MAX_SHELLY,
+    ND_RETRY_S,
+    RUN_START_GRACE_S,
+    SCHED_RETRY_S,
+    SHELLY_CMD_LOCK_S,
+    SHELLY_FAIL_RECOVER,
     SHELLY_RECOVER_COOLDOWN_S,
 )
 from .settings import hyst_off_ticks, hyst_on_ticks
@@ -129,7 +151,7 @@ def local_ipv4(probe: str = "8.8.8.8") -> str:
 
 
 class Devices:
-    def __init__(self, app: "EnergyOptimizer") -> None:
+    def __init__(self, app: EnergyOptimizer) -> None:
         self.app = app
         self.st = {"shelly": [DevState() for _ in range(MAX_SHELLY)],
                    "ext": [DevState() for _ in range(MAX_EXT)]}
@@ -241,7 +263,7 @@ class Devices:
             async with self.session.get(url, timeout=aiohttp.ClientTimeout(total=3)) as r:
                 code = r.status
                 ok = r.status == 200
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             code = type(err).__name__
         if ok:
             changed = s.last_cmd != int(on)
@@ -336,7 +358,7 @@ class Devices:
                     return None
                 data = json.loads(raw)
                 return data if isinstance(data, dict) else None
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
+        except (TimeoutError, aiohttp.ClientError, ValueError):
             return None
 
     async def _fetch_info(self, i: int) -> None:

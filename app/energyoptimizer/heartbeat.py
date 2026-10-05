@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Heartbeat:
-    def __init__(self, app: "EnergyOptimizer") -> None:
+    def __init__(self, app: EnergyOptimizer) -> None:
         self.app = app
         self.hb_t = 0.0
         self.hb_ok = False
@@ -34,7 +34,7 @@ class Heartbeat:
                 if 200 <= r.status < 300:
                     return True, ""
                 return False, f"HTTP {r.status}"
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             return False, type(err).__name__
 
     async def tick(self) -> None:

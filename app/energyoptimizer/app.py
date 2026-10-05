@@ -5,23 +5,32 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from typing import Any
 
 import aiohttp
 
 from .alarms import Alarms
 from .clock import CLOCK
 from .const import (
-    EV_BOOT, EV_CONFIG, EV_SOLARLOG, ER_MANUAL, ER_NONE, RST_CONTAINER,
-    SL_DEV_POLL_S, SL_MAX_DEV, SL_RETRY_S, HISTORY_SAMPLE_S,
+    ER_MANUAL,
+    ER_NONE,
+    EV_BOOT,
+    EV_CONFIG,
+    EV_SOLARLOG,
+    HISTORY_SAMPLE_S,
+    RST_CONTAINER,
+    SL_DEV_POLL_S,
+    SL_MAX_DEV,
+    SL_RETRY_S,
 )
 from .devices import Devices
 from .energy import Energy
 from .events import EventLog
+from .heartbeat import Heartbeat
 from .history import History
 from .mdns import Mdns
 from .mqtt import Mqtt
 from .passwords import hash_password, is_hash
-from .heartbeat import Heartbeat
 from .sessions import Sessions
 from .settings import SettingsStore
 from .solarlog import SolarData, SolarDevices, SolarLogReader
@@ -70,7 +79,7 @@ class EnergyOptimizer:
         self.devs = SolarDevices()
         self.devs_t = 0.0
         self.boots = 0
-        self.selftest = {"running": False, "done_t": 0.0, "items": []}
+        self.selftest: dict[str, Any] = {"running": False, "done_t": 0.0, "items": []}
         self._tasks: list[asyncio.Task] = []
         self._selftest_req = False
         self.mdns_req = True
@@ -223,7 +232,7 @@ class EnergyOptimizer:
                 slot = int(CLOCK.time() // HISTORY_SAMPLE_S)
                 if slot != last_hist_slot:
                     if self.history.record(dv.st["shelly"], dv.self_regulated,
-                                           lambda i: dv.is_running("shelly", i)):
+                                           lambda i, dv=dv: dv.is_running("shelly", i)):
                         last_hist_slot = slot
 
                 if dv.poll_req or not last_shelly or now - last_shelly >= cfg["sh_poll_s"]:
@@ -275,7 +284,7 @@ class EnergyOptimizer:
                     await self.run_selftest()
             except asyncio.CancelledError:
                 raise
-            except Exception:  # noqa: BLE001 – the loop must never stop
+            except Exception:
                 _LOGGER.exception("Error in the main loop")
             await asyncio.sleep(0.5)
 

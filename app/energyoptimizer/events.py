@@ -55,7 +55,7 @@ class EventLog:
 
     def build(self, max_n: int, dev_filter: int) -> dict:
         max_n = max(1, min(400, max_n))
-        out = []
+        out: list[list] = []
         for r in reversed(self.ev):
             if len(out) >= max_n:
                 break

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Callable
+from collections.abc import Callable
 
 from .clock import CLOCK
 from .const import MAX_SHELLY
@@ -42,7 +42,7 @@ class Energy:
         self.last_save = 0.0
         self.archived_date = 0
         self.pv_share = 0.0
-        self._last_total = [None] * MAX_SHELLY
+        self._last_total: list[float | None] = [None] * MAX_SHELLY
         self._prev_grid_w = 0.0
         self._prev_prod_w = 0.0
         self._prev_cons_w = 0.0

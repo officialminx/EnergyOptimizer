@@ -54,6 +54,7 @@ async def test_first_start_requires_password_setup(fresh):
 async def test_password_reset_sets_new_password_directly(client, tmp_path, monkeypatch):
     import getpass
     import sys
+
     from energyoptimizer.__main__ import reset_password
     from energyoptimizer.passwords import verify_password
     monkeypatch.setenv("EO_DATA_DIR", str(client.eo.data_dir))
@@ -254,6 +255,7 @@ async def test_existing_install_skips_wizard(tmp_path):
 
 async def test_solarlog_test_endpoint(client):
     from aiohttp.test_utils import TestServer
+
     from . import mock_solarlog
     srv = TestServer(mock_solarlog.build({}))
     await srv.start_server()

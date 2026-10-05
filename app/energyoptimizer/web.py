@@ -16,13 +16,22 @@ from aiohttp import web
 from . import __version__, control, sched
 from .clock import CLOCK
 from .const import (
-    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, RST_TXT,
+    ER_MANUAL,
+    ER_NONE,
+    EV_AUTHFAIL,
+    MAX_SHELLY,
+    RST_TXT,
     RUN_START_GRACE_S,
 )
 from .i18n import tr
 from .passwords import verify_password
 from .settings import (
-    LANGS, MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, SOURCES, host_looks_valid, hyst_off_ticks,
+    LANGS,
+    MAX_PASSWORD_LEN,
+    MIN_PASSWORD_LEN,
+    SOURCES,
+    host_looks_valid,
+    hyst_off_ticks,
     hyst_on_ticks,
 )
 from .solarlog import REQ_BASIC, SolarLogAuthError, SolarLogClient, SolarLogError
@@ -46,8 +55,13 @@ def _json(fn):
     return handler
 
 
-def _read(name: str, mode: str = "r"):
-    with open(os.path.join(STATIC, name), mode, **({} if "b" in mode else {"encoding": "utf-8"})) as f:
+def _read(name: str) -> str:
+    with open(os.path.join(STATIC, name), encoding="utf-8") as f:
+        return f.read()
+
+
+def _read_bytes(name: str) -> bytes:
+    with open(os.path.join(STATIC, name), "rb") as f:
         return f.read()
 
 
@@ -77,7 +91,7 @@ class WebApi:
         self.setup_html = _read("setup.html")
         self.wizard_html = _read("wizard.html")
         self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
-        self.icon = _read("icon.png", "rb")
+        self.icon = _read_bytes("icon.png")
         self.dev = os.environ.get("EO_DEV") == "1"
         self._load_pages()
         self.secret = self._load_secret()
@@ -253,7 +267,8 @@ class WebApi:
 
     # ── Routen ──────────────────────────────────────────────────────────────
     def build(self) -> web.Application:
-        app = web.Application(middlewares=[self.middleware], client_max_size=16 * 1024 * 1024)
+        app = web.Application(middlewares=[self.middleware],  # type: ignore[list-item]
+                              client_max_size=16 * 1024 * 1024)
         r = app.router
         for p in ("/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/favicon.ico"):
             r.add_get(p, self.h_icon)
@@ -363,8 +378,7 @@ class WebApi:
         if doc is None:
             doc = await self._json_body(req) or {}
         c = self.eo.settings.cfg
-        host = doc.get("sl_ip") if isinstance(doc.get("sl_ip"), str) else ""
-        host = host.strip()
+        host = str(doc["sl_ip"]).strip() if isinstance(doc.get("sl_ip"), str) else ""
         if not host_looks_valid(host):
             return web.json_response({"ok": False, "msg": tr("Ungültige Adresse", self.lang)})
         try:
@@ -455,7 +469,7 @@ class WebApi:
             return web.json_response({"ok": False}, status=400)
         if self.setup_required:
             return web.json_response({"ok": False, "setup": True}, status=409)
-        pw = doc.get("pw") if isinstance(doc.get("pw"), str) else ""
+        pw = str(doc["pw"]) if isinstance(doc.get("pw"), str) else ""
         if not await asyncio.to_thread(verify_password, pw, self.web_pass):
             self.note_failure()
             w = self.block_remaining()
@@ -476,7 +490,7 @@ class WebApi:
         if not self.setup_required:
             return web.json_response({"ok": False, "done": True}, status=409)
         doc = await self._json_body(req)
-        pw = doc.get("pw") if isinstance(doc, dict) and isinstance(doc.get("pw"), str) else ""
+        pw = str(doc["pw"]) if isinstance(doc, dict) and isinstance(doc.get("pw"), str) else ""
         lang = doc.get("lang") if isinstance(doc, dict) else None
         if lang in LANGS:
             self.eo.settings.cfg["lang"] = lang

@@ -26,7 +26,7 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import __version__
 from .clock import CLOCK
@@ -42,7 +42,7 @@ _LOGGER = logging.getLogger(__name__)
 try:
     import paho.mqtt.client as paho
 except ImportError:  # pragma: no cover
-    paho = None
+    paho = None  # type: ignore[assignment]
 
 
 # Values of the load status sensor, as in ha-energyoptimizer, plus "schedule"
@@ -87,9 +87,9 @@ def _device_id() -> str:
 
 
 class Mqtt:
-    def __init__(self, app: "EnergyOptimizer") -> None:
+    def __init__(self, app: EnergyOptimizer) -> None:
         self.app = app
-        self.client = None
+        self.client: Any = None
         self.connected = False
         self.dev_id = _device_id()
         self.prefix = "energyoptimizer"
@@ -128,7 +128,7 @@ class Mqtt:
                 self.client.publish(f"{self.prefix}/status", "offline", retain=True)
                 self.client.disconnect()
                 self.client.loop_stop()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         self.client = None
         self.connected = False
@@ -149,7 +149,7 @@ class Mqtt:
         try:
             cl.connect_async(c["mq_host"], int(c["mq_port"]), keepalive=30)
             cl.loop_start()
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             _LOGGER.warning("[MQTT] Connection to %s failed: %s", c["mq_host"], err)
 
     def _on_connect(self, client, userdata, flags, reason_code, properties) -> None:
@@ -339,7 +339,7 @@ class Mqtt:
                                  "unit_of_meas": "kWh", "dev_cla": "energy",
                                  "stat_cla": "total_increasing"}, dev)
 
-    def _flag(self, comp: str, oid: str, name: str, st: str, fld: str, dev: dict | None = None,
+    def _flag(self, comp: str, oid: str, name: str | None, st: str, fld: str, dev: dict | None = None,
               **extra) -> None:
         self._ha(comp, oid, {"name": name, "stat_t": st,
                              "val_tpl": f"{{{{ 'ON' if value_json.{fld} else 'OFF' }}}}", **extra}, dev)

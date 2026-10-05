@@ -84,7 +84,7 @@ class UpdateCheck:
                 if resp.status != 200:
                     raise RuntimeError(f"HTTP {resp.status}")
                 doc = await resp.json(content_type=None)
-        except Exception as err:  # noqa: BLE001 - ein fehlender Internetzugang ist kein Drama
+        except Exception as err:
             self.error = str(err) or type(err).__name__
             _LOGGER.debug("[Update] Check failed: %s", self.error)
             self._done(RETRY_S)

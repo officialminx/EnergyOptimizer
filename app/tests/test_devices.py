@@ -30,7 +30,7 @@ async def test_switches_on_after_hysteresis_and_respects_priority(env):
     eo, clock, (boiler, pumpe) = env
     dv = eo.devices
     # 1300 W Überschuss reicht für EIN Gerät (1000 W + 150 W Puffer), nicht für zwei.
-    for tick in range(3):
+    for _ in range(3):
         await dv.distribute(1300)
         clock.advance(60)
     assert boiler.cmds == [True]

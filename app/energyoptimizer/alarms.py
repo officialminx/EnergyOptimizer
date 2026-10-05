@@ -12,8 +12,19 @@ from typing import TYPE_CHECKING
 
 from .clock import CLOCK
 from .const import (
-    AL_COUNT, AL_EXT0, AL_FAILSAFE, AL_INVERTER, AL_NOPROD, AL_NVS, AL_SHELLY0, AL_SOLARLOG,
-    EV_ALARM, MAX_EXT, MAX_SHELLY, NS_CRIT, NS_WARN,
+    AL_COUNT,
+    AL_EXT0,
+    AL_FAILSAFE,
+    AL_INVERTER,
+    AL_NOPROD,
+    AL_NVS,
+    AL_SHELLY0,
+    AL_SOLARLOG,
+    EV_ALARM,
+    MAX_EXT,
+    MAX_SHELLY,
+    NS_CRIT,
+    NS_WARN,
     SHELLY_FAIL_RECOVER,
 )
 
@@ -71,7 +82,7 @@ class AlarmState:
 
 
 class Alarms:
-    def __init__(self, app: "EnergyOptimizer") -> None:
+    def __init__(self, app: EnergyOptimizer) -> None:
         self.app = app
         self.al = [AlarmState() for _ in range(AL_COUNT)]
         self.al[AL_FAILSAFE].sev = NS_CRIT

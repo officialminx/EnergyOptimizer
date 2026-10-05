@@ -70,7 +70,7 @@ def compose(prod: float | None, cons: float | None, grid: float | None,
 class Source:
     name = ""
 
-    def __init__(self, app: "EnergyOptimizer") -> None:
+    def __init__(self, app: EnergyOptimizer) -> None:
         self.app = app
         self.last_error = ""
         self.raw = ""
@@ -105,7 +105,7 @@ class Source:
 class SolarLogSource(Source):
     name = "Solar-Log"
 
-    def __init__(self, app: "EnergyOptimizer", reader: SolarLogReader) -> None:
+    def __init__(self, app: EnergyOptimizer, reader: SolarLogReader) -> None:
         super().__init__(app)
         self.reader = reader
 
@@ -145,7 +145,7 @@ class FroniusSource(Source):
         try:
             doc = await self._get_json(url)
             site = doc["Body"]["Data"]["Site"]
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError) as err:
+        except (TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError) as err:
             self._fail(f"{cfg['src_host']}: {type(err).__name__} {err}".strip())
             return None
         pv = _num(site.get("P_PV")) or 0.0
@@ -174,7 +174,7 @@ class ShellyEmSource(Source):
 
     name = "Shelly EM"
 
-    def __init__(self, app: "EnergyOptimizer") -> None:
+    def __init__(self, app: EnergyOptimizer) -> None:
         super().__init__(app)
         self._kind: dict[str, str] = {}
 
@@ -186,7 +186,7 @@ class ShellyEmSource(Source):
         for kind in tries:
             try:
                 val = await self._read(host, kind, pv)
-            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError) as err:
+            except (TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError) as err:
                 last = err
                 continue
             self._kind[host] = kind
@@ -258,7 +258,7 @@ class ModbusTcp:
                     if self._w is None:
                         await self._connect()
                     return await self._read(addr, count)
-                except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError) as err:
+                except (TimeoutError, OSError, asyncio.IncompleteReadError) as err:
                     self.close()
                     if attempt:
                         raise ModbusError(f"{self.host}:{self.port}: {type(err).__name__}") from err
@@ -332,7 +332,7 @@ MODBUS_PRESETS: dict[str, dict[str, list[tuple[int, str, float]]]] = {
 class ModbusSource(Source):
     name = "Modbus"
 
-    def __init__(self, app: "EnergyOptimizer") -> None:
+    def __init__(self, app: EnergyOptimizer) -> None:
         super().__init__(app)
         self._cl: ModbusTcp | None = None
         self._key: tuple | None = None
@@ -476,7 +476,7 @@ class MqttSource(Source):
         return sd
 
 
-def make_source(app: "EnergyOptimizer", kind: str) -> Source:
+def make_source(app: EnergyOptimizer, kind: str) -> Source:
     if kind == "fronius":
         return FroniusSource(app)
     if kind == "shelly_em":

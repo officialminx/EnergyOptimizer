@@ -414,12 +414,12 @@ class History:
                 while mon < 0:
                     mon += 12
                     yr -= 1
-                t = int(datetime(yr, mon + 1, 1, 12, tzinfo=CLOCK.tz).timestamp())
+                ts = int(datetime(yr, mon + 1, 1, 12, tzinfo=CLOCK.tz).timestamp())
             else:
-                t = int((midnight - timedelta(days=n - 1 - i)).timestamp())
+                ts = int((midnight - timedelta(days=n - 1 - i)).timestamp())
             c = cnt[i] or 1
             buckets.append({
-                "t": t, "pe": int(e_prod[i] + 0.5), "ce": int(e_cons[i] + 0.5),
+                "t": ts, "pe": int(e_prod[i] + 0.5), "ce": int(e_cons[i] + 0.5),
                 "fe": int(e_feed[i] + 0.5), "ie": int(e_imp[i] + 0.5),
                 "pw": int(s_prod[i] / c + 0.5), "cw": int(s_cons[i] / c + 0.5),
             })
