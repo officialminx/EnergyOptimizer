@@ -70,7 +70,7 @@ class Mdns:
             return
         except Exception as err:  # noqa: BLE001 - mDNS darf den Start nie verhindern
             self.error = str(err) or type(err).__name__
-            _LOGGER.warning("[mDNS] Ankündigung fehlgeschlagen: %s", self.error)
+            _LOGGER.warning("[mDNS] Announcement failed: %s", self.error)
             return
         self._info = info
         self._key = key

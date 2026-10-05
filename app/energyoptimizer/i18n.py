@@ -21,18 +21,8 @@ _SERVER: dict[str, str] = {
         "No answer from the Solar-Log at {host}. Check the address and port.",
     "Verbunden: {prod} W Produktion, {cons} W Verbrauch.":
         "Connected: {prod} W production, {cons} W consumption.",
-    # Export der Verbesserungsnotizen
-    "# Verbesserungen – EnergyOptimizer": "# Improvements – EnergyOptimizer",
-    "Exportiert am {when} ({n} von {max} Notizen belegt).": "Exported on {when} ({n} of {max} notes used).",
-    "Offen: {a} · Eingeplant: {b} · Umgesetzt: {c} · Verworfen: {d}":
-        "Open: {a} · Planned: {b} · Done: {c} · Rejected: {d}",
-    "Bearbeitet werden die Notizen in der Web-Oberfläche unter Einstellungen → Verbesserungen. "
-    "Status per API umstellen:":
-        "The notes are edited in the web interface under Settings → Improvements. To change a status via the API:",
-    "mit": "with",
-    "Angelegt": "Created",
-    "Geändert": "Changed",
-    "_(keine weitere Beschreibung)_": "_(no further description)_",
+    "Verbunden: Netz {grid} W (ohne PV-Messung).": "Connected: grid {grid} W (no PV reading).",
+    "Keine Werte: {err}": "No values: {err}",
     # Home Assistant (MQTT discovery), Namen wie in ha-energyoptimizer
     "Steckdose": "Plug",
     "Externer Schalter": "External switch",

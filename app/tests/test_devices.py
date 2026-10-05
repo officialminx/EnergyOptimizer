@@ -19,6 +19,7 @@ async def env(tmp_path, monkeypatch):
     for i, sh in enumerate(shellies):
         c["shelly"][i].update(ip=await sh.start(), name=sh.name, pw=1000, pri=i + 1, auto=True)
     c["sh_count"] = 2
+    c["src_poll_s"] = 60   # one reading per minute: 180 s hysteresis = 3 readings
     yield eo, clock, shellies
     for sh in shellies:
         await sh.close()
@@ -128,10 +129,11 @@ async def test_poll_reads_status_and_learns_id(env):
 
 async def test_hysteresis_ticks():
     from energyoptimizer.settings import hyst_ticks
-    assert hyst_ticks(180, 1) == 3
-    assert hyst_ticks(0, 1) == 1
-    assert hyst_ticks(3600, 1) == 60
-    assert hyst_ticks(100, 5) == 1
+    assert hyst_ticks(180, 60) == 3
+    assert hyst_ticks(0, 60) == 1
+    assert hyst_ticks(3600, 60) == 60
+    assert hyst_ticks(100, 300) == 1
+    assert hyst_ticks(180, 15) == 12
 
 
 def test_schedule_over_midnight_uses_start_day():

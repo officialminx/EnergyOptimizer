@@ -1,20 +1,23 @@
-"""MQTT mit Home-Assistant-Discovery.
+"""MQTT with Home Assistant discovery.
 
-Themen:
-  <prefix>/status                      online/offline (Last Will)
-  <prefix>/state                       Hauptschalter, geschaltete Last, Sperren (JSON)
-  <prefix>/auto/set                    Hauptschalter (ON/OFF)
-  <prefix>/solar/state                 Leistungen (JSON)
-  <prefix>/energy/state                Zählerstände (JSON, minütlich)
-  <prefix>/shelly/<i>/state            Zustand je Steckdose
-  <prefix>/shelly/<i>/set, …/auto/set  Befehle (ON/OFF)
-  <prefix>/ext/<i>/set                 Wunschzustand externer Schalter (ON/OFF)
+Topics:
+  <prefix>/status                      online/offline (last will)
+  <prefix>/state                       master switch, managed load, locks (JSON)
+  <prefix>/auto/set                    master switch (ON/OFF)
+  <prefix>/solar/state                 power values (JSON)
+  <prefix>/energy/state                counters (JSON, every minute)
+  <prefix>/shelly/<i>/state            state of each plug
+  <prefix>/shelly/<i>/set, …/auto/set  commands (ON/OFF)
+  <prefix>/ext/<i>/set                 wanted state of an external switch (ON/OFF)
   <prefix>/ext/<i>/state, …/auto/set
 
-Die Entitäten entsprechen der Home-Assistant-Integration ha-energyoptimizer:
-ein Gerät für die Anlage (verfügbarer Überschuss, geschaltete Last,
-Hauptschalter, veraltete Messwerte, Batterie-Vorrang) und ein Gerät je Last
-(Status, Laufzeit heute, vom Optimizer eingeschaltet, Automatik).
+Also subscribed: the state topic of each external switch that has one, and the
+topics of the MQTT data source (sources.py).
+
+The entities match the Home Assistant integration ha-energyoptimizer: one
+device for the plant (available surplus, managed load, master switch, stale
+readings, battery priority) and one device per load (status, runtime today,
+switched on by the optimizer, automatic).
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from . import __version__
 from .clock import CLOCK
 from .const import ER_MQTT, MAX_EXT, MAX_SHELLY
 from .i18n import tr
+from .sources import mqtt_topics
 
 if TYPE_CHECKING:
     from .app import EnergyOptimizer
@@ -51,6 +55,30 @@ STATUS_TXT = {
     "disabled": "Automatik aus", "external": "Von Hand eingeschaltet", "schedule": "Wochenprogramm",
 }
 STATE_REFRESH_S = 2.0
+ALL_SHELLY = (1 << MAX_SHELLY) - 1
+ALL_EXT = (1 << MAX_EXT) - 1
+
+
+def _state_payload(text: str) -> bool | None:
+    """ON/OFF of a state topic: plain text (ON, on, 1, true) or JSON with a state field."""
+    t = text.strip()
+    if t.startswith("{"):
+        try:
+            d = json.loads(t)
+        except ValueError:
+            return None
+        for k in ("state", "POWER", "output", "on", "ison"):
+            if k in d:
+                t = str(d[k])
+                break
+        else:
+            return None
+    t = t.strip().upper()
+    if t in ("ON", "1", "TRUE"):
+        return True
+    if t in ("OFF", "0", "FALSE"):
+        return False
+    return None
 
 
 def _device_id() -> str:
@@ -77,8 +105,11 @@ class Mqtt:
         self._sent: dict[str, str] = {}
         self._disc_sig: tuple | None = None
         self._last_refresh = 0.0
+        # Latest payload per subscribed foreign topic: topic → (text, CLOCK.mono())
+        self.topic_values: dict[str, tuple[str, float]] = {}
+        self._extra: list[str] = []
 
-    # ── Markierungen aus der Steuerung ──────────────────────────────────────
+    # ── Marks from the control ──────────────────────────────────────────────
     def mark_shelly_dirty(self, i: int) -> None:
         if 0 <= i < MAX_SHELLY:
             self.shelly_dirty |= 1 << i
@@ -88,9 +119,9 @@ class Mqtt:
             self.ext_dirty |= 1 << i
 
     def apply_settings(self) -> None:
-        self._key = None  # erzwingt Neuverbindung mit den neuen Einstellungen
+        self._key = None  # forces a reconnect with the new settings
 
-    # ── Verbindung ──────────────────────────────────────────────────────────
+    # ── Connection ──────────────────────────────────────────────────────────
     def _stop(self) -> None:
         if self.client is not None:
             try:
@@ -119,11 +150,11 @@ class Mqtt:
             cl.connect_async(c["mq_host"], int(c["mq_port"]), keepalive=30)
             cl.loop_start()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("[MQTT] Verbindung zu %s fehlgeschlagen: %s", c["mq_host"], err)
+            _LOGGER.warning("[MQTT] Connection to %s failed: %s", c["mq_host"], err)
 
     def _on_connect(self, client, userdata, flags, reason_code, properties) -> None:
         if reason_code.is_failure:
-            _LOGGER.warning("[MQTT] Verbindung abgelehnt: %s", reason_code)
+            _LOGGER.warning("[MQTT] Connection refused: %s", reason_code)
             return
         if self._loop:
             self._loop.call_soon_threadsafe(self._connected)
@@ -142,7 +173,7 @@ class Mqtt:
             return
         self.connected = True
         self._sent.clear()
-        _LOGGER.info("[MQTT] Verbunden mit %s:%s", c["mq_host"], c["mq_port"])
+        _LOGGER.info("[MQTT] Connected to %s:%s", c["mq_host"], c["mq_port"])
         cl.publish(f"{self.prefix}/status", "online", retain=True)
         cl.subscribe(f"{self.prefix}/auto/set")
         for i in range(c["sh_count"]):
@@ -151,14 +182,32 @@ class Mqtt:
         for i in range(c["ex_count"]):
             cl.subscribe(f"{self.prefix}/ext/{i}/set")
             cl.subscribe(f"{self.prefix}/ext/{i}/auto/set")
+        self._extra = self._extra_topics(c)
+        for t in self._extra:
+            cl.subscribe(t)
         self._disc_sig = None
         self._last_counts = (c["sh_count"], c["ex_count"])
         self.solar_dirty = True
-        self.shelly_dirty = 0xFF
-        self.ext_dirty = 0xFF
+        self.shelly_dirty = ALL_SHELLY
+        self.ext_dirty = ALL_EXT
         self._last_energy = 0.0
 
+    @staticmethod
+    def _extra_topics(c: dict) -> list[str]:
+        topics = [e["st"] for e in c["ext"][: c["ex_count"]] if e["st"]]
+        return sorted(set(topics + mqtt_topics(c)))
+
     def _handle(self, topic: str, payload: bytes) -> None:
+        if topic in self._extra:
+            text = payload[:2000].decode(errors="replace")
+            self.topic_values[topic] = (text, CLOCK.mono())
+            c = self.app.settings.cfg
+            for i in range(c["ex_count"]):
+                if c["ext"][i]["st"] == topic:
+                    fb = _state_payload(text)
+                    if fb is not None:
+                        self.app.devices.ext_feedback(i, fb)
+            return
         val = payload[:15].decode(errors="replace").strip().upper()
         on = val in ("ON", "1", "TRUE")
         if topic == f"{self.prefix}/auto/set":
@@ -176,8 +225,8 @@ class Mqtt:
             except ValueError:
                 return
             if kind == "ext" and action == "set":
-                # Den eigenen Wunschzustand, den wir gerade auf dieses Thema
-                # geschrieben haben, nicht als Handbefehl zurücklesen.
+                # Do not read back our own wanted state, just written to this
+                # topic, as a manual command.
                 echo = self._ext_echo.get(idx)
                 if echo and echo[0] == val and CLOCK.mono() - echo[1] < 5:
                     return
@@ -187,7 +236,7 @@ class Mqtt:
                 self.app.devices.apply_command(kind, idx, "autoon" if on else "autooff", ER_MQTT)
             return
 
-    # ── Veröffentlichen ─────────────────────────────────────────────────────
+    # ── Publishing ──────────────────────────────────────────────────────────
     def _pub(self, topic: str, payload, retain: bool = True) -> None:
         if self.client is not None:
             if not isinstance(payload, str):
@@ -221,7 +270,7 @@ class Mqtt:
         app, dv = self.app, self.app.devices
         if dv.failsafe_active() or not app.last_sl_ok:
             return True
-        return CLOCK.mono() - app.last_sl_ok > max(180, app.settings.cfg["sl_poll_min"] * 120)
+        return CLOCK.mono() - app.last_sl_ok > max(180, app.settings.cfg["src_poll_s"] * 2)
 
     def _publish_hub(self) -> None:
         dv = self.app.devices
@@ -234,7 +283,7 @@ class Mqtt:
         dv = self.app.devices
         s = dv.st[kind][i]
         status = dv.load_status(kind, i)
-        return {"on": s.on, "auto": c[kind][i]["auto"], "status": status,
+        return {"on": s.real_on, "auto": c[kind][i]["auto"], "status": status,
                 "status_text": tr(STATUS_TXT[status], c.get("lang", "de")),
                 "rt_today": s.today_on_s // 60, "managed": dv.managed(kind, i)}
 
@@ -255,7 +304,7 @@ class Mqtt:
         if i >= c["ex_count"]:
             return
         s = self.app.devices.st["ext"][i]
-        val = "ON" if s.on else "OFF"
+        val = "ON" if s.real_on else "OFF"
         if self._sent.get(f"{self.prefix}/ext/{i}/set") != val:
             self._ext_echo[i] = (val, CLOCK.mono())
         self._pub(f"{self.prefix}/ext/{i}/set", val, retain=False)
@@ -376,14 +425,14 @@ class Mqtt:
             self._pub(f"{self.prefix}/ext/{i}/state", "")
         self._last_counts = (c["sh_count"], c["ex_count"])
 
-    # ── Hauptschleife ───────────────────────────────────────────────────────
+    # ── Main loop ───────────────────────────────────────────────────────────
     async def run(self) -> None:
         self._loop = asyncio.get_running_loop()
         try:
             while True:
                 c = self.app.settings.cfg
                 want = (bool(c["mq_en"] and c["mq_host"]), c["mq_host"], c["mq_port"], c["mq_user"],
-                        c["mq_pass"], c["mq_pfx"], c["mq_disc"])
+                        c["mq_pass"], c["mq_pfx"], c["mq_disc"], tuple(self._extra_topics(c)))
                 if want != self._key:
                     self._stop()
                     self._key = want

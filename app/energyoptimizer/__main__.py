@@ -1,4 +1,4 @@
-"""Startpunkt: python -m energyoptimizer [reset-password]"""
+"""Entry point: python -m energyoptimizer [reset-password]"""
 
 from __future__ import annotations
 
@@ -27,17 +27,17 @@ def reset_password() -> int:
     app, which switches to it within seconds. The web interface stays protected
     the whole time: there is no moment without a password."""
     if not sys.stdin.isatty():
-        print("Bitte im Terminal ausführen, damit das neue Passwort abgefragt werden kann:\n"
+        print("Run this in a terminal so the new password can be entered:\n"
               "  docker compose exec energyoptimizer python -m energyoptimizer reset-password",
               file=sys.stderr)
         return 2
-    pw = getpass.getpass("Neues Web-Passwort: ")
+    pw = getpass.getpass("New web password: ")
     if not MIN_PASSWORD_LEN <= len(pw) <= MAX_PASSWORD_LEN:
-        print(f"Das Passwort muss {MIN_PASSWORD_LEN} bis {MAX_PASSWORD_LEN} Zeichen lang sein.",
+        print(f"The password must be {MIN_PASSWORD_LEN} to {MAX_PASSWORD_LEN} characters long.",
               file=sys.stderr)
         return 1
-    if getpass.getpass("Wiederholen: ") != pw:
-        print("Die Passwörter stimmen nicht überein.", file=sys.stderr)
+    if getpass.getpass("Repeat: ") != pw:
+        print("The passwords do not match.", file=sys.stderr)
         return 1
     path = os.path.join(data_dir(), RESET_FLAG)
     try:
@@ -45,9 +45,9 @@ def reset_password() -> int:
         with os.fdopen(fd, "w", encoding="ascii") as f:
             f.write(hash_password(pw) + "\n")
     except OSError as err:
-        print(f"{path} konnte nicht geschrieben werden: {err}", file=sys.stderr)
+        print(f"{path} could not be written: {err}", file=sys.stderr)
         return 1
-    print("Neues Passwort gespeichert. Es gilt in ein paar Sekunden; danach damit anmelden.")
+    print("New password saved. It applies within a few seconds; sign in with it then.")
     return 0
 
 
@@ -67,16 +67,16 @@ async def main() -> None:
     await runner.setup()
     site = web.TCPSite(runner, host=os.environ.get("EO_BIND", "0.0.0.0"), port=port)
     await site.start()
-    log.info("EnergyOptimizer %s läuft auf Port %d (Daten: %s)", __version__, port, ddir)
+    log.info("EnergyOptimizer %s running on port %d (data: %s)", __version__, port, ddir)
     if not eo.settings.cfg["web_pass"]:
-        log.warning("Noch kein Web-Passwort gesetzt – beim ersten Aufruf der Oberfläche festlegen")
+        log.warning("No web password yet – set it when opening the web interface for the first time")
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop.set)
     await stop.wait()
-    log.info("Beende – speichere Zählerstände und Protokoll")
+    log.info("Stopping – saving counters and event log")
     await runner.cleanup()
     await eo.stop()
 
@@ -85,6 +85,6 @@ if __name__ == "__main__":
     if sys.argv[1:] == ["reset-password"]:
         sys.exit(reset_password())
     if sys.argv[1:]:
-        print("Aufruf: python -m energyoptimizer [reset-password]", file=sys.stderr)
+        print("Usage: python -m energyoptimizer [reset-password]", file=sys.stderr)
         sys.exit(2)
     asyncio.run(main())

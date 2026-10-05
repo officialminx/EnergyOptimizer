@@ -1,7 +1,7 @@
-"""EnergyOptimizer – Überschuss-Steuerung für Shelly-Steckdosen, als Docker-Dienst.
+"""EnergyOptimizer – solar surplus control for Shelly plugs and MQTT loads, as a Docker service.
 
-Die Solar-Log-Abfrage stammt aus ha-advanced-solarlog, weil nur deren Login den
-passwortgeschützten JSON-Zugang des Solar-Log öffnet.
+The Solar-Log client comes from ha-advanced-solarlog, because only its login opens
+the password-protected JSON access of the Solar-Log.
 """
 
-__version__ = "0.0.5"
+__version__ = "0.1.0"

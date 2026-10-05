@@ -84,7 +84,7 @@ async def test_status_shape(client):
     d = await r.json()
     for k in ("prod", "cons", "grid", "sl_age", "sl_next", "energy", "shelly", "ext", "cfg", "mqtt"):
         assert k in d
-    assert d["cfg"]["hyst_on"] == 3
+    assert d["cfg"]["hyst_on"] == 6     # 180 s at the default 30 s poll interval
     r = await client.get("/")
     assert "/api/wizard" in await r.text()   # frisch eingerichtet: zuerst der Assistent
     r = await client.post("/api/wizard", json={"done": True})
@@ -97,6 +97,7 @@ async def test_status_shape(client):
 async def test_password_login_flow(client):
     from energyoptimizer.passwords import hash_password
     client.eo.settings.cfg["web_pass"] = hash_password("pw1")
+    client.eo.sessions.revoke_all()      # as after reset-password
     r = await client.get("/api/status")
     assert r.status == 401 and (await r.json()) == {"ok": False, "auth": False, "setup": False}
     r = await client.get("/")
@@ -175,7 +176,7 @@ async def test_save_compacts_devices_and_export_import_roundtrip(client):
     assert client.eo.settings.cfg["shelly"][0]["ip"] == "192.168.1.60"
 
 
-async def test_daily_import_and_ideas(client):
+async def test_daily_import(client):
     csv = "date,prod_wh,cons_wh,grid_in_wh,grid_out_wh\n2026-01-01,1000,2000,1500,500\n2026-01-02,1,2,3,4,1\n"
     form = {"file": csv.encode()}
     import aiohttp
@@ -186,12 +187,6 @@ async def test_daily_import_and_ideas(client):
     days = (await (await client.get("/api/history_daily")).json())["days"]
     assert days[0] == [20260101, 1000, 2000, 1500, 500, 1]
     assert days[1][5] == 3
-    r = await client.post("/api/ideas", json={"title": "Test", "text": "x", "prio": 2})
-    iid = (await r.json())["id"]
-    ideas = await (await client.get("/api/ideas")).json()
-    assert ideas["n"] == 1 and ideas["ideas"][0]["prio_txt"] == "hoch"
-    r = await client.post(f"/api/ideas/delete?id={iid}")
-    assert r.status == 200
 
 
 async def test_hostname_setting(client):
@@ -231,9 +226,6 @@ async def test_server_messages_follow_language(client):
     assert "Network name not applied" in warn and "6 to 64 characters required" in warn
     r = await client.post("/api/config/import", json={"no": "backup"})
     assert (await r.json())["msg"] == "This is not an EnergyOptimizer backup"
-    await client.post("/api/ideas", json={"title": "Test", "prio": 2})
-    md = await (await client.get("/api/ideas/export")).text()
-    assert md.startswith("# Improvements") and "Priority: high" in md
     r = await client.post("/api/save", json={"lang": "de", "hostname": "kein name!"})
     assert "Name im Netzwerk nicht übernommen" in (await r.json())["warn"]
 

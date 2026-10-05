@@ -86,7 +86,7 @@ class UpdateCheck:
                 doc = await resp.json(content_type=None)
         except Exception as err:  # noqa: BLE001 - ein fehlender Internetzugang ist kein Drama
             self.error = str(err) or type(err).__name__
-            _LOGGER.debug("[Update] Prüfung fehlgeschlagen: %s", self.error)
+            _LOGGER.debug("[Update] Check failed: %s", self.error)
             self._done(RETRY_S)
             return
         tag = str(doc.get("tag_name") or "")
@@ -98,7 +98,7 @@ class UpdateCheck:
         self.url = str(doc.get("html_url") or f"https://github.com/{self.repo}/releases")
         self.error = ""
         if self.available:
-            _LOGGER.info("[Update] Version %s verfügbar (installiert: %s)", self.latest, self.current)
+            _LOGGER.info("[Update] Version %s available (installed: %s)", self.latest, self.current)
         self._done(CHECK_INTERVAL_S)
 
     def _done(self, next_in: float) -> None:

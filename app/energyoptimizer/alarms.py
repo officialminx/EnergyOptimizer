@@ -1,7 +1,7 @@
-"""Alarmzentrale.
+"""Alarms.
 
-Jede Störung wird erst nach ihrer Entprellzeit aktiv, im Ereignisprotokoll
-vermerkt und auf dem Dashboard angezeigt, bis sie behoben ist.
+Each fault becomes active only after its debounce time, is noted in the event
+log and shown on the dashboard until it is resolved.
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING
 
 from .clock import CLOCK
 from .const import (
-    AL_COUNT, AL_FAILSAFE, AL_INVERTER, AL_NOPROD, AL_NVS, AL_SHELLY0, AL_SOLARLOG,
-    EV_ALARM, MAX_SHELLY, NS_CRIT, NS_WARN,
+    AL_COUNT, AL_EXT0, AL_FAILSAFE, AL_INVERTER, AL_NOPROD, AL_NVS, AL_SHELLY0, AL_SOLARLOG,
+    EV_ALARM, MAX_EXT, MAX_SHELLY, NS_CRIT, NS_WARN,
     SHELLY_FAIL_RECOVER,
 )
 
@@ -47,8 +47,10 @@ def sun_elevation_deg(utc: float, lat_deg: float, lon_deg: float) -> float:
 
 
 def alarm_name(i: int) -> str:
+    if i >= AL_EXT0:
+        return f"Schalter {i - AL_EXT0 + 1} bestätigt nicht"
     return {
-        AL_SOLARLOG: "SolarLog antwortet nicht",
+        AL_SOLARLOG: "Datenquelle antwortet nicht",
         AL_FAILSAFE: "Fail-Safe aktiv",
         AL_NOPROD: "Keine Produktion trotz Sonne",
         AL_INVERTER: "Wechselrichter ohne Leistung",
@@ -88,7 +90,7 @@ class Alarms:
                 a.detail = detail[:55]
         else:
             a.cond = False
-        dev = i - AL_SHELLY0 if i >= AL_SHELLY0 else -1
+        dev = i - AL_SHELLY0 if AL_SHELLY0 <= i < AL_EXT0 else -1
         if cond and not a.active and now - a.cond_since >= delay_min * 60:
             a.active = True
             a.acked = False
@@ -104,12 +106,13 @@ class Alarms:
     def tick(self, sl_age_s: float, sd, sd_valid: bool, devs) -> None:
         c = self.app.settings.cfg
         mo_sl = c["mo_sl"] if c["mo_sl"] > 0 else 1
+        target = self.app.source.target(c) if self.app.source else c["sl_ip"]
         self._feed(AL_SOLARLOG, sl_age_s >= mo_sl * 60, c["mo_sl"],
-                   f"{c['sl_ip']} seit {int(sl_age_s // 60)} min ohne Antwort")
+                   f"{target} seit {int(sl_age_s // 60)} min ohne Antwort")
         self._feed(AL_FAILSAFE, self.app.devices.failsafe["shelly"], 1,
                    "Automatik-Geräte wurden abgeschaltet")
         elev = sun_elevation_deg(CLOCK.time(), c["lat"], c["lon"])
-        noprod = sd_valid and elev >= SUN_MIN_ELEV_DEG and sd.production_w < 50.0
+        noprod = sd_valid and sd.has_prod and elev >= SUN_MIN_ELEV_DEG and sd.production_w < 50.0
         self._feed(AL_NOPROD, noprod, c["mo_np"],
                    f"Sonnenhöhe {elev:.0f}°, Produktion {sd.production_w if sd_valid else 0:.0f} W")
         inv_bad = False
@@ -145,6 +148,12 @@ class Alarms:
             nm = st.name_from_device or e["name"] or e["ip"]
             self._feed(AL_SHELLY0 + i, bad, c["mo_dev"] if configured else 0,
                        f"{nm} ({e['ip']}) antwortet nicht")
+        for i in range(MAX_EXT):
+            e = c["ext"][i]
+            configured = i < c["ex_count"] and bool(e["st"])
+            bad = configured and dv.ext_mismatch(i)
+            self._feed(AL_EXT0 + i, bad, 1 if configured else 0,
+                       f"{e['name'] or 'Extern'}: keine Rückmeldung auf {e['st']}"[:55])
 
     def active_count(self) -> int:
         return sum(1 for a in self.al if a.active and not a.acked)
