@@ -6,6 +6,15 @@ function measureTopbar(){
   if(t)document.documentElement.style.setProperty('--topbar-h',t.offsetHeight+'px');
 }
 addEventListener('resize',measureTopbar);addEventListener('orientationchange',measureTopbar);
+// Sofort nach oben. Mit scroll-behavior:smooth (app.css) lief ein scrollTo(0,0)
+// als Animation, die der gleichzeitige Seitenwechsel abbrach – die neue Seite
+// stand dann mitten im Inhalt statt am Anfang.
+function toTop(){
+  var h=document.documentElement,old=h.style.scrollBehavior;
+  h.style.scrollBehavior='auto';
+  window.scrollTo(0,0);
+  h.style.scrollBehavior=old;
+}
 function navTo(page){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   var pg=$('page-'+page);if(pg)pg.classList.add('active');
@@ -21,7 +30,7 @@ function navTo(page){
   // Canvas-Inhalte auf ausgeblendeten Seiten werden nicht nachgeführt (Breite 0) –
   // beim Zurückwechseln aufs Dashboard deshalb einmal neu zeichnen.
   if(page==='dash')redrawLive();
-  scrollTo(0,0);
+  toTop();
 }
 document.querySelectorAll('.btm-nav button').forEach(function(b){
   b.addEventListener('click',function(){
@@ -52,11 +61,11 @@ function setTo(sec){
   // Tageswerte dazu holt sonst nur die Verlaufsseite – ohne den Abruf hier blieb das
   // Diagramm leer, wenn man direkt in die Einstellungen ging.
   if(sec==='data'){fetchDailyHistory();drawDailyChart();}
-  // Die Notizen hängen an keinem Status-Poll – beim Öffnen einmal holen.
-  if(sec==='ideas')ideaLoad();
-  scrollTo(0,0);
+  // Die Sitzungsliste hängt an keinem Status-Poll – beim Öffnen einmal holen.
+  if(sec==='sec')loadSessions();
+  toTop();
 }
-function setBack(){$('page-settings').classList.remove('sub');scrollTo(0,0);}
+function setBack(){$('page-settings').classList.remove('sub');toTop();}
 document.querySelectorAll('.set-row').forEach(function(r){
   r.addEventListener('click',function(){setTo(this.dataset.set);});
 });
@@ -80,7 +89,7 @@ function setBaseline(){setBase=setSnap();setDirty(false);}
 // Der Hysterese-Hinweis haengt an drei Feldern – ohne Nachfuehren zeigte er nach
 // einer Aenderung des Intervalls weiter die alte Messungszahl.
 addEventListener('DOMContentLoaded',function(){
-  ['f-hon','f-hoff','f-sl-poll'].forEach(function(id){
+  ['f-hon','f-hoff','f-src-poll'].forEach(function(id){
     var e=$(id);if(e)e.addEventListener('input',updateHystHint);});
 });
 $('sf').addEventListener('input',checkDirty);

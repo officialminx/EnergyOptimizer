@@ -3,25 +3,26 @@
 // "läuft gerade etwas?" und "warum schaltet Gerät X (nicht)?".
 function updateStatusLine(d){
   var el=$('sline');if(!el)return;
-  var list=d.shelly||[],surp=d.prod-d.cons;
+  var list=d.shelly||[],surp=d.has_prod===false?-d.grid:d.prod-d.cons;
   var cls='idle',ico='i-bolt',main='',next='';
 
-  var stale=(d.sl_age==null||d.sl_age<0||d.sl_age>Math.max(180,(cfg.sl_poll_min||10)*120));
+  var stale=(d.sl_age==null||d.sl_age<0||d.sl_age>Math.max(180,(cfg.src_poll_s||30)*2));
   if(d.failsafe){
     cls='err';ico='i-warn';
     main=T('Fail-Safe aktiv – Automatik abgeschaltet');
-    next=T('SolarLog {0} erreichbar. Die Automatik wird von selbst wieder scharf, sobald Daten ankommen.',[fmtAge(d.sl_age==null?-1:d.sl_age)]);
+    next=T('Letzte Messwerte {0}. Die Automatik wird von selbst wieder scharf, sobald Daten ankommen.',[fmtAge(d.sl_age==null?-1:d.sl_age)]);
   }else if(d.sl_age!=null&&d.sl_age<0){
     cls='idle';ico='i-server';
-    main=T('Warte auf die erste SolarLog-Abfrage');
-    next=(cfg.sl_ip?T('Ziel: {0}',[esc(cfg.sl_ip)]):'')+(slNextTxt()?' &middot; '+T('nächster Versuch {0}',[slNextTxt()]):'');
+    main=T('Warte auf die erste Abfrage der Datenquelle');
+    var tgt=cfg.src==='solarlog'||!cfg.src?cfg.sl_ip:cfg.src==='mqtt'?cfg.mq_host:cfg.src_host;
+    next=(tgt?T('Ziel: {0}',[esc(tgt)]):'')+(slNextTxt()?' &middot; '+T('nächster Versuch {0}',[slNextTxt()]):'');
   }else if(cfg.auto_en===false){
     cls='warn';ico='i-sliders';
     main=T('Automatik ausgeschaltet');
     next=T('Die Steckdosen bleiben, wie sie sind. Einschalten unter Einstellungen → Steuerung oder in Home Assistant.');
   }else if(stale){
     cls='warn';ico='i-warn';
-    main=T('SolarLog antwortet nicht');
+    main=T('Datenquelle antwortet nicht');
     next=T('Letzte Daten {0}. Die Automatik rechnet bis dahin mit dem letzten bekannten Wert',[fmtAge(d.sl_age)])
         +((cfg.sl_fsafe>0)?T(', der Fail-Safe greift nach {0} min.',[cfg.sl_fsafe]):'.');
   }else{
@@ -43,7 +44,7 @@ function updateStatusLine(d){
     else                        main=T('Keine Steckdose aktiv');
     if(running.length&&ready.length)
       main+=' &middot; '+T('{0} abrufbereit ohne Bedarf',[ready.length]);
-    main+=' &middot; '+T(surp>=0?'Überschuss +{0} kW':'Defizit {0} kW',[kw(Math.abs(surp))]);
+    main+=' &middot; '+T(surp>=0?'Überschuss {0} kW':'Defizit {0} kW',[kw(Math.abs(surp))]);
     cls=(running.length||surp>0)?'ok':'idle';
     ico=running.length?'i-plug':'i-bolt';
 
@@ -123,10 +124,10 @@ function updateFlow(prod,cons,grid,batt,soc){
   }
   // Vorzeichen-Konvention: + = Energie wird produziert/eingespeist, - = Energie wird verbraucht/bezogen
   var gridImp=grid>TH,gridExp=grid<-TH;
-  setTxt('flow-prod','+'+wInt(prod));
-  setTxt('flow-cons','-'+wInt(cons));
-  setTxt('flow-grid',(gridImp?'-':gridExp?'+':'')+wInt(Math.abs(grid)));
-  setTxt('flow-grid-dir',gridImp?'Bezug':(gridExp?'Einspeisung':'—'));
+  setTxt('flow-prod',lastSt&&lastSt.has_prod===false?'–':wInt(prod));
+  setTxt('flow-cons',wInt(cons));
+  setTxt('flow-grid',wInt(Math.abs(grid)));
+  setTxt('flow-grid-dir',gridImp?T('Bezug'):(gridExp?T('Einspeisung'):'—'));
 
   // Solar -> Mitte: Zufluss, sobald Produktion vorhanden
   line('fl-solar',prod>TH,false);
@@ -143,8 +144,8 @@ function updateFlow(prod,cons,grid,batt,soc){
   var BTH=50; // W-Schwelle: Batterie-Leistung unter 50W gilt als inaktiv
   if(hasBatt){
     var bAbs=Math.abs(batt),charging=batt>BTH,discharging=batt<-BTH;
-    setTxt('flow-batt',(charging?'-':discharging?'+':'')+wInt(bAbs>BTH?bAbs:0));
-    if(soc!==undefined&&soc!==null)setTxt('flow-soc',Math.round(soc)+'%');
+    setTxt('flow-batt',wInt(bAbs>BTH?bAbs:0));
+    setTxt('flow-soc',(charging?T('lädt'):discharging?T('entlädt'):T('Ruhe'))+(soc!==undefined&&soc!==null?' · '+Math.round(soc)+'%':''));
     // batt>0 laden = Abfluss (in die Batterie), batt<0 entladen = Zufluss
     line('fl-batt',bAbs>BTH,batt>0);
   }else{line('fl-batt',false,false);}
@@ -173,8 +174,46 @@ function updateCost(c){
 }
 function updateEnergy(e){
   if(!e)return;
-  setTxt('e-dp',fmtKwh(e.dp,'+'));setTxt('e-dc',fmtKwh(e.dc,'-'));
-  setTxt('e-dgi',fmtKwh(e.dgi,'-'));setTxt('e-dgo',fmtKwh(e.dgo,'+'));
-  setTxt('e-total',T('Gesamt: {0} produziert · {1} verbraucht',[fmtKwh(e.tp,'+'),fmtKwh(e.tc,'-')]));
-  updateDonuts(e);
+  setTxt('e-dp',fmtKwh(e.dp));setTxt('e-dc',fmtKwh(e.dc));
+  setTxt('e-dgi',fmtKwh(e.dgi));setTxt('e-dgo',fmtKwh(e.dgo));
+  setTxt('e-total',T('Gesamt: {0} produziert · {1} verbraucht',[fmtKwh(e.tp),fmtKwh(e.tc)]));
+  // Leerer Zustand: kurz nach dem Start stehen alle Tageszähler auf 0 – das sähe
+  // sonst wie ein Messfehler aus.
+  var none=!(e.dp>0.005||e.dc>0.005||e.dgi>0.005||e.dgo>0.005);
+  var em=$('e-empty');if(em)em.style.display=none?'':'none';
+  var dn=$('card-donut');if(dn)dn.style.display=none?'none':'';
+  if(!none)updateDonuts(e);
+}
+// ── Was macht der Optimizer gerade? Eine Zeile je Gerät ──────────────────────
+var optSig='';
+function renderOptimizer(d){
+  var card=$('card-opt'),list=$('opt-list');if(!card||!list)return;
+  var rows=[];
+  (d.shelly||[]).forEach(function(s){rows.push({k:'sh',s:s,p:s.reach&&s.apower>0?s.apower:0});});
+  (d.ext||[]).forEach(function(s){rows.push({k:'ext',s:s,p:s.on?(s.pw||0):0});});
+  card.style.display=rows.length?'':'none';
+  if(!rows.length)return;
+  var sig=rows.map(function(r){return r.k+r.s.idx;}).join(',');
+  if(sig!==optSig){
+    list.innerHTML=rows.map(function(r){
+      var id=r.k+'-'+r.s.idx;
+      return'<button type="button" class="opt-row" id="opt-'+id+'" onclick="showDevice(\''+r.k+'\','+r.s.idx+')">'
+        +'<span class="opt-dot" aria-hidden="true"></span>'
+        +'<span style="min-width:0"><span class="opt-n" id="optn-'+id+'"></span><span class="opt-w" id="optw-'+id+'" style="display:block"></span></span>'
+        +'<span id="optb-'+id+'"></span><span class="opt-p" id="optp-'+id+'"></span></button>';
+    }).join('');
+    optSig=sig;
+  }
+  var nOn=0,pw=0;
+  rows.forEach(function(r){
+    var id=r.k+'-'+r.s.idx,w=whyText(r.s.why,r.s);
+    var el=$('opt-'+id);if(!el)return;
+    var c='opt-row'+(w.c?' '+w.c:'');if(el.className!==c)el.className=c;
+    setTxt('optn-'+id,r.s.name);
+    setTxt('optw-'+id,w.t);
+    setHtml('optb-'+id,r.s.virt?'<span class="badge b-sim">'+T('SIMULIERT')+'</span>':'');
+    setTxt('optp-'+id,r.p>0?wInt(r.p):'');
+    if(r.s.on){nOn++;pw+=r.p;}
+  });
+  setTxt('opt-sum',nOn?T('{0} von {1} an · {2}',[nOn,rows.length,wInt(pw)]):T('alle aus'));
 }

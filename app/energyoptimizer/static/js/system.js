@@ -131,7 +131,7 @@ $('scan-res').addEventListener('click',function(e){
   if(b)addDev(b.dataset.ip,b.dataset.name,b.dataset.id);
 });
 function addDev(ip,name,id){
-  var idx=Math.min(lastShellyCount,MAX_SHELLY_UI-1);
+  var idx=Math.min(lastShellyCount,((cfg&&cfg.max_sh)||16)-1);
   openDevOv(idx,{name:name,ip:ip,id:id,pw:0,pri:idx+1,rt:0,rw:0,io:0,auto:false});
   $('scan-st').textContent='\u2713 '+T('{0} → Steckdose {1} – bitte prüfen & speichern',[name,idx+1]);
 }
@@ -158,6 +158,7 @@ function updateSunHint(){
 function loadRaw(){
   setTxt('raw-main','Lade…');setTxt('raw-dev','Lade…');
   api('/api/solarlog/raw').then(function(d){
+    setTxt('raw-main-t',T('Letzte Leistungsabfrage ({0})',[d.src||'Solar-Log']));
     setTxt('raw-main',d.main||T('(noch keine Antwort empfangen)'));
     setTxt('raw-dev', d.dev ||T('(noch keine Geräteabfrage gelaufen)'));
     var devs=d.devs||[],h='';
@@ -268,4 +269,27 @@ function pollSys(){
           +(n.hb_ok?'':' &ndash; <b style="color:var(--red)">'+T('fehlgeschlagen')+'</b>')));
     }
   }).catch(function(){});
+}
+
+// ── Angemeldete Geräte ───────────────────────────────────────────────────────
+function loadSessions(){
+  var el=$('sess-list');if(!el)return;
+  api('/api/sessions').then(function(d){
+    var list=(d&&d.sessions)||[];
+    if(!list.length){el.innerHTML='<div class="empty">'+T('Keine Anmeldungen gespeichert')+'</div>';return;}
+    el.innerHTML=list.map(function(x){
+      var seen=new Date(x.seen*1000).toLocaleString(LOC,{dateStyle:'medium',timeStyle:'short'});
+      return'<div class="sess"><div class="sess-t"><b>'+esc(x.ua||T('Browser'))+(x.current?' &middot; '+T('dieses Gerät'):'')+'</b>'
+        +'<span>'+T('zuletzt aktiv {0}',[seen])+'</span></div>'
+        +(x.current?'':'<button type="button" class="tchip" data-sid="'+esc(x.id)+'">'+T('Abmelden')+'</button>')+'</div>';
+    }).join('');
+  }).catch(function(){el.innerHTML='<div class="empty">'+T('Fehler beim Abrufen')+'</div>';});
+}
+(function(){var el=$('sess-list');if(el)el.addEventListener('click',function(e){
+  var b=e.target.closest('[data-sid]');if(!b)return;
+  api('/api/sessions/revoke',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.sid})}).then(loadSessions);
+});})();
+function sessRevokeAll(){
+  if(!confirm(T('Alle anderen Geräte abmelden?')))return;
+  api('/api/sessions/revoke',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({all:true})}).then(loadSessions);
 }

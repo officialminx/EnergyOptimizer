@@ -18,38 +18,79 @@ function pingTxt(p){
   if(p<60)return T('vor {0}',[p+'s']);
   var m=Math.floor(p/60),sc=p%60;return T('vor {0}',[m+'m'+(sc>0?' '+sc+'s':'')]);
 }
-function shellySkeleton(s){
-  return'<div class="shelly-card s-off" id="shc-'+s.idx+'">'
-    +'<div class="sc-top"><div class="sc-name" id="shn-'+s.idx+'"></div><span id="shb-'+s.idx+'"></span></div>'
-    +'<div class="sc-id" id="shid-'+s.idx+'"></div>'
-    +'<div class="sc-meta" id="shmeta-'+s.idx+'"></div>'
-    +'<div class="sc-meta" id="shkpi-'+s.idx+'"></div>'
-    +'<div class="sc-live" id="shlv-'+s.idx+'"></div>'
-    +'<div class="sc-rt" id="shrt-'+s.idx+'"></div>'
-    +'<div id="shdem-'+s.idx+'"></div>'
-    +'<div id="shhy-'+s.idx+'"></div>'
-    +'<div id="shlk-'+s.idx+'"></div>'
-    +'<div id="shov-'+s.idx+'"></div>'
-    +'<div id="shsc-'+s.idx+'"></div>'
-    +'<div class="sc-ping" id="shp-'+s.idx+'"></div>'
-    +'<div class="sc-actions">'
-      +'<label class="tgl"><input type="checkbox" id="sha-'+s.idx+'" onchange="toggleAuto('+s.idx+',this.checked)"><span class="sl"></span></label>'
-      +'<span class="auto-lbl">Auto</span>'
-      +'<button type="button" class="btn bon" onclick="sh('+s.idx+',1)">EIN</button>'
-      +'<button type="button" class="btn boff" onclick="sh('+s.idx+',0)">AUS</button>'
-      +'<button type="button" class="sc-cfg-btn" onclick="toggleTimer('+s.idx+')" title="Befristet einschalten"><svg><use href="#i-clock"/></svg></button>'
-      +'<button type="button" class="sc-cfg-btn" onclick="openDevOv('+s.idx+')" title="Einstellungen"><svg><use href="#i-sliders"/></svg></button>'
+// ── Gerätekarten ─────────────────────────────────────────────────────────────
+// Zugeklappt eine Zeile: Name, was die Automatik gerade mit dem Gerät macht,
+// Leistung, Status und der Auto-Schalter. Ein Tipp klappt die Details auf
+// (Messwerte, Laufzeiten, Handbetrieb, Einstellungen). Welche Karten offen sind,
+// merkt sich der Browser.
+var cardOpen={};
+try{cardOpen=JSON.parse(lsGet('eo_open','{}'))||{};}catch(e){cardOpen={};}
+function cardKey(kind,i){return kind+i;}
+function toggleDevCard(kind,i){
+  var k=cardKey(kind,i);
+  if(cardOpen[k])delete cardOpen[k];else cardOpen[k]=1;
+  lsSet('eo_open',JSON.stringify(cardOpen));
+  applyDevCard(kind,i);
+}
+function applyDevCard(kind,i){
+  var pre=kind==='sh'?'sh':'ex',card=$(pre+'c-'+i);if(!card)return;
+  var open=!!cardOpen[cardKey(kind,i)];
+  card.classList.toggle('open',open);
+  var b=$(pre+'o-'+i);if(b)b.setAttribute('aria-expanded',open?'true':'false');
+}
+// Vom Dashboard aus ein Gerät öffnen: zur Geräteseite, Karte aufklappen, hinscrollen.
+function showDevice(kind,i){
+  navTo('devices');subTo('devices','list');
+  if(!cardOpen[cardKey(kind,i)])toggleDevCard(kind,i);
+  var c=$((kind==='sh'?'sh':'ex')+'c-'+i);
+  if(c)setTimeout(function(){c.scrollIntoView({block:'center'});var b=c.querySelector('.sc-open');if(b)b.focus({preventScroll:true});},50);
+}
+function devHead(pre,kind,i,autoFn){
+  return '<div class="sc-head">'
+    +'<button type="button" class="sc-open" id="'+pre+'o-'+i+'" aria-expanded="false" aria-controls="'+pre+'body-'+i+'" onclick="toggleDevCard(\''+kind+'\','+i+')">'
+      +'<svg class="chev" aria-hidden="true"><use href="#i-chev"/></svg>'
+      +'<span class="sc-hl"><span class="sc-name" id="'+pre+'n-'+i+'"></span><span class="sc-why" id="'+pre+'w-'+i+'"></span></span>'
+    +'</button>'
+    +'<span class="sc-pw" id="'+pre+'pw-'+i+'"></span>'
+    +'<span id="'+pre+'b-'+i+'"></span>'
+    +'<label class="tgl" title="'+T('Automatik')+'"><input type="checkbox" id="'+pre+'a-'+i+'" aria-label="'+T('Automatik')+'" onchange="'+autoFn+'('+i+',this.checked)"><span class="sl"></span></label>'
+  +'</div>';
+}
+function devActions(i,onFn,timerFn,cfgCall,chipsId,chipFn){
+  return '<div class="sc-actions">'
+      +'<button type="button" class="btn bon" onclick="'+onFn+'('+i+',1)">EIN</button>'
+      +'<button type="button" class="btn boff" onclick="'+onFn+'('+i+',0)">AUS</button>'
+      +'<button type="button" class="sc-cfg-btn" onclick="'+timerFn+'('+i+')" title="'+T('Befristet einschalten')+'" aria-label="'+T('Befristet einschalten')+'"><svg><use href="#i-clock"/></svg></button>'
+      +'<button type="button" class="sc-cfg-btn" onclick="'+cfgCall+'" title="'+T('Einstellungen')+'" aria-label="'+T('Einstellungen')+'"><svg><use href="#i-sliders"/></svg></button>'
     +'</div>'
-    +'<div class="tchips" id="shtc-'+s.idx+'" style="display:none">'
-      +TDUR.map(function(t){return '<button type="button" class="tchip" onclick="shTimer('+s.idx+',\''+t.k+'\')">'+t.l+'</button>';}).join('')
+    +'<div class="tchips" id="'+chipsId+'" style="display:none">'
+      +TDUR.map(function(t){return '<button type="button" class="tchip" onclick="'+chipFn+'('+i+',\''+t.k+'\')">'+t.l+'</button>';}).join('')
+    +'</div>';
+}
+function shellySkeleton(s){
+  var i=s.idx;
+  return'<div class="shelly-card s-off" id="shc-'+i+'">'
+    +devHead('sh','sh',i,'toggleAuto')
+    +'<div class="sc-body" id="shbody-'+i+'">'
+    +'<div class="sc-id" id="shid-'+i+'"></div>'
+    +'<div class="sc-meta" id="shmeta-'+i+'"></div>'
+    +'<div class="sc-meta" id="shkpi-'+i+'"></div>'
+    +'<div class="sc-live" id="shlv-'+i+'"></div>'
+    +'<div id="shlearn-'+i+'"></div>'
+    +'<div class="sc-rt" id="shrt-'+i+'"></div>'
+    +'<div id="shdem-'+i+'"></div>'
+    +'<div id="shhy-'+i+'"></div>'
+    +'<div id="shlk-'+i+'"></div>'
+    +'<div id="shov-'+i+'"></div>'
+    +'<div id="shsc-'+i+'"></div>'
+    +'<div class="sc-ping" id="shp-'+i+'"></div>'
+    +devActions(i,'sh','toggleTimer','openDevOv('+i+')','shtc-'+i,'shTimer')
     +'</div></div>';
 }
-function emptySkeleton(i){
-  return'<div class="shelly-card s-empty" id="shc-'+i+'">'
-    +'<div class="sc-empty-ico"><svg><use href="#i-plus"/></svg></div>'
-    +'<div class="sc-empty-txt">'+T('Gerät {0} einrichten',[i+1])+'</div>'
-    +'<button type="button" class="btn bscan" onclick="openDevOv('+i+')"><svg><use href="#i-plus"/></svg>Hinzuf&uuml;gen</button>'
-    +'</div>';
+function addTile(kind,i){
+  var ext=kind==='ext';
+  return'<button type="button" class="sc-add" onclick="openDevOv('+i+',null,'+(ext?'\'ext\'':'undefined')+')">'
+    +'<svg aria-hidden="true"><use href="#i-plus"/></svg>'+T(ext?'Externen Schalter hinzufügen':'Steckdose hinzufügen')+'</button>';
 }
 var autoTog={};
 // Befristetes Schalten: 'm24' = bis Mitternacht (Minuten erst beim Klick berechnet)
@@ -153,12 +194,17 @@ function schedHtml(s,kind){
   }
   return'';
 }
+function simBadge(s){return s.virt?'<span class="badge b-sim" title="'+T('Trockenlauf: nicht wirklich geschaltet')+'">'+T('SIMULIERT')+'</span>':'';}
 function updateShelly(s){
   var card=$('shc-'+s.idx);if(!card)return;
   var st=!s.reach?'s-err':s.lock>0?'s-lock':s.on?'s-on':'s-off';
-  if(card.className!=='shelly-card '+st)card.className='shelly-card '+st;
+  var cls='shelly-card '+st+(cardOpen[cardKey('sh',s.idx)]?' open':'');
+  if(card.className!==cls)card.className=cls;
   setTxt('shn-'+s.idx,s.name);
-  setHtml('shb-'+s.idx,badge(s)+runBadge(s));
+  setTxt('shw-'+s.idx,whyText(s.why,s).t);
+  setTxt('shpw-'+s.idx,s.reach&&s.apower>0?wInt(s.apower):'');
+  setHtml('shb-'+s.idx,simBadge(s)+badge(s)+runBadge(s));
+  setHtml('shlearn-'+s.idx,learnHtml(s));
   setHtml('shid-'+s.idx,s.id?'&#128279; '+esc(s.id):T('ID wird beim nächsten Poll gelernt'));
   var eTxt=(s.e_day!=null)?' · '+T('{0} kWh heute',[s.e_day.toFixed(2)]):'';
   setTxt('shmeta-'+s.idx,T('{0} W (nom.) · Prio {1}',[s.pw,s.pri])+eTxt);
@@ -182,36 +228,11 @@ function updateShelly(s){
   setHtml('shdem-'+s.idx,demandHtml(s));
   // Hysterese: die Automatik "sammelt" Messungen, bevor sie schaltet. Ohne diese
   // Anzeige wirkt ein Gerät untätig, obwohl die Schaltung längst vorbereitet ist.
-  var hyHtml='';
-  if(s.auto&&s.reach&&!s.forced&&!(s.lock>0)){
-    var need=s.on?(cfg.hyst_off||3):(cfg.hyst_on||3),have=(s.on?s.ft:s.ot)||0;
-    if(have>0){
-      var pips='';for(var k=0;k<need;k++)pips+='<span class="pip'+(k<have?' f':'')+'"></span>';
-      var nx=slNextTxt();
-      hyHtml='<div class="hyst '+(s.on?'off':'on')+'"><span class="pips">'+pips+'</span>'
-        +T(s.on?'Ausschalten {0}/{1}':'Einschalten {0}/{1}',[have,need])
-        +(nx?'<span class="nx">&middot; '+T('nächste Bewertung {0}',[nx])+'</span>':'')+'</div>';
-    }
-  }
-  setHtml('shhy-'+s.idx,hyHtml);
-  var lkHtml='';
-  if(s.lock>0){
-    var maxL=s.on?(cfg.min_on_min||7)*60:(cfg.min_off_min||5)*60;
-    var lp=Math.min(100,Math.round(s.lock/maxL*100));
-    lkHtml='<div class="lock-bar-wrap"><div class="lock-bar-lbl">'+T('Gesperrt noch {0}',[Math.floor(s.lock/60)+'m '+(s.lock%60)+'s'])+'</div>'
-      +'<div class="lock-bar-track"><div class="lock-bar-fill" style="width:'+lp+'%"></div></div></div>';
-  }
-  setHtml('shlk-'+s.idx,lkHtml);
+  setHtml('shhy-'+s.idx,hystHtml(s,true));
+  setHtml('shlk-'+s.idx,lockHtml(s));
   // Befristung bzw. geschlossenes Freigabefenster – beides erklärt, warum das
   // Gerät gerade nicht dem folgt, was man sonst erwarten würde.
-  var ovHtml='';
-  if(s.ov>0){
-    ovHtml='<div class="ovr"><svg><use href="#i-clock"/></svg>'+T(s.on?'Befristet EIN – noch {0}':'Befristet AUS – noch {0}',[fmtRest(s.ov)])+(s.ova?T(', danach Automatik'):'')
-      +'<button type="button" onclick="cancelTimer('+s.idx+','+(s.ova?1:0)+')">'+T('jetzt beenden')+'</button></div>';
-  }else if(s.win===false){
-    ovHtml='<div class="win-closed"><svg><use href="#i-clock"/></svg>'+T('Ausserhalb des Freigabefensters – die Automatik schaltet jetzt nicht')+'</div>';
-  }
-  setHtml('shov-'+s.idx,ovHtml);
+  setHtml('shov-'+s.idx,ovrHtml(s,'cancelTimer'));
   setHtml('shsc-'+s.idx,schedHtml(s,'sh'));
   setTxt('shp-'+s.idx,T('Angepingt: {0}',[pingTxt(s.ping)]));
   var cb=$('sha-'+s.idx);
@@ -219,21 +240,118 @@ function updateShelly(s){
     if(cb.checked!==!!s.auto)cb.checked=!!s.auto;
   }
 }
+// Gelernte Leistung: weicht sie deutlich von der eingetragenen ab, plant die
+// Automatik mit dem falschen Wert – dann den Messwert zur Übernahme anbieten.
+function learnHtml(s){
+  if(!(s.learned>0))return'';
+  var off=s.pw>0?Math.abs(s.learned-s.pw)/s.pw:1;
+  var txt=T('Gemessen beim Betrieb: <b>{0}</b> (eingetragen {1})',[wInt(s.learned),wInt(s.pw)]);
+  if(off<0.15)return'<div class="learn">'+txt+' &#10003;</div>';
+  return'<div class="learn">'+txt+'<button type="button" class="tchip" onclick="useLearned('+s.idx+')">'+T('Übernehmen')+'</button></div>';
+}
+function useLearned(i){
+  api('/api/shelly/'+i+'/learned',{method:'POST'}).then(function(r){if(r&&r.ok){cfg.loaded=false;poll();}});
+}
 var shSig=null;
-var MAX_SHELLY_UI=4;
 var lastShellyCount=0;
 function renderShelly(list){
   lastShellyCount=list.length;
-  var sig=list.map(function(s){return s.idx;}).join(',')+'|'+MAX_SHELLY_UI;
+  var max=(cfg&&cfg.max_sh)||16;
+  var sig=list.map(function(s){return s.idx;}).join(',')+'|'+max;
   if(sig!==shSig){
     var h='';
     list.forEach(function(s){h+=shellySkeleton(s);});
-    for(var i=list.length;i<MAX_SHELLY_UI;i++)h+=emptySkeleton(i);
-    $('shelly-live').innerHTML=h;
+    if(list.length<max)h+=addTile('sh',list.length);
+    var g=$('shelly-live');g.innerHTML=h;g.classList.add('list');
+    if(!list.length)g.insertAdjacentHTML('afterbegin','<div class="empty-note" style="grid-column:1/-1">'+T('Noch keine Steckdose eingerichtet. Unter <b>Suchen</b> findet EnergyOptimizer Shelly-Geräte im Netz, oder trage eine Adresse von Hand ein.')+'</div>');
     shSig=sig;
   }
-  list.forEach(updateShelly);
+  list.forEach(function(s){updateShelly(s);});
   syncEvFilter(list);
+}
+
+// ── Externe Schalter (MQTT) ──────────────────────────────────────────────────
+function extSkeleton(s){
+  var i=s.idx;
+  return'<div class="shelly-card s-off" id="exc-'+i+'">'
+    +devHead('ex','ext',i,'extToggleAuto')
+    +'<div class="sc-body" id="exbody-'+i+'">'
+    +'<div class="sc-meta" id="exmeta-'+i+'"></div>'
+    +'<div class="fb" id="exfb-'+i+'"></div>'
+    +'<div class="sc-rt" id="exrt-'+i+'"></div>'
+    +'<div id="exhy-'+i+'"></div>'
+    +'<div id="exlk-'+i+'"></div>'
+    +'<div id="exov-'+i+'"></div>'
+    +'<div id="exsc-'+i+'"></div>'
+    +devActions(i,'extSet','toggleExtTimer','openDevOv('+i+',null,\'ext\')','extc-'+i,'extTimer')
+    +'</div></div>';
+}
+function hystHtml(s,withNext){
+  if(!s.auto||s.forced||(s.lock>0)||s.reach===false)return'';
+  var need=s.on?(cfg.hyst_off||3):(cfg.hyst_on||3),have=(s.on?s.ft:s.ot)||0;
+  if(have<=0)return'';
+  var pips='';for(var k=0;k<need&&k<24;k++)pips+='<span class="pip'+(k<have?' f':'')+'"></span>';
+  var nx=withNext?slNextTxt():'';
+  return'<div class="hyst '+(s.on?'off':'on')+'"><span class="pips">'+pips+'</span>'
+    +T(s.on?'Ausschalten {0}/{1}':'Einschalten {0}/{1}',[have,need])
+    +(nx?'<span class="nx">&middot; '+T('nächste Bewertung {0}',[nx])+'</span>':'')+'</div>';
+}
+function lockHtml(s){
+  if(!(s.lock>0))return'';
+  var maxL=s.on?(cfg.min_on_min||7)*60:(cfg.min_off_min||5)*60;
+  var lp=Math.min(100,Math.round(s.lock/maxL*100));
+  return'<div class="lock-bar-wrap"><div class="lock-bar-lbl">'+T('Gesperrt noch {0}',[Math.floor(s.lock/60)+'m '+(s.lock%60)+'s'])+'</div>'
+    +'<div class="lock-bar-track"><div class="lock-bar-fill" style="width:'+lp+'%"></div></div></div>';
+}
+function ovrHtml(s,cancelFn){
+  if(s.ov>0){
+    return'<div class="ovr"><svg><use href="#i-clock"/></svg>'+T(s.on?'Befristet EIN – noch {0}':'Befristet AUS – noch {0}',[fmtRest(s.ov)])+(s.ova?T(', danach Automatik'):'')
+      +'<button type="button" onclick="'+cancelFn+'('+s.idx+','+(s.ova?1:0)+')">'+T('jetzt beenden')+'</button></div>';
+  }
+  if(s.win===false)return'<div class="win-closed"><svg><use href="#i-clock"/></svg>'+T('Ausserhalb des Freigabefensters – die Automatik schaltet jetzt nicht')+'</div>';
+  return'';
+}
+function fbHtml(s){
+  if(s.fb===null||s.fb===undefined){
+    var e=cfg.ext&&cfg.ext[s.idx];
+    return e&&e.st?'<span class="fb bad">'+T('Noch keine Rückmeldung auf dem Status-Topic')+'</span>':'';
+  }
+  var txt=T('Rückmeldung: {0}',[s.fb?T('EIN'):T('AUS')])+(s.fb_age>=0?' · '+fmtAge(s.fb_age):'');
+  return'<span class="fb '+(s.fb_bad?'bad':'ok')+'">'+txt+(s.fb_bad?' – '+T('passt nicht zum Befehl'):' &#10003;')+'</span>';
+}
+function updateExt(s){
+  var card=$('exc-'+s.idx);if(!card)return;
+  var st=s.fb_bad?'s-err':s.lock>0?'s-lock':s.on?'s-on':'s-off';
+  var cls='shelly-card '+st+(cardOpen[cardKey('ext',s.idx)]?' open':'');
+  if(card.className!==cls)card.className=cls;
+  setTxt('exn-'+s.idx,s.name);
+  setTxt('exw-'+s.idx,whyText(s.why,s).t);
+  setTxt('expw-'+s.idx,s.on&&s.pw?wInt(s.pw):'');
+  setHtml('exb-'+s.idx,simBadge(s)+(s.on?'<span class="badge b-on">EIN</span>':'<span class="badge b-off">AUS</span>'));
+  setTxt('exmeta-'+s.idx,T('{0} W (nom.) · Prio {1}',[s.pw||0,s.pri])+' · MQTT');
+  setHtml('exfb-'+s.idx,fbHtml(s));
+  setHtml('exrt-'+s.idx,runtimeHtml(s));
+  setHtml('exhy-'+s.idx,hystHtml(s,false));
+  setHtml('exlk-'+s.idx,lockHtml(s));
+  setHtml('exov-'+s.idx,ovrHtml(s,'cancelExtTimer'));
+  setHtml('exsc-'+s.idx,schedHtml(s,'ext'));
+  var cb=$('exa-'+s.idx);
+  if(cb && document.activeElement!==cb && !(autoTog['e'+s.idx] && (Date.now()-autoTog['e'+s.idx])<4000)){
+    if(cb.checked!==!!s.auto)cb.checked=!!s.auto;
+  }
+}
+var exSig=null;
+function renderExt(list){
+  var max=(cfg&&cfg.max_ex)||16;
+  var sig=list.map(function(s){return s.idx;}).join(',')+'|'+max;
+  if(sig!==exSig){
+    var h='';
+    list.forEach(function(s){h+=extSkeleton(s);});
+    if(list.length<max)h+=addTile('ext',list.length);
+    var g=$('ext-live');g.innerHTML=h;g.classList.add('list');
+    exSig=sig;
+  }
+  list.forEach(updateExt);
 }
 function fmtAge(s){
   if(s<0)return T('noch nie');

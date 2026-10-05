@@ -29,14 +29,20 @@ function poll(){
   api('/api/status').then(function(d){
     pollFails=0;lastSt=d;
     $('conn-lost-ov').style.display='none';
-    tweenW('sp',d.prod,'+');$('sp').classList.add('csol');
-    tweenW('sc',d.cons,'-');$('sc').classList.add('ccon');
-    var sg=$('sg');tweenW('sg',-d.grid,true);sg.className='val tnum '+(d.grid>=0?'cgn':'cgp');
+    // Keine Vorzeichen als Bedeutungsträger: die Richtung steht in Worten darunter.
+    if(d.has_prod===false){setHtml('sp','&ndash;');setTxt('sp-dir',T('nicht gemessen'));}
+    else{tweenW('sp',d.prod,false);setTxt('sp-dir','');}
+    $('sp').classList.add('csol');
+    tweenW('sc',d.cons,false);$('sc').classList.add('ccon');
+    var sg=$('sg'),TH=15;tweenW('sg',Math.abs(d.grid),false);
+    sg.className='val tnum '+(d.grid>TH?'cgn':d.grid<-TH?'cgp':'');
+    setTxt('sg-dir',d.grid>TH?T('Bezug'):d.grid<-TH?T('Einspeisung'):T('ausgeglichen'));
     $('ts').textContent=new Date().toLocaleTimeString(LOC);
     updateSlAge(d.sl_age);
     updateAvgChip(d.avg_s);
-    var surp=d.prod-d.cons,sp2=surp>=0?'+':'';
-    var sv=$('ssurp'),st2=sp2+kw(surp)+' kW';
+    var surp=d.has_prod===false?-d.grid:d.prod-d.cons;
+    setTxt('ssurp-l',surp>=0?T('Überschuss'):T('Defizit'));
+    var sv=$('ssurp'),st2=kw(Math.abs(surp))+' kW';
     if(sv.textContent!==st2){sv.textContent=st2;setFlash(sv);}
     sv.className='surplus-val tnum '+(surp>=0?'cgp':'cgn');
     var bp=d.prod>0?Math.min(100,Math.round(Math.abs(surp)/d.prod*100)):0;
@@ -46,6 +52,8 @@ function poll(){
     updateCost(d.cost);
     renderShelly(d.shelly||[]);
     renderExt(d.ext||[]);
+    renderOptimizer(d);
+    var db=$('dry-banner');if(db)db.style.display=d.dry?'flex':'none';
     updateStatusLine(d);
     syncAlarms(d);
     updateBanner(d.update);
@@ -71,14 +79,14 @@ function poll(){
 // Bewertung laeuft nur nach einer SolarLog-Abfrage. Der Hinweis rechnet beides
 // gegeneinander auf (gleiche Aufrundung wie hyst_ticks() im Server), damit
 // sichtbar ist, was ein geaendertes Intervall aus der Einstellung macht.
-function hystTicks(secs,pollMin){
-  var ps=Math.max(60,(pollMin||1)*60);
-  return Math.min(240,Math.max(1,Math.ceil((secs||0)/ps)));
+function hystTicks(secs,pollS){
+  var ps=Math.max(1,pollS||30);
+  return Math.min(720,Math.max(1,Math.ceil((secs||0)/ps)));
 }
 function updateHystHint(){
   var el=$('hyst-hint');if(!el)return;
-  var pm=parseInt($('f-sl-poll').value,10)||1;
+  var ps=parseInt($('f-src-poll').value,10)||30;
   var on=parseInt($('f-hon').value,10)||0,off=parseInt($('f-hoff').value,10)||0;
-  var tOn=hystTicks(on,pm),tOff=hystTicks(off,pm);
-  el.innerHTML=T('So lange muss der Überschuss (bzw. das Defizit) anhalten, bevor geschaltet wird. Gezählt wird in Abfragen – bei <b>{0} min</b> Intervall sind das <b>{1}</b> Messung(en) zum Einschalten und <b>{2}</b> zum Abschalten. Als Dauer bleibt die Einstellung erhalten, wenn du das Intervall änderst.',[pm,tOn,tOff]);
+  var tOn=hystTicks(on,ps),tOff=hystTicks(off,ps);
+  el.innerHTML=T('So lange muss der Überschuss (bzw. das Defizit) anhalten, bevor geschaltet wird. Gezählt wird in Abfragen – bei <b>{0} s</b> Intervall sind das <b>{1}</b> Messung(en) zum Einschalten und <b>{2}</b> zum Abschalten. Als Dauer bleibt die Einstellung erhalten, wenn du das Intervall änderst.',[ps,tOn,tOff]);
 }

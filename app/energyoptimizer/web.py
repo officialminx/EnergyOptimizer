@@ -78,6 +78,19 @@ class WebApi:
         self.wizard_html = _read("wizard.html")
         self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
         self.icon = _read("icon.png", "rb")
+        self.dev = os.environ.get("EO_DEV") == "1"
+        self._load_pages()
+        self.secret = self._load_secret()
+        self.fails = 0
+        self.last_fail = 0.0
+        self.block_until = 0.0
+        self._basic_cache = b""
+        self.alert_t = 0.0
+
+    def _load_pages(self) -> None:
+        self.index_html = _read("index.html")
+        self.wizard_html = _read("wizard.html")
+        self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
         self.assets = _load_assets()
         h = hashlib.sha256((self.index_html + self.i18n_js).encode())
         for name in sorted(self.assets):
@@ -86,12 +99,11 @@ class WebApi:
         # Stylesheet and scripts are referenced with ?v=<etag>, so a new version is
         # always fetched while unchanged files come from the browser cache.
         self.index_html = self.index_html.replace("{{V}}", self.etag)
-        self.secret = self._load_secret()
-        self.fails = 0
-        self.last_fail = 0.0
-        self.block_until = 0.0
-        self._basic_cache = b""
-        self.alert_t = 0.0
+
+    def _dev_reload(self) -> None:
+        """EO_DEV=1: read the web pages again on every request (development only)."""
+        if self.dev:
+            self._load_pages()
 
     # ── Sign-in (cookie eo_auth = session token, see sessions.py) ────────────
     def _load_secret(self) -> bytes:
@@ -306,6 +318,7 @@ class WebApi:
         return web.Response(text=html, content_type="text/html", headers=headers)
 
     async def h_index(self, req):
+        self._dev_reload()
         if self.setup_required:
             # Before the first password is set, the setup page offers its own language switch.
             q = req.query.get("lang", "")
@@ -325,6 +338,7 @@ class WebApi:
         return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
 
     async def h_asset(self, req):
+        self._dev_reload()
         asset = self.assets.get(req.match_info["path"])
         if asset is None:
             raise web.HTTPNotFound()
@@ -334,6 +348,7 @@ class WebApi:
                             headers={"Cache-Control": cache})
 
     async def h_i18n(self, req):
+        self._dev_reload()
         return web.Response(text=self.i18n_js, content_type="application/javascript",
                             headers={"Cache-Control": "no-cache"})
 

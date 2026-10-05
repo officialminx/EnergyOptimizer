@@ -71,8 +71,9 @@ function evRow(e){
     ic='i-power';
     if(rs===8){cls='err';t=T('{0}: Schaltbefehl fehlgeschlagen',[nm]);}
     else{cls=on?'on':'off';t=nm+' '+T(on?'EIN':'AUS');}
+    if(fl&4)t+='<span class="ev-dry">'+T('Trockenlauf')+'</span>';
     m=evR(rs);
-    if(hasSp)m+=(m?' &middot; ':'')+T('Überschuss')+' '+(sp>=0?'+':'&minus;')+wInt(Math.abs(sp));
+    if(hasSp)m+=(m?' &middot; ':'')+T(sp>=0?'Überschuss':'Defizit')+' '+wInt(Math.abs(sp));
   }else if(ty===3){                             // Erreichbarkeit
     ic='i-wifi';cls=on?'on':'err';
     t=T(on?'{0} wieder erreichbar':'{0} nicht erreichbar',[nm]);

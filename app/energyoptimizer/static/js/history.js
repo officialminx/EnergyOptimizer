@@ -31,7 +31,39 @@ function sanePts(a){if(!a||!a.length)return a||[];
   var o=[b[0]];
   for(var i=1;i<b.length;i++){if(b[i][0]>o[o.length-1][0])o.push(b[i]);else o=[b[i]];}
   return o;}
-// pts (Tag): [epoch,prod,cons,grid,sh0..]; buckets (W/M/J): {t,pe,ce,fe,ie,pw,cw}
+// pts (Tag): [epoch,prod,cons,grid,batt,ein-Maske,Lauf-Maske,sh0_w..]; buckets (W/M/J): {t,pe,ce,fe,ie,pw,cw}
+// Gewählter Tag im Verlauf ('' = heute). Heute kommt aus dem laufenden Abruf
+// (histData, speist auch die Sparklines), ein anderer Tag aus dem Langzeit-Log.
+var histDay='',dayView=null;
+function viewData(){return histDay?dayView:histData;}
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function histDaySet(v){
+  var today=ymd(new Date());
+  if(v===today)v='';
+  histDay=v||'';
+  var inp=$('hday-in');if(inp){inp.value=histDay||today;inp.max=today;}
+  var nx=$('hday-next');if(nx)nx.disabled=!histDay;
+  var tb=$('hday-today');if(tb)tb.style.visibility=histDay?'visible':'hidden';
+  var dl=histDay?new Date(histDay+'T12:00:00').toLocaleDateString(LOC,{weekday:'short',day:'numeric',month:'long',year:'numeric'}):'';
+  setTxt('strip-title',histDay?T('Schaltzeiten am {0}',[dl]):T('Schaltzeiten heute'));
+  setTxt('sim-day',histDay?dl:T('heute'));
+  // Ein einzelner Tag gehört in die Tagesansicht.
+  if(histRange!=='day'){
+    histRange='day';var hr=$('hrange');
+    if(hr)for(var i=0;i<hr.children.length;i++)hr.children[i].classList.toggle('active',hr.children[i].getAttribute('data-r')==='day');
+  }
+  $('sim-res').innerHTML='';
+  if(!histDay){dayView=null;chartFit();redrawChart();return;}
+  api('/api/history?d='+histDay.replace(/-/g,'')).then(function(d){
+    if(d)d.pts=sanePts(d.pts);dayView=d;chartFit();redrawChart();
+  });
+}
+function histDayStep(n){
+  var base=histDay?new Date(histDay+'T12:00:00'):new Date();
+  base.setDate(base.getDate()+n);
+  if(base>new Date())return;
+  histDaySet(ymd(base));
+}
 function kwhSeries(bk,xl,lab){
   return {bars:true,unit:'kWh',x:xl,lab:lab||xl,series:[
     {name:T('Produktion'),color:C_PROD,data:bk.map(function(o){return (o.pe||0)/1000;})},
@@ -51,15 +83,16 @@ function bucketFull(o){var d=new Date(o.t*1000);
 // Vereinheitlichte Serien-Struktur je Range+Mode (Linien oder Balken).
 function buildSeries(){
   if(histRange==='day'){
-    var pts=(histData&&histData.pts)?histData.pts:[];
+    var vd=viewData();
+    var pts=(vd&&vd.pts)?vd.pts:[];
     if(pts.length<2)return null;
     if(histMode==='w'){
       var n=pts.length,t0=pts[0][0],t1=pts[n-1][0],span=Math.max(1,t1-t0);
-      var nDev=(histData.n||0),dev=histData.dev||[];
+      var nDev=(vd.n||0),dev=vd.dev||[];
       var ser=[{name:T('Produktion'),color:C_PROD,data:pts.map(function(p){return p[1];})},
                {name:T('Verbrauch'),color:C_CONS,data:pts.map(function(p){return p[2];})},
                {name:T('Überschuss'),color:C_SURP,dash:true,data:pts.map(function(p){return Math.max(0,p[1]-p[2]);})}];
-      for(var i=0;i<nDev;i++){(function(ii){ser.push({name:dev[ii]||T('Gerät {0}',[ii+1]),color:SHCOL[ii%SHCOL.length],thin:true,data:pts.map(function(p){return Math.max(0,p[4+ii]);})});})(i);}
+      for(var i=0;i<nDev;i++){(function(ii){ser.push({name:dev[ii]||T('Gerät {0}',[ii+1]),color:SHCOL[ii%SHCOL.length],thin:true,data:pts.map(function(p){return Math.max(0,p[7+ii]||0);})});})(i);}
       var plotX=pts.map(function(p){return (p[0]-t0)/span;});
       var lab=pts.map(function(p){var d=new Date(p[0]*1000);
         return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' Uhr';});
@@ -130,7 +163,7 @@ function drawSeries(S){
   ctx.clearRect(0,0,W,H);
   chGeo=null;
   if(!S){ctx.fillStyle=cv('--ink3');ctx.font='12px '+CFONT;ctx.textAlign='center';
-    ctx.fillText(T(histRange==='day'?'Noch keine Verlaufsdaten – Erfassung alle 15 min':'Noch keine Daten für diesen Zeitraum'),W/2,H/2);return;}
+    ctx.fillText(T(histRange!=='day'?'Noch keine Daten für diesen Zeitraum':histDay?'Für diesen Tag enthält das Langzeit-Log keine Messpunkte':'Noch keine Verlaufsdaten – Erfassung alle 15 min'),W/2,H/2);return;}
   var maxV=0;for(j=0;j<S.series.length;j++)for(i=0;i<S.series[j].data.length;i++)if(S.series[j].data[i]>maxV)maxV=S.series[j].data[i];
   maxV=niceMax(maxV,S.unit);
   ctx.font='9px '+CFONT;
@@ -221,7 +254,7 @@ function chartInfo(){
   var el=$('chart-info');if(!el)return;
   var p=0,c=0,i,ok;
   if(histRange==='day'){
-    var pts=(histData&&histData.pts)||[];
+    var vd=viewData(),pts=(vd&&vd.pts)||[];
     ok=pts.length>1;
     for(i=0;i<pts.length;i++){var q=ptH(pts,i);p+=pts[i][1]*q;c+=pts[i][2]*q;}
   }else{
@@ -234,7 +267,7 @@ function chartInfo(){
 function redrawChart(){var tt=$('chart-title');if(tt)tt.textContent=CT[histRange]||'Verlauf';
   var S=buildSeries();curS=S;
   if(!S||chHover>=(S.bars?S.x.length:S.plotX.length)){chHover=-1;var t=$('chart-tip');if(t)t.style.display='none';}
-  drawSeries(S);renderLegend(S);chartInfo();drawStrip();
+  drawSeries(S);renderLegend(S);chartInfo();drawStrip();renderKpis();
   if(chHover>=0)chartTip(chHover);}   // Werte unter dem stehenden Zeiger mitziehen
 (function(){
   var c=$('chart');if(!c)return;
@@ -255,16 +288,16 @@ function stripBuild(){
   stripRows=[];stripGeo=null;
   // Bewusst nicht an den gewählten Diagramm-Zeitraum gebunden: der Streifen zeigt
   // immer den heutigen Tag und bleibt damit auch in der Wochen-/Monatsansicht stehen.
-  var d=histData,pts=(d&&d.pts)?d.pts:[],n=d?(d.n||0):0;
+  var d=viewData(),pts=(d&&d.pts)?d.pts:[],n=d?(d.n||0):0;
   if(!n||pts.length<2)return false;
-  var mi=4+n,t0=pts[0][0],t1=pts[pts.length-1][0];
+  var t0=pts[0][0],t1=pts[pts.length-1][0];
   if(t1<=t0)return false;
-  // Zwei Ebenen je Gerät: die Freigabe der Steckdose (Bit i) und – bei Geräten mit
-  // Eigenregelung – der tatsächliche Betrieb (Bit 4+i). Bei einem Entfeuchter mit
-  // eigenem Hygrostat sind das zwei völlig verschiedene Balken.
+  // Zwei Ebenen je Gerät: die Freigabe der Steckdose (Ein-Maske, Index 5) und – bei
+  // Geräten mit Eigenregelung – der tatsächliche Betrieb (Lauf-Maske, Index 6). Bei
+  // einem Entfeuchter mit eigenem Hygrostat sind das zwei völlig verschiedene Balken.
   var rwf=d.rw||[];
   for(var i=0;i<n;i++){
-    var bits=function(sh){
+    var bits=function(mi,sh){
       var segs=[],tot=0,open=-1;
       for(var k=0;k<pts.length-1;k++){
         var on=((pts[k][mi]||0)>>sh)&1;
@@ -274,7 +307,7 @@ function stripBuild(){
       if(open>=0){segs.push({a:open,b:t1});tot+=t1-open;}
       return{segs:segs,total:tot};
     };
-    var onl=bits(i),runl=bits(4+i);
+    var onl=bits(5,i),runl=bits(6,i);
     stripRows.push({i:i,name:(d.dev&&d.dev[i])||T('Gerät {0}',[i+1]),
                     col:SHCOL[i%SHCOL.length],segs:onl.segs,total:onl.total,
                     self:!!rwf[i],rsegs:runl.segs,rtotal:runl.total});
@@ -413,7 +446,7 @@ function fetchDayPts(){
   }).catch(function(){dayBusy=false;});
 }
 function fetchHistory(){
-  if(histRange==='day'){fetchDayPts();return;}
+  if(histRange==='day'){if(histDay)histDaySet(histDay);else fetchDayPts();return;}
   if(histBusy)return;histBusy=true;
   api('/api/energy?range='+histRange).then(function(d){
     histBusy=false;histAgg=d;
@@ -422,7 +455,8 @@ function fetchHistory(){
 }
 (function(){
   var hr=$('hrange');if(hr)hr.addEventListener('click',function(e){var b=e.target.closest('button');if(!b||!hr.contains(b))return;
-    histRange=b.getAttribute('data-r');for(var i=0;i<hr.children.length;i++)hr.children[i].classList.toggle('active',hr.children[i]===b);fetchHistory();});
+    histRange=b.getAttribute('data-r');for(var i=0;i<hr.children.length;i++)hr.children[i].classList.toggle('active',hr.children[i]===b);
+    $('hday').style.display=histRange==='day'?'':'none';fetchHistory();});
   var hm=$('hmode');if(hm)hm.addEventListener('click',function(e){var b=e.target.closest('button');if(!b||!hm.contains(b))return;
     histMode=b.getAttribute('data-m');for(var i=0;i<hm.children.length;i++)hm.children[i].classList.toggle('active',hm.children[i]===b);redrawChart();});
 })();
@@ -582,7 +616,79 @@ function drawHeatmap(){
   c.addEventListener('pointermove',mv,{passive:true});
   c.addEventListener('pointerdown',mv,{passive:true});
   c.addEventListener('pointerleave',function(){mv.cancel();setTxt('hm-hover','');});
+  // Tipp auf einen Tag: dieser Tag oben im Tagesverlauf.
+  c.addEventListener('click',function(e){
+    var r=c.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+    for(var i=0;i<hmCells.length;i++){var q=hmCells[i];
+      if(x>=q.x&&x<q.x+q.s&&y>=q.y&&y<q.y+q.s){
+        var ds=String(q.r[0]);
+        histDaySet(ds.slice(0,4)+'-'+ds.slice(4,6)+'-'+ds.slice(6,8));
+        var top=$('page-chart');if(top)top.querySelector('.card').scrollIntoView({block:'start'});
+        return;
+      }}
+  });
 })();
+// ── Kennzahlen zum gezeigten Zeitraum ────────────────────────────────────────
+function renderKpis(){
+  var el=$('h-kpis');if(!el)return;
+  var p=0,c=0,fe=0,ie=0,i,ok=false;
+  if(histRange==='day'){
+    var vd=viewData(),pts=(vd&&vd.pts)||[];ok=pts.length>1;
+    for(i=0;i<pts.length;i++){var q=ptH(pts,i),g=pts[i][3];p+=pts[i][1]*q;c+=pts[i][2]*q;if(g>0)ie+=g*q;else fe+=-g*q;}
+  }else{
+    var bk=(histAgg&&histAgg.buckets)||[];ok=bk.length>0;
+    for(i=0;i<bk.length;i++){p+=bk[i].pe||0;c+=bk[i].ce||0;fe+=bk[i].fe||0;ie+=bk[i].ie||0;}
+  }
+  if(!ok||(p<=0&&c<=0)){el.innerHTML='';return;}
+  var self=Math.max(0,p-fe);
+  var k=[];
+  function add(l,v,t){k.push('<div class="kpi" title="'+esc(T(t))+'"><small>'+T(l)+'</small><b>'+v+'</b></div>');}
+  if(p>0)add('Eigenverbrauch',Math.round(self/p*100)+' %','Anteil der eigenen Produktion, der im Haus genutzt statt eingespeist wurde');
+  if(c>0)add('Autarkie',Math.round(Math.max(0,1-ie/c)*100)+' %','Anteil des Verbrauchs, der nicht aus dem Netz kam');
+  add('Selbst genutzt',(self/1000).toFixed(1)+' kWh','Eigene Produktion, die im Haus verbraucht wurde');
+  add('Eingespeist',(fe/1000).toFixed(1)+' kWh','An das Netz abgegebene Energie');
+  if(cfg.p_buy>0||cfg.p_feed>0){
+    var save=self/1000*(cfg.p_buy||0)/100+fe/1000*(cfg.p_feed||0)/100;
+    add('Ersparnis',save.toFixed(2)+' CHF','Eigenverbrauch zum Bezugspreis plus Einspeisevergütung');
+  }
+  el.innerHTML=k.join('');
+}
+// ── Simulation eines Tages ───────────────────────────────────────────────────
+function simDefaults(c){
+  var m={'sim-onm':'on_margin','sim-offm':'off_margin','sim-mon':'min_on_min','sim-moff':'min_off_min'};
+  Object.keys(m).forEach(function(id){var el=$(id);if(el&&document.activeElement!==el)el.value=c[m[id]]!=null?c[m[id]]:'';});
+}
+function runSim(){
+  var out=$('sim-res');if(!out)return;
+  out.innerHTML='<div class="hint" style="margin-top:10px">'+T('Rechne…')+'</div>';
+  var body={};
+  [['sim-onm','on_margin'],['sim-offm','off_margin'],['sim-mon','min_on_min'],['sim-moff','min_off_min']].forEach(function(x){
+    var v=parseInt($(x[0]).value,10);if(!isNaN(v))body[x[1]]=v;});
+  var q=histDay?('?d='+histDay.replace(/-/g,'')):'';
+  api('/api/simulate'+q,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){
+    if(!r||!r.points){out.innerHTML='<div class="empty-note">'+T('Für diesen Tag liegen keine Messpunkte vor.')+'</div>';return;}
+    if(!r.loads||!r.loads.length){out.innerHTML='<div class="empty-note">'+T('Keine Geräte mit Automatik und eingetragener Leistung – nichts zu simulieren.')+'</div>';return;}
+    var d=String(r.day),t0=new Date(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8)).getTime()/1000,span=86400;
+    var h='';
+    r.loads.forEach(function(l){
+      var bars=(l.on||[]).map(function(iv){
+        var a=Math.max(0,(iv[0]-t0)/span*100),b=Math.min(100,(iv[1]-t0)/span*100);
+        return'<i style="left:'+a.toFixed(2)+'%;width:'+Math.max(0.4,b-a).toFixed(2)+'%"></i>';}).join('');
+      h+='<div class="sim-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l.name||'')+'</span>'
+        +'<span class="sim-bar" role="img" aria-label="'+esc(T('{0}: {1} kWh simuliert',[l.name||'',l.kwh]))+'">'+bars+'</span>'
+        +'<span class="tnum">'+T('{0} kWh',[l.kwh.toFixed(1)])+'</span></div>';
+    });
+    h+='<div class="sim-axis"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>';
+    var more=Math.max(0,r.real.feed_kwh-r.sim.feed_kwh),imp=r.sim.import_kwh-r.real.import_kwh;
+    h+='<div class="kpis sim-sum">'
+      +'<div class="kpi"><small>'+T('Einspeisung real')+'</small><b>'+r.real.feed_kwh.toFixed(1)+' kWh</b></div>'
+      +'<div class="kpi"><small>'+T('Einspeisung simuliert')+'</small><b>'+r.sim.feed_kwh.toFixed(1)+' kWh</b></div>'
+      +'<div class="kpi"><small>'+T('Zusätzlich selbst genutzt')+'</small><b>'+more.toFixed(1)+' kWh</b></div>'
+      +'<div class="kpi"><small>'+T('Netzbezug simuliert')+'</small><b>'+r.sim.import_kwh.toFixed(1)+' kWh</b></div>'
+      +'</div><div class="hint" style="margin-top:8px">'+T('Grundlage: {0} Messpunkte à 15 min. Netzbezug gegenüber real: {1} kWh.',[r.points,(imp>=0?'+':'')+imp.toFixed(1)])+'</div>';
+    out.innerHTML=h;
+  }).catch(function(){out.innerHTML='<div class="empty-note">'+T('Fehler beim Abrufen')+'</div>';});
+}
 function uploadDailyCsv(){
   var inp=$('daily-file');if(!inp.files||!inp.files[0])return;
   var st=$('daily-upload-status');st.textContent=T('Lade hoch…');

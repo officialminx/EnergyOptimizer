@@ -63,15 +63,15 @@
       <h1>EnergyOptimizer</h1>
     </div>
     <div class="topbar-r">
-    <div class="status-chip">
+    <div class="status-chip" role="status" aria-label="Uhrzeit und Verbindung">
       <svg width="13" height="13" style="color:var(--ink3)"><use href="#i-clock"/></svg>
       <span id="ts" class="tnum">--:--</span>
       <div class="dot off" id="conn-dot" style="width:9px;height:9px"></div>
     </div>
-    <button type="button" class="icon-btn" id="btn-kiosk" onclick="kioskOn()" title="Kiosk-Ansicht (Wandanzeige)">
+    <button type="button" class="icon-btn" id="btn-kiosk" onclick="kioskOn()" title="Kiosk-Ansicht (Wandanzeige)" aria-label="Kiosk-Ansicht (Wandanzeige)">
       <svg><use href="#i-kiosk"/></svg>
     </button>
-    <button type="button" class="icon-btn theme-btn" id="btn-theme" onclick="toggleTheme()" title="Darstellung umschalten">
+    <button type="button" class="icon-btn theme-btn" id="btn-theme" onclick="toggleTheme()" title="Darstellung umschalten" aria-label="Darstellung umschalten">
       <svg class="i-sun"><use href="#i-sun"/></svg>
       <svg class="i-moon"><use href="#i-moon"/></svg>
     </button>
@@ -86,8 +86,14 @@
       <div class="alarm-d">Auf dem Server: <code>docker compose pull &amp;&amp; docker compose up -d</code> &middot; <a id="upd-link" href="#" target="_blank" rel="noopener">Was ist neu?</a></div></div>
     <button type="button" class="alarm-ack" onclick="updDismiss()">Sp&auml;ter</button>
   </div>
-  <div class="alarms" id="alarms" style="display:none"></div>
-  <div class="sline idle" id="sline">
+  <div class="alarm dry" id="dry-banner" style="display:none">
+    <div class="alarm-i"><svg><use href="#i-info"/></svg></div>
+    <div class="alarm-b"><div class="alarm-t">Trockenlauf aktiv &ndash; es wird nichts geschaltet</div>
+      <div class="alarm-d">Die Automatik entscheidet wie gewohnt, sendet aber keine Befehle. Was sie geschaltet h&auml;tte, steht im Protokoll und unten als &bdquo;simuliert&ldquo;.</div></div>
+    <button type="button" class="alarm-ack" onclick="navTo('settings');setTo('ctrl')">Einstellungen</button>
+  </div>
+  <div class="alarms" id="alarms" style="display:none" role="alert" aria-live="assertive"></div>
+  <div class="sline idle" id="sline" role="status" aria-live="polite">
     <div class="sline-ico"><svg><use href="#i-bolt"/></svg></div>
     <div class="sline-txt">
       <div class="sline-main" id="sline-main">Verbindung wird aufgebaut&hellip;</div>
@@ -95,26 +101,35 @@
     </div>
   </div>
   <div class="card hero">
-    <div class="card-h"><div class="card-t"><svg><use href="#i-bolt"/></svg>Live Status<i class="ib" data-i="live"></i></div><div class="card-hr"><span class="card-sub" id="avg-chip" style="display:none" title="Kacheln und Verlauf zeigen den gleitenden Mittelwert. Geschaltet wird mit dem Rohwert.">&empty;&nbsp;<span id="avg-chip-t"></span></span><span class="card-sub" id="sl-age" title="Letzte SolarLog-Abfrage"><svg><use href="#i-server"/></svg><span id="sl-age-t">&ndash;</span></span><button type="button" class="icon-btn" id="btn-refresh" onclick="forceRefresh()" title="SolarLog jetzt abfragen"><svg><use href="#i-refresh"/></svg></button></div></div>
+    <div class="card-h"><div class="card-t"><svg><use href="#i-bolt"/></svg>Live Status<i class="ib" data-i="live"></i></div><div class="card-hr"><span class="card-sub" id="avg-chip" style="display:none" title="Kacheln und Verlauf zeigen den gleitenden Mittelwert. Geschaltet wird mit dem Rohwert.">&empty;&nbsp;<span id="avg-chip-t"></span></span><span class="card-sub" id="sl-age" title="Letzte Abfrage der Datenquelle"><svg><use href="#i-server"/></svg><span id="sl-age-t">&ndash;</span></span><button type="button" class="icon-btn" id="btn-refresh" onclick="forceRefresh()" title="Datenquelle jetzt abfragen" aria-label="Datenquelle jetzt abfragen"><svg><use href="#i-refresh"/></svg></button></div></div>
     <div class="ip" data-i="live">Die drei Kacheln zeigen die <b>aktuelle Leistung</b> aus der letzten
-      SolarLog-Abfrage: <b>Produktion</b> der Anlage, <b>Verbrauch</b> des ganzen Hauses und was davon
-      &uuml;ber das <b>Netz</b> l&auml;uft (positiv = Bezug, negativ = Einspeisung). Der Balken darunter ist der
-      <b>&Uuml;berschuss</b> (Produktion &minus; Verbrauch) &ndash; genau die Gr&ouml;sse, auf die die Automatik
-      schaltet. Ist eine Anzeige-Gl&auml;ttung eingestellt, zeigen Kacheln und Verlauf den gleitenden
-      Mittelwert (mit &empty; gekennzeichnet); geschaltet wird trotzdem mit dem Rohwert.</div>
+      Abfrage der Datenquelle: <b>Produktion</b> der Anlage, <b>Verbrauch</b> des ganzen Hauses und was
+      &uuml;ber das <b>Netz</b> l&auml;uft &ndash; darunter steht, ob bezogen oder eingespeist wird. Der Balken
+      darunter ist der <b>&Uuml;berschuss</b> (Produktion &minus; Verbrauch) &ndash; genau die Gr&ouml;sse, auf die
+      die Automatik schaltet. Ist eine Anzeige-Gl&auml;ttung eingestellt, zeigen Kacheln und Verlauf den
+      gleitenden Mittelwert (mit &empty; gekennzeichnet); geschaltet wird trotzdem mit dem Rohwert.</div>
     <div class="stat-grid">
-      <div class="stat"><div class="ico i-sol"><svg><use href="#i-sun"/></svg></div><small>Produktion</small><span class="val csol tnum" id="sp">--</span><canvas class="spark" id="spk-p"></canvas></div>
-      <div class="stat"><div class="ico i-con"><svg><use href="#i-plug"/></svg></div><small>Verbrauch</small><span class="val ccon tnum" id="sc">--</span><canvas class="spark" id="spk-c"></canvas></div>
-      <div class="stat"><div class="ico i-grid"><svg><use href="#i-grid"/></svg></div><small>Netz</small><span class="val tnum" id="sg">--</span><canvas class="spark" id="spk-g"></canvas></div>
+      <div class="stat"><div class="ico i-sol"><svg><use href="#i-sun"/></svg></div><small>Produktion</small><span class="val csol tnum" id="sp">--</span><em class="stat-dir" id="sp-dir"></em><canvas class="spark" id="spk-p" aria-hidden="true"></canvas></div>
+      <div class="stat"><div class="ico i-con"><svg><use href="#i-plug"/></svg></div><small>Verbrauch</small><span class="val ccon tnum" id="sc">--</span><em class="stat-dir" id="sc-dir"></em><canvas class="spark" id="spk-c" aria-hidden="true"></canvas></div>
+      <div class="stat"><div class="ico i-grid"><svg><use href="#i-grid"/></svg></div><small>Netz</small><span class="val tnum" id="sg">--</span><em class="stat-dir" id="sg-dir"></em><canvas class="spark" id="spk-g" aria-hidden="true"></canvas></div>
     </div>
     <div class="hint" style="text-align:center;margin-top:2px" id="spk-note"></div>
     <div class="surplus-row">
-      <div class="surplus-label"><span>&Uuml;berschuss</span><span class="surplus-val tnum" id="ssurp">--</span></div>
+      <div class="surplus-label"><span id="ssurp-l">&Uuml;berschuss</span><span class="surplus-val tnum" id="ssurp">--</span></div>
       <div class="surplus-track"><div class="surplus-fill" id="ssurp-bar"></div></div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-h"><div class="card-t"><svg><use href="#i-arrow"/></svg>Energiefluss<i class="ib" data-i="flow"></i></div></div>
+  <div class="card" id="card-opt" style="display:none">
+    <div class="card-h"><div class="card-t"><svg><use href="#i-sliders"/></svg>Was macht der Optimizer gerade?<i class="ib" data-i="opt"></i></div>
+      <span class="card-sub" id="opt-sum"></span></div>
+    <div class="ip" data-i="opt">Eine Zeile je Ger&auml;t: ob es l&auml;uft, worauf es wartet und was als N&auml;chstes passiert.
+      Ein Tipp auf eine Zeile &ouml;ffnet das Ger&auml;t unter <b>Ger&auml;te</b>.</div>
+    <div class="opt-list" id="opt-list"></div>
+  </div>
+  <div class="dash-cols">
+  <div class="card coll-card" id="card-flow">
+    <div class="card-h"><button type="button" class="card-t card-tog" aria-expanded="true" aria-controls="cb-flow" onclick="toggleCard('flow')"><svg><use href="#i-arrow"/></svg>Energiefluss<svg class="chev"><use href="#i-chev"/></svg></button><i class="ib" data-i="flow"></i></div>
+    <div class="card-body" id="cb-flow">
     <div class="ip" data-i="flow">Wohin der Strom gerade fliesst. Die Punkte laufen in Flussrichtung,
       ihre Geschwindigkeit steigt mit der Leistung. <b>Netz</b> links f&uuml;llt sich bei Bezug und leert
       sich bei Einspeisung, <b>Batterie</b> rechts erscheint nur mit konfigurierten Batteriefeldern.
@@ -148,13 +163,16 @@
         <div class="fn-txt"><div class="fn-label">Haus</div><div class="fn-val tnum" id="flow-cons">--</div></div>
       </div>
     </div>
+    </div>
   </div>
-  <div class="card">
-    <div class="card-h"><div class="card-t"><svg><use href="#i-chart"/></svg>Energie heute<i class="ib" data-i="eday"></i></div>
+  <div class="card coll-card" id="card-eday">
+    <div class="card-h"><button type="button" class="card-t card-tog" aria-expanded="true" aria-controls="cb-eday" onclick="toggleCard('eday')"><svg><use href="#i-chart"/></svg>Energie heute<svg class="chev"><use href="#i-chev"/></svg></button><i class="ib" data-i="eday"></i>
       <span class="card-sub" id="donut-sub"></span></div>
+    <div class="card-body" id="cb-eday">
     <div class="ip" data-i="eday">Arbeit statt Leistung: die vier Kacheln sind <b>Tagesz&auml;hler</b> in kWh,
-      sie starten um Mitternacht bei null. Produktion und Verbrauch kommen direkt vom SolarLog,
-      Netzbezug und Einspeisung rechnet dieses Ger&auml;t laufend mit.
+      sie starten um Mitternacht bei null. Liefert die Datenquelle eigene Z&auml;hler (Solar-Log), kommen
+      Produktion und Verbrauch direkt von dort; sonst und f&uuml;r Netzbezug und Einspeisung rechnet dieses
+      Ger&auml;t laufend mit.
       Die Ringe darunter: links, wohin die eigene Produktion ging (Ringmitte = <b>Eigenverbrauchsquote</b>),
       rechts, woher der Verbrauch kam (Ringmitte = <b>Autarkiegrad</b>).</div>
     <div class="stat-grid">
@@ -163,6 +181,7 @@
       <div class="stat"><div class="ico i-grid"><svg><use href="#i-grid"/></svg></div><small>Netzbezug</small><span class="val cgn tnum" id="e-dgi">--</span></div>
       <div class="stat"><div class="ico i-grid"><svg><use href="#i-grid"/></svg></div><small>Einspeisung</small><span class="val cgp tnum" id="e-dgo">--</span></div>
     </div>
+    <div class="empty-note" id="e-empty" style="display:none">Noch keine Daten seit dem Start &ndash; die Tagesz&auml;hler f&uuml;llen sich mit den n&auml;chsten Messungen.</div>
     <div class="hint" style="text-align:center;margin-top:10px" id="e-total"></div>
     <div id="card-donut">
       <div class="donuts" style="margin-top:6px">
@@ -178,9 +197,11 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
-  <div class="card" id="card-cost" style="display:none">
-    <div class="card-h"><div class="card-t"><svg><use href="#i-coin"/></svg>Kosten heute<i class="ib" data-i="cost"></i></div></div>
+  <div class="card coll-card" id="card-cost" style="display:none">
+    <div class="card-h"><button type="button" class="card-t card-tog" aria-expanded="true" aria-controls="cb-cost" onclick="toggleCard('cost')"><svg><use href="#i-coin"/></svg>Kosten heute<svg class="chev"><use href="#i-chev"/></svg></button><i class="ib" data-i="cost"></i></div>
+    <div class="card-body" id="cb-cost">
     <div class="ip" data-i="cost">Die Tagesz&auml;hler oben, bewertet mit den Preisen aus
       <b>Einstellungen &rarr; Strompreise</b>. <b>Bezug</b> ist, was der Netzstrom heute gekostet hat,
       <b>Einspeisung</b> die Verg&uuml;tung daf&uuml;r, <b>Eigenverbrauch spart</b> der Bezug, den die eigene
@@ -193,6 +214,8 @@
       <div class="stat" id="c-base-tile"><small>Grundpreis anteilig</small><span class="val cgn tnum" id="c-base">--</span></div>
     </div>
     <div class="cost-sum" id="c-net"></div>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -208,6 +231,12 @@
       <b>W</b> ist die Leistung (beim Tag der Messwert, sonst der Tagesmittelwert),
       <b>kWh</b> die Energiemenge je Balken. Ein Tipp auf die Kurve zeigt Uhrzeit und Werte;
       ein Tipp auf die Legende blendet eine Reihe aus.</div>
+    <div class="hday" id="hday">
+      <button type="button" class="icon-btn" onclick="histDayStep(-1)" aria-label="Vorheriger Tag" title="Vorheriger Tag"><svg style="transform:rotate(180deg)"><use href="#i-chev"/></svg></button>
+      <input type="date" id="hday-in" aria-label="Tag ausw&auml;hlen" onchange="histDaySet(this.value)">
+      <button type="button" class="icon-btn" onclick="histDayStep(1)" id="hday-next" aria-label="N&auml;chster Tag" title="N&auml;chster Tag"><svg><use href="#i-chev"/></svg></button>
+      <button type="button" class="tchip" id="hday-today" onclick="histDaySet('')">Heute</button>
+    </div>
     <div class="hctl">
       <div class="subnav inline" id="hrange">
         <button type="button" class="active" data-r="day">Tag</button><button type="button" data-r="week">Woche</button><button type="button" data-r="month">Monat</button><button type="button" data-r="year">Jahr</button>
@@ -216,12 +245,13 @@
         <button type="button" class="active" data-m="w">W</button><button type="button" data-m="kwh">kWh</button>
       </div>
     </div>
-    <div class="chart-wrap"><canvas id="chart"></canvas><div class="chart-tip" id="chart-tip"></div></div>
+    <div class="chart-wrap"><canvas id="chart" role="img" aria-label="Verlaufsdiagramm"></canvas><div class="chart-tip" id="chart-tip"></div></div>
     <div class="chart-legend" id="chart-legend"></div>
+    <div class="kpis" id="h-kpis"></div>
   </div>
 
   <div class="card" id="card-strip" style="display:none">
-    <div class="card-h"><div class="card-t"><svg><use href="#i-clock"/></svg>Schaltzeiten heute<i class="ib" data-i="strip"></i></div>
+    <div class="card-h"><div class="card-t"><svg><use href="#i-clock"/></svg><span id="strip-title">Schaltzeiten heute</span><i class="ib" data-i="strip"></i></div>
       <span class="card-sub" id="strip-sum"></span></div>
     <div class="ip" data-i="strip">Ein Band je Steckdose &uuml;ber den Tag: gef&auml;rbte Abschnitte sind
       Einschaltzeiten. Damit l&auml;sst sich direkt am Diagramm dar&uuml;ber ablesen, ob eine Schaltung
@@ -231,6 +261,24 @@
     <div class="strip-info" id="strip-info"></div>
   </div>
 
+  <div class="card" id="card-sim">
+    <div class="card-h"><div class="card-t"><svg><use href="#i-sliders"/></svg>Simulation<i class="ib" data-i="sim"></i></div>
+      <span class="card-sub" id="sim-day"></span></div>
+    <div class="ip" data-i="sim">Spielt den gew&auml;hlten Tag mit den Regeln der Automatik nach: Wann h&auml;tten die Ger&auml;te
+      mit diesen Puffern und Sperrzeiten geschaltet, und wie viel Einspeisung w&auml;re dadurch selbst genutzt worden?
+      Grundlage sind die 15-Minuten-Werte; der gemessene Verbrauch der Steckdosen wird herausgerechnet und durch die
+      eingestellte Leistung ersetzt. Das ist eine <b>Sch&auml;tzung</b> &ndash; Hysterese und Mindestzeiten unter
+      15&nbsp;Minuten fallen in einen Schritt. Die Werte unten &auml;ndern nur die Simulation, nicht die Einstellungen.</div>
+    <div class="g4">
+      <div class="field"><label>Einschalt-Puffer (W)</label><input type="number" id="sim-onm" min="0" max="30000"></div>
+      <div class="field"><label>Ausschalt-Puffer (W)</label><input type="number" id="sim-offm" min="0" max="30000"></div>
+      <div class="field"><label>Mindest-EIN (min)</label><input type="number" id="sim-mon" min="0" max="1440"></div>
+      <div class="field"><label>Mindest-AUS (min)</label><input type="number" id="sim-moff" min="0" max="1440"></div>
+    </div>
+    <button type="button" class="btn bscan" style="width:100%;margin-top:10px" onclick="runSim()"><svg><use href="#i-refresh"/></svg>Tag simulieren</button>
+    <div id="sim-res" aria-live="polite"></div>
+  </div>
+
   <div class="card" id="card-hm" style="display:none">
     <div class="card-h"><div class="card-t"><svg><use href="#i-sun"/></svg>Jahres&uuml;bersicht<i class="ib" data-i="hmap"></i></div>
       <div class="card-hr"><span class="card-sub" id="hm-info"></span>
@@ -238,8 +286,9 @@
     <div class="ip" data-i="hmap">Ein K&auml;stchen je Tag, eingef&auml;rbt nach dem <b>Tagesertrag</b> &ndash;
       je dunkler, desto mehr. So werden Jahreszeiten, Schlechtwetterphasen und ein schleichender
       Ertragsverlust auf einen Blick sichtbar. Gespeist wird sie aus dem Tagesarchiv auf dem Ger&auml;t;
-      &auml;ltere Jahre kommen &uuml;ber den <b>Solar-Log-Import</b> unter System &amp; Wartung dazu.</div>
-    <div class="hm-wrap"><canvas id="hm-chart"></canvas></div>
+      &auml;ltere Jahre kommen &uuml;ber den <b>Solar-Log-Import</b> unter Daten &amp; Sicherung dazu.
+      Ein Tipp auf einen Tag zeigt ihn oben im Tagesverlauf, sofern das Langzeit-Log diesen Tag enth&auml;lt.</div>
+    <div class="hm-wrap"><canvas id="hm-chart" role="img" aria-label="Jahres&uuml;bersicht: Tagesertrag je Tag. Ein Tipp auf einen Tag zeigt ihn im Diagramm oben."></canvas></div>
     <div class="hm-legend"><span>wenig</span><i id="hm-l0"></i><i id="hm-l1"></i><i id="hm-l2"></i><i id="hm-l3"></i><i id="hm-l4"></i><span>viel</span>
       <span style="margin-left:10px" id="hm-hover"></span></div>
   </div>
@@ -255,18 +304,19 @@
   <div class="subpage active" data-sub-page="list">
     <div class="card">
       <div class="card-h"><div class="card-t"><svg><use href="#i-plug"/></svg>Steckdosen<i class="ib" data-i="socks"></i></div></div>
-      <div class="ip" data-i="socks">Jede Kachel ist eine Shelly-Steckdose. <b>EIN/AUS</b> schaltet von Hand
-      &ndash; eine Handschaltung sperrt die Automatik f&uuml;r die eingestellte Mindest-EIN/AUS-Zeit,
-      damit sie nicht sofort dagegenh&auml;lt. Der Schalter <b>Automatik</b> gibt die Steckdose f&uuml;r die
-      &Uuml;berschuss-Steuerung frei. Ein Tipp auf den Namen &ouml;ffnet die Einstellungen des Ger&auml;ts
-      (Leistung, Priorit&auml;t, Zeitschaltuhr, Freigabefenster), die leere Kachel legt ein neues an.</div>
+      <div class="ip" data-i="socks">Jede Zeile ist eine Shelly-Steckdose mit ihrem Zustand und dem Grund daf&uuml;r.
+      Der Schalter <b>Auto</b> gibt sie f&uuml;r die &Uuml;berschuss-Steuerung frei. Ein Tipp auf die Zeile klappt
+      die Details auf: Messwerte, <b>EIN/AUS</b> von Hand (sperrt die Automatik f&uuml;r die Mindest-EIN/AUS-Zeit),
+      befristetes Schalten und die Einstellungen des Ger&auml;ts. Bis zu 16 Steckdosen sind m&ouml;glich.</div>
       <div class="shelly-grid" id="shelly-live"></div>
     </div>
     <div class="card">
       <div class="card-h"><div class="card-t"><svg><use href="#i-plug"/></svg>Externe Schalter (MQTT)<i class="ib" data-i="ext"></i></div></div>
       <div class="ip" data-i="ext">F&uuml;r Ger&auml;te ohne eigenes Netzwerk-API &ndash; z.B. ein
         Tuya-Bluetooth-Fingerbot &uuml;ber Home Assistant. Dieses Ger&auml;t ver&ouml;ffentlicht hier nur ein
-        MQTT-Kommando; eine Home-Assistant-Automation muss es an das eigentliche Ger&auml;t weiterreichen.</div>
+        MQTT-Kommando; eine Home-Assistant-Automation muss es an das eigentliche Ger&auml;t weiterreichen.
+        Mit einem <b>Status-Topic</b> pr&uuml;ft EnergyOptimizer, ob der Schalter den Befehl auch ausgef&uuml;hrt hat,
+        und meldet sonst eine St&ouml;rung. Bis zu 16 Schalter sind m&ouml;glich.</div>
       <div class="shelly-grid" id="ext-live"></div>
     </div>
   </div>
@@ -278,7 +328,7 @@
         <button type="button" class="icon-btn" onclick="fetchEvents()" title="Neu laden"><svg><use href="#i-refresh"/></svg></button>
       </div>
     </div>
-    <div class="ip" data-i="ev">Jede Schaltung mit Grund und dem &Uuml;berschuss, auf dem sie beruhte &ndash; dazu Ausf&auml;lle, Neustarts und SolarLog-St&ouml;rungen.
+    <div class="ip" data-i="ev">Jede Schaltung mit Grund und dem &Uuml;berschuss, auf dem sie beruhte &ndash; dazu Ausf&auml;lle, Neustarts und St&ouml;rungen der Datenquelle. Im Trockenlauf simulierte Schaltungen sind markiert.
       <b>CSV</b> l&auml;dt das ganze Protokoll (alle Ger&auml;te, &auml;lteste zuerst, mit Klartexten) zur Auswertung am Rechner herunter.
       Es fasst 1500 Eintr&auml;ge und &uuml;berschreibt danach die &auml;ltesten &ndash; f&uuml;r eine l&uuml;ckenlose Langzeit-Auswertung regelm&auml;ssig sichern.</div>
     <div class="ev-ctl">
@@ -303,19 +353,26 @@
   </div>
 </div>
 
-<div id="dev-ov">
+<div id="dev-ov" role="dialog" aria-modal="true" aria-labelledby="dov-ttl">
   <div class="ov-box dev-ov-box">
-    <div class="dev-ov-h"><h3 id="dov-ttl">Ger&auml;t</h3><button type="button" class="dev-rm" onclick="closeDevOv()" title="Schlie&szlig;en">&#10005;</button></div>
+    <div class="dev-ov-h"><h3 id="dov-ttl">Ger&auml;t</h3><button type="button" class="dev-rm" onclick="closeDevOv()" title="Schlie&szlig;en" aria-label="Schlie&szlig;en">&#10005;</button></div>
     <div id="dov-idline" class="hint" style="margin:0 0 4px"></div>
     <label>Name<i class="ib" id="dov-ext-ib" data-i="devext" style="display:none"></i></label><input type="text" id="dov-name" placeholder="z. B. Boiler">
     <div id="dov-ip-row"><label>IP-Adresse</label><input type="text" id="dov-ip" placeholder="192.168.1.50"></div>
     <div class="ip" data-i="devext">Schaltet kein echtes Ger&auml;t direkt,
       sondern ver&ouml;ffentlicht nur ein MQTT-Kommando (Topic <code>ext/&lt;n&gt;/set</code>) &ndash;
       eine Home-Assistant-Automation muss es weiterreichen.</div>
+    <div id="dov-st-row"><label>Status-Topic <small>(optional)</small><i class="ib" data-i="devst"></i></label><input type="text" id="dov-st" placeholder="z. B. stat/fingerbot/POWER" autocomplete="off" spellcheck="false">
+      <div class="ip" data-i="devst">Topic, auf dem das Ger&auml;t seinen <b>tats&auml;chlichen</b> Zustand meldet &ndash;
+        z.&nbsp;B. <code>stat/tasmota_xyz/POWER</code> oder ein Home-Assistant-Statestream. Erkannt werden
+        <code>ON/OFF</code>, <code>1/0</code>, <code>true/false</code> und JSON mit <code>state</code>, <code>POWER</code>
+        oder <code>output</code>. Best&auml;tigt der Schalter einen Befehl nicht innerhalb einer Minute, erscheint
+        eine St&ouml;rung auf dem Dashboard. Leer = keine Pr&uuml;fung.</div></div>
     <div class="g2">
       <div class="field"><label>Leistung (W)<i class="ib" data-i="devpw"></i></label><input type="number" id="dov-pw" min="1" max="10000"></div>
-      <div class="field"><label>Priorit&auml;t (1=h&ouml;chste)</label><input type="number" id="dov-pri" min="1" max="4"></div>
+      <div class="field"><label>Priorit&auml;t (1=h&ouml;chste)</label><input type="number" id="dov-pri" min="1" max="16"></div>
     </div>
+    <div class="learn" id="dov-learn" style="display:none"></div>
     <div class="ip" data-i="devpw">Mit diesen beiden Angaben plant die Automatik. Die <b>Leistung</b> ist
       der Verbrauch des angeschlossenen Ger&auml;ts &ndash; sie muss zusammen mit dem Einschalt-Puffer im
       &Uuml;berschuss Platz haben, sonst wird nicht eingeschaltet. Zu klein angesetzt, holt sich das
@@ -399,10 +456,10 @@
   <div class="set-idx">
     <div class="set-grp">Anlage</div>
     <div class="set-list">
-      <button type="button" class="set-row active" data-set="solarlog"><span class="set-ico"><svg><use href="#i-server"/></svg></span>
-        <span class="set-tx"><span class="set-t">SolarLog</span><span class="set-s">Verbindung, Datenfelder, Fail-Safe</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+      <button type="button" class="set-row active" data-set="src"><span class="set-ico"><svg><use href="#i-server"/></svg></span>
+        <span class="set-tx"><span class="set-t">Datenquelle</span><span class="set-s">Solar-Log, Fronius, Shelly, Modbus, MQTT &middot; Abfrage, Fail-Safe</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="ctrl"><span class="set-ico"><svg><use href="#i-sliders"/></svg></span>
-        <span class="set-tx"><span class="set-t">Steuerung</span><span class="set-s">Puffer, Hysterese, Sperrzeiten, Nachlauf</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <span class="set-tx"><span class="set-t">Steuerung</span><span class="set-s">Voreinstellung, Puffer, Trockenlauf, Nachlauf</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="prices"><span class="set-ico"><svg><use href="#i-coin"/></svg></span>
         <span class="set-tx"><span class="set-t">Strompreise</span><span class="set-s">Bezug, Einspeisung, Grundpreis</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
@@ -420,18 +477,13 @@
       <button type="button" class="set-row" data-set="net"><span class="set-ico"><svg><use href="#i-server"/></svg></span>
         <span class="set-tx"><span class="set-t">Netzwerk</span><span class="set-s">Name im Netzwerk, Adresse</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="sec"><span class="set-ico"><svg><use href="#i-shield"/></svg></span>
-        <span class="set-tx"><span class="set-t">Sicherheit</span><span class="set-s">Web-Passwort, Abmelden</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <span class="set-tx"><span class="set-t">Sicherheit</span><span class="set-s">Web-Passwort, angemeldete Ger&auml;te</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="data"><span class="set-ico"><svg><use href="#i-save"/></svg></span>
         <span class="set-tx"><span class="set-t">Daten &amp; Sicherung</span><span class="set-s">Konfiguration, Langzeit-Verlauf, Import</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="sys"><span class="set-ico"><svg><use href="#i-tool"/></svg></span>
         <span class="set-tx"><span class="set-t">Diagnose</span><span class="set-s">Systemzustand, Selbsttest, Neustart</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="about"><span class="set-ico"><svg><use href="#i-refresh"/></svg></span>
         <span class="set-tx"><span class="set-t">Update &amp; Info</span><span class="set-s">Version, Updates, Projekt</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
-    </div>
-    <div class="set-grp">Weiterentwicklung</div>
-    <div class="set-list">
-      <button type="button" class="set-row" data-set="ideas"><span class="set-ico"><svg><use href="#i-bulb"/></svg></span>
-        <span class="set-tx"><span class="set-t">Verbesserungen</span><span class="set-s">Ideen notieren, priorisieren, exportieren</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
   </div>
 
@@ -443,6 +495,23 @@
       <div class="card">
         <div class="trow" style="margin-top:0"><label class="tgl"><input type="checkbox" name="auto_en" id="f-auto-en"><span class="sl"></span></label><span class="auto-lbl">Automatik aktiv<i class="ib" data-i="auto-en"></i></span></div>
         <div class="ip" data-i="auto-en">Hauptschalter für die ganze Steuerung. Aus lässt alle Steckdosen, wie sie gerade sind: kein Einschalten bei Überschuss, kein Abschalten bei Defizit, kein Nachlauf. Handbefehle und Wochenprogramme funktionieren weiter. In Home Assistant heisst dieser Schalter <b>Optimizer</b>.</div>
+        <div class="trow"><label class="tgl"><input type="checkbox" name="dry_run" id="f-dry-run"><span class="sl"></span></label><span class="auto-lbl">Trockenlauf (nichts schalten)<i class="ib" data-i="dry"></i></span></div>
+        <div class="ip" data-i="dry">Die Automatik entscheidet wie gewohnt, <b>sendet aber keine Schaltbefehle</b>.
+          Was sie geschaltet h&auml;tte, steht im Protokoll (markiert als &bdquo;Trockenlauf&ldquo;) und auf den
+          Ger&auml;ten als &bdquo;simuliert&ldquo;. Den &Uuml;berschuss rechnet sie dabei so, als w&auml;ren die simulierten
+          Ger&auml;te wirklich gelaufen. So lassen sich neue Puffer oder Priorit&auml;ten gefahrlos ausprobieren.
+          Handbefehle schalten weiterhin wirklich.</div>
+        <div class="subhead" style="margin-top:14px">
+          <div class="subhead-t"><svg><use href="#i-sliders"/></svg>Voreinstellung<i class="ib" data-i="preset"></i></div>
+          <div class="ip" data-i="preset">Setzt Puffer, Hysterese und Sperrzeiten auf eine erprobte Kombination.
+            <b>Vorsichtig</b> zieht kaum je Strom aus dem Netz, nutzt daf&uuml;r weniger Sonne;
+            <b>Aggressiv</b> nutzt jede Wolkenl&uuml;cke, schaltet aber &ouml;fter. Die Werte lassen sich danach
+            einzeln anpassen &ndash; sie werden erst mit <b>Speichern</b> &uuml;bernommen.</div>
+          <div class="subnav inline preset" id="presets" role="group" aria-label="Voreinstellung">
+            <button type="button" data-p="safe">Vorsichtig</button><button type="button" data-p="bal">Ausgewogen</button><button type="button" data-p="agg">Aggressiv</button>
+          </div>
+          <div class="hint" id="preset-hint"></div>
+        </div>
         <div class="g2">
           <div class="field"><label>Einschalt-Puffer (W)<i class="ib" data-i="marg"></i></label><input type="number" name="on_margin" id="f-onm" min="0" max="30000"></div>
           <div class="field"><label>Ausschalt-Puffer (W)</label><input type="number" name="off_margin" id="f-offm" min="0" max="30000"></div>
@@ -453,9 +522,12 @@
           sobald das Defizit den <b>Ausschalt-Puffer</b> &uuml;berschreitet. Der Ausschalt-Puffer sollte
           gr&ouml;sser sein als der Einschalt-Puffer, sonst pendelt die Anlage. Gr&ouml;ssere Werte =
           vorsichtiger, aber weniger genutzte Sonne.</div>
+        <details class="coll sub">
+          <summary><span class="coll-t"><svg><use href="#i-tool"/></svg>Erweitert: Hysterese und Sperrzeiten</span><svg class="chev"><use href="#i-chev"/></svg></summary>
+          <div class="det-body">
         <div class="g2">
-          <div class="field"><label>Hysterese EIN (s)<i class="ib" data-i="hyst"></i></label><input type="number" name="hyst_on_s" id="f-hon" min="0" max="3600" step="10"></div>
-          <div class="field"><label>Hysterese AUS (s)</label><input type="number" name="hyst_off_s" id="f-hoff" min="0" max="3600" step="10"></div>
+          <div class="field"><label>Hysterese EIN (s)<i class="ib" data-i="hyst"></i></label><input type="number" name="hyst_on_s" id="f-hon" min="0" max="3600" step="5"></div>
+          <div class="field"><label>Hysterese AUS (s)</label><input type="number" name="hyst_off_s" id="f-hoff" min="0" max="3600" step="5"></div>
         </div>
         <div class="ip" data-i="hyst" id="hyst-hint"></div>
         <div class="g2">
@@ -467,6 +539,8 @@
           Verdichter vor Takten an einem b&ouml;igen Wolkentag und sorgt daf&uuml;r, dass eine
           Handschaltung eine Weile stehen bleibt. Zu gross gew&auml;hlt, verpasst die Anlage kurze
           Sonnenfenster.</div>
+          </div>
+        </details>
         <div class="subhead">
           <div class="subhead-t"><svg><use href="#i-batt"/></svg>Batterie-Vorrang<i class="ib" data-i="battp"></i></div>
           <div class="ip" data-i="battp">Entl&auml;dt sich der Speicher st&auml;rker als dieser Wert, deckt er gerade
@@ -491,30 +565,116 @@
       </div>
     </div>
 
-    <div class="pane active" data-pane="solarlog">
-      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">SolarLog</div></div>
+    <div class="pane active" data-pane="src">
+      <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Datenquelle</div></div>
       <div class="card">
-        <label>IP-Adresse<i class="ib" data-i="slip"></i></label><input type="text" name="sl_ip" id="f-sl-ip">
-        <div class="ip" data-i="slip">Die Adresse des SolarLog im eigenen Netz &ndash; er ist die einzige
-          Datenquelle f&uuml;r Produktion und Verbrauch. Am besten im Router eine feste IP vergeben,
-          sonst zeigt das Ger&auml;t nach einem DHCP-Wechsel ins Leere. Ob die Verbindung steht, verr&auml;t
-          das Alter der letzten Abfrage oben im Dashboard.</div>
-        <div class="g2"><div class="field"><label>Port</label><input type="number" name="sl_port" id="f-sl-port" min="1" max="65535"></div><div class="field"><label>Abfrage-Intervall (min)<i class="ib" data-i="slpoll"></i></label><input type="number" name="sl_poll_min" id="f-sl-poll" min="1" max="240"></div></div>
-        <div class="g2"><div class="field"><label>Anzeige-Gl&auml;ttung (s)</label><input type="number" name="sl_avg_s" id="f-sl-avg" min="0" max="1800" step="30"></div><div></div></div>
-        <div class="ip" data-i="slpoll">Der SolarLog liefert <b>Momentanwerte</b> &ndash; eine einzelne Sekunde, die dann bis zur
-          n&auml;chsten Abfrage im Dashboard steht. Ein <b>langes</b> Intervall beruhigt die Anzeige deshalb nicht,
-          es macht die Spr&uuml;nge gr&ouml;sser und h&auml;ngt zudem die Regelung aus: die Bewertung l&auml;uft nur
-          nach einer Abfrage. Empfohlen ist <b>1 min Intervall</b> und eine Gl&auml;ttung von <b>300 s</b> &ndash;
-          Kacheln und Verlauf zeigen dann den gleitenden Mittelwert (mit &empty; gekennzeichnet).
-          <b>0 = aus.</b> Geschaltet, per MQTT gemeldet und gez&auml;hlt wird unver&auml;ndert mit dem Rohwert.</div>
-        <label>Benutzername <small>(optional)</small></label><input type="text" name="sl_user" id="f-sl-user" autocomplete="off">
-        <label>Passwort <small>(leer = unver&auml;ndert)</small></label><input type="password" name="sl_pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="new-password">
+        <label for="f-src">Woher kommen Produktion und Verbrauch?<i class="ib" data-i="src"></i></label>
+        <select name="src" id="f-src" onchange="srcShow()">
+          <option value="solarlog">Solar-Log</option>
+          <option value="fronius">Fronius (Solar API, mit Smart Meter)</option>
+          <option value="shelly_em">Shelly-Energiez&auml;hler (Pro 3EM, Pro EM, 3EM)</option>
+          <option value="modbus">Modbus TCP (SMA, Huawei, eigene Register)</option>
+          <option value="mqtt">MQTT (Werte aus beliebigen Topics)</option>
+        </select>
+        <div class="ip" data-i="src">Die Steuerung braucht zwei Gr&ouml;ssen: was die Anlage <b>produziert</b> und was das Haus
+          <b>verbraucht</b> &ndash; oder direkt, was am Netzanschluss <b>eingespeist</b> wird. Jede dieser Quellen
+          liefert das; ein Batteriespeicher wird erkannt, wenn die Quelle ihn meldet.
+          <b>Solar-Log</b> bringt zus&auml;tzlich eigene Tagesz&auml;hler und die Wechselrichter-&Uuml;berwachung mit.
+          Ein <b>Shelly-Z&auml;hler</b> am Hausanschluss gen&uuml;gt f&uuml;r die Regelung allein; mit einem zweiten
+          Shelly an der PV-Leitung erscheint auch die Produktion. <b>Modbus</b> ist f&uuml;r SMA- und Huawei-Wechselrichter
+          vorbelegt und experimentell &ndash; bitte mit &bdquo;Verbindung testen&ldquo; pr&uuml;fen.</div>
+
+        <div class="src-sec" data-src="solarlog">
+          <label>IP-Adresse oder Hostname<i class="ib" data-i="slip"></i></label><input type="text" name="sl_ip" id="f-sl-ip">
+          <div class="ip" data-i="slip">Die Adresse des Solar-Log im eigenen Netz. Am besten im Router eine feste IP vergeben,
+            sonst zeigt das Ger&auml;t nach einem DHCP-Wechsel ins Leere. Ob die Verbindung steht, verr&auml;t
+            das Alter der letzten Abfrage oben im Dashboard.</div>
+          <div class="g2"><div class="field"><label>Port</label><input type="number" name="sl_port" id="f-sl-port" min="1" max="65535"></div><div></div></div>
+          <label>Benutzername <small>(optional)</small></label><input type="text" name="sl_user" id="f-sl-user" autocomplete="off">
+          <label>Passwort <small>(leer = unver&auml;ndert)</small></label><input type="password" name="sl_pass" id="f-sl-pass" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="new-password">
+        </div>
+
+        <div class="src-sec" data-src="fronius shelly_em modbus">
+          <div class="g2">
+            <div class="field"><label><span class="src-lbl" data-src="fronius">Adresse des Wechselrichters</span><span class="src-lbl" data-src="shelly_em">Adresse des Z&auml;hlers am Hausanschluss</span><span class="src-lbl" data-src="modbus">Adresse (Wechselrichter oder Dongle)</span></label><input type="text" name="src_host" id="f-src-host" placeholder="192.168.1.30" autocomplete="off" spellcheck="false"></div>
+            <div class="field"><label>Port <small>leer = Standard</small></label><input type="number" name="src_port" id="f-src-port" min="0" max="65535" placeholder="80"></div>
+          </div>
+        </div>
+        <div class="src-sec" data-src="shelly_em">
+          <label>PV-Z&auml;hler <small>(optional, ein zweiter Shelly an der PV-Leitung)</small><i class="ib" data-i="empv"></i></label><input type="text" name="em_pv_ip" id="f-em-pv" placeholder="leer = keine Produktionsmessung" autocomplete="off" spellcheck="false">
+          <div class="ip" data-i="empv">Ohne PV-Z&auml;hler regelt EnergyOptimizer allein nach der Einspeisung am
+            Hausanschluss &ndash; das reicht f&uuml;r die Steuerung. Produktion und Verbrauch lassen sich dann aber
+            nicht getrennt anzeigen. Mit einem Shelly (Plus/Pro PM, PM Mini, EM) an der Leitung des
+            Wechselrichters erscheinen beide Werte.</div>
+        </div>
+        <div class="src-sec" data-src="modbus">
+          <div class="g2">
+            <div class="field"><label>Hersteller</label><select name="mb_preset" id="f-mb-preset" onchange="mbPreset()">
+              <option value="sma">SMA (Sunny Tripower/Boy, Home Manager)</option>
+              <option value="huawei">Huawei SUN2000 (mit Power Meter)</option>
+              <option value="custom">Eigene Register</option></select></div>
+            <div class="field"><label>Unit-ID<i class="ib" data-i="mbunit"></i></label><input type="number" name="mb_unit" id="f-mb-unit" min="0" max="255"></div>
+          </div>
+          <div class="ip" data-i="mbunit">Modbus-Ger&auml;teadresse: SMA meist <b>3</b>, Huawei <b>1</b> (am SDongle teils <b>0</b>).
+            Bei SMA muss Modbus im Wechselrichter freigeschaltet sein; Netzwerte gibt es nur mit Sunny Home Manager
+            oder Energy Meter. Huawei liefert Netzwerte nur mit angeschlossenem Power Meter.</div>
+          <div class="mb-custom">
+            <div class="g2">
+              <div class="field"><label>Produktion</label><input type="text" name="mb_prod" id="f-mb-prod" placeholder="30775:s32:1" spellcheck="false"></div>
+              <div class="field"><label>Netz (+ Bezug)</label><input type="text" name="mb_grid" id="f-mb-grid" placeholder="37113:s32:-1" spellcheck="false"></div>
+            </div>
+            <div class="g2">
+              <div class="field"><label>Batterie (+ Laden)</label><input type="text" name="mb_batt" id="f-mb-batt" placeholder="leer = keine" spellcheck="false"></div>
+              <div class="field"><label>Ladezustand (%)</label><input type="text" name="mb_soc" id="f-mb-soc" placeholder="37760:u16:0.1" spellcheck="false"></div>
+            </div>
+            <div class="hint">Format <code>Adresse:Typ:Faktor</code>, Typ <code>u16</code>, <code>s16</code>, <code>u32</code> oder <code>s32</code>.
+              Gelesen wird mit Funktion 3 (Holding Register). Ein negativer Faktor dreht das Vorzeichen.</div>
+          </div>
+        </div>
+        <div class="src-sec" data-src="mqtt">
+          <div class="hint" style="margin:8px 0">Werte kommen &uuml;ber den Broker unter <b>MQTT / Home Assistant</b>, der dort
+            aktiviert sein muss. Format <code>topic</code>, <code>topic#json.pfad</code> und optional <code>*Faktor</code>,
+            z.&nbsp;B. <code>tele/zaehler/SENSOR#ENERGY.Power</code> oder <code>pv/leistung*1000</code>.
+            N&ouml;tig sind Netz <b>oder</b> Produktion und Verbrauch.</div>
+          <div class="g2">
+            <div class="field"><label>Produktion (W)</label><input type="text" name="mqs_prod" id="f-mqs-prod" spellcheck="false"></div>
+            <div class="field"><label>Verbrauch (W)</label><input type="text" name="mqs_cons" id="f-mqs-cons" spellcheck="false"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Netz (W, + Bezug)</label><input type="text" name="mqs_grid" id="f-mqs-grid" spellcheck="false"></div>
+            <div class="field"><label>Batterie (W, + Laden)</label><input type="text" name="mqs_batt" id="f-mqs-batt" spellcheck="false"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Ladezustand (%)</label><input type="text" name="mqs_soc" id="f-mqs-soc" spellcheck="false"></div><div></div>
+          </div>
+        </div>
+        <button type="button" class="btn bscan" style="width:100%;margin-top:12px" onclick="srcTest()"><svg><use href="#i-check"/></svg>Verbindung testen</button>
+        <div class="hint" id="src-test" style="margin-top:6px" aria-live="polite"></div>
       </div>
+
       <div class="card">
-        <div class="card-h"><div class="card-t"><svg><use href="#i-bolt"/></svg>Ben&ouml;tigte Datenfelder (Block 801/170)<i class="ib" data-i="slf"></i></div></div>
-        <div class="ip" data-i="slf">Feldnummern der SolarLog-JSON-Antwort. Standard: Produktion&nbsp;101 (Pac),
+        <div class="card-h"><div class="card-t"><svg><use href="#i-clock"/></svg>Abfrage<i class="ib" data-i="slpoll"></i></div></div>
+        <div class="g2">
+          <div class="field"><label>Datenquelle alle (s)</label><input type="number" name="src_poll_s" id="f-src-poll" min="5" max="3600" step="5"></div>
+          <div class="field"><label>Steckdosen alle (s)</label><input type="number" name="sh_poll_s" id="f-sh-poll" min="5" max="600" step="5"></div>
+        </div>
+        <div class="g2"><div class="field"><label>Anzeige-Gl&auml;ttung (s)</label><input type="number" name="sl_avg_s" id="f-sl-avg" min="0" max="1800" step="30"></div><div></div></div>
+        <div class="ip" data-i="slpoll">Wie oft Messwerte geholt werden. Die Regelung bewertet nach <b>jeder</b> Abfrage der
+          Datenquelle &ndash; ein k&uuml;rzeres Intervall heisst schnellere Reaktion auf Wolken. Die Hysterese bleibt als
+          Dauer eingestellt und wird in die passende Zahl Messungen umgerechnet. Empfohlen sind <b>15&ndash;30 s</b>;
+          ein Solar-Log aktualisiert selbst etwa alle 15&nbsp;s, ein Shelly-Z&auml;hler jede Sekunde. Die Steckdosen werden
+          getrennt abgefragt (Messwerte, Erreichbarkeit). Die <b>Anzeige-Gl&auml;ttung</b> zeigt in Kacheln und Verlauf
+          den gleitenden Mittelwert (mit &empty; gekennzeichnet); geschaltet wird mit dem Rohwert. <b>0 = aus.</b></div>
+      </div>
+
+      <div class="card src-sec" data-src="solarlog">
+        <details class="coll">
+          <summary><span class="coll-t"><svg><use href="#i-tool"/></svg>Erweitert: Solar-Log-Datenfelder</span><svg class="chev"><use href="#i-chev"/></svg></summary>
+          <div class="det-body">
+        <div class="ip open-static">Feldnummern der Solar-Log-JSON-Antwort (Block 801/170). Standard: Produktion&nbsp;101 (Pac),
           Verbrauch&nbsp;110 (conspac). Je nach Modell und Firmware liegen die Werte woanders &ndash; welche
-          Nummern deine Anlage tats&auml;chlich liefert, zeigt weiter unten die <b>Diagnose (Rohantwort)</b>.</div>
+          Nummern deine Anlage tats&auml;chlich liefert, zeigt unten die <b>Diagnose (Rohantwort)</b>.
+          Im Normalfall musst du hier nichts &auml;ndern.</div>
         <div class="g2">
           <div class="field"><label>Produktion (W)</label><input type="text" name="sl_fprod" id="f-sl-fprod" inputmode="numeric" placeholder="101"></div>
           <div class="field"><label>Verbrauch (W)</label><input type="text" name="sl_fcons" id="f-sl-fcons" inputmode="numeric" placeholder="110"></div>
@@ -536,9 +696,7 @@
             <div class="field"><label>Gesamt-Verbrauch</label><input type="text" name="sl_fctot" id="f-sl-fctot" inputmode="numeric" placeholder="115"></div>
           </div>
         </div>
-        <details class="coll sub">
-          <summary><span class="coll-t"><svg><use href="#i-batt"/></svg>Weitere Datenfelder (optional)</span><svg class="chev"><use href="#i-chev"/></svg></summary>
-          <div class="det-body">
+        <div class="subhead">
             <div class="subhead-t"><svg><use href="#i-batt"/></svg>Batteriespeicher<i class="ib" data-i="slbatt"></i></div>
             <div class="ip" data-i="slbatt">Leer = keine Batterie. Leistung: positiv = Laden, negativ = Entladen.
               Erst mit diesen beiden Feldern erscheint die Batterie im Energiefluss und auf der
@@ -547,13 +705,14 @@
               <div class="field"><label>Feld Ladezustand (%)</label><input type="text" name="sl_fsoc" id="f-sl-fsoc" inputmode="numeric" placeholder="z.B. 103"></div>
               <div class="field"><label>Feld Leistung (W)</label><input type="text" name="sl_fbatt" id="f-sl-fbatt" inputmode="numeric" placeholder="z.B. 104"></div>
             </div>
+        </div>
           </div>
         </details>
       </div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-power"/></svg>Fail-Safe<i class="ib" data-i="slfs"></i></div></div>
-        <div class="ip" data-i="slfs">Schaltet alle Automatik-Ger&auml;te ab, wenn SolarLog so lange nicht
-          erreichbar war. Ohne frische Messwerte w&uuml;sste die Automatik sonst nicht, ob noch
+        <div class="ip" data-i="slfs">Schaltet alle Automatik-Ger&auml;te ab, wenn die Datenquelle so lange keine Werte geliefert hat.
+          Ohne frische Messwerte w&uuml;sste die Automatik sonst nicht, ob noch
           &Uuml;berschuss da ist, und liesse einen Boiler notfalls tagelang auf Netzstrom laufen.
           Betroffen sind nur Ger&auml;te mit <b>Automatik-Steuerung</b>; laufende Zeitschaltuhr-Programme
           und der Schlechtwetter-Nachlauf bleiben unber&uuml;hrt. <b>0 = Funktion aus.</b></div>
@@ -561,17 +720,19 @@
       </div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-search"/></svg>Diagnose (Rohantwort)<i class="ib" data-i="slraw"></i></div></div>
-        <div class="ip" data-i="slraw">Zeigt, was der SolarLog tats&auml;chlich liefert. Feldnummern und Objektformate
-          unterscheiden sich je nach Modell und Firmware &ndash; hier l&auml;sst sich pr&uuml;fen, ob die oben
+        <div class="ip" data-i="slraw">Zeigt, was die Datenquelle tats&auml;chlich liefert. Beim Solar-Log unterscheiden sich
+          Feldnummern und Objektformate je nach Modell und Firmware &ndash; hier l&auml;sst sich pr&uuml;fen, ob die
           eingetragenen Nummern zur Antwort passen, statt zu raten.</div>
         <button type="button" class="btn bscan" style="width:100%" onclick="loadRaw()"><svg><use href="#i-refresh"/></svg>Rohantwort abrufen</button>
         <div id="raw-devs"></div>
-        <div class="subhead-t" style="margin-top:12px">Letzte Leistungsabfrage (801/170 + 858)</div>
+        <div class="subhead-t" style="margin-top:12px" id="raw-main-t">Letzte Leistungsabfrage</div>
         <div class="rawbox" id="raw-main">&ndash;</div>
+        <div class="src-sec" data-src="solarlog">
         <div class="subhead-t" style="margin-top:12px">Letzte Ger&auml;teabfrage (740/608/782)<i class="ib" data-i="slrawdev"></i></div>
         <div class="ip" data-i="slrawdev">Die Ger&auml;teabfrage l&auml;uft nur, wenn unter
           &bdquo;&Uuml;berwachung&ldquo; die Wechselrichter-&Uuml;berwachung aktiv ist.</div>
         <div class="rawbox" id="raw-dev">&ndash;</div>
+        </div>
       </div>
     </div>
 
@@ -597,7 +758,7 @@
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">&Uuml;berwachung</div></div>
       <div class="card">
         <div class="g2">
-          <div class="field"><label>SolarLog ohne Antwort (min)<i class="ib" data-i="mo"></i></label><input type="number" name="mo_sl" id="f-mo-sl" min="0" max="1440"></div>
+          <div class="field"><label>Datenquelle ohne Antwort (min)<i class="ib" data-i="mo"></i></label><input type="number" name="mo_sl" id="f-mo-sl" min="0" max="1440"></div>
           <div class="field"><label>Steckdose offline (min)</label><input type="number" name="mo_dev" id="f-mo-dev" min="0" max="1440"></div>
         </div>
         <div class="g2">
@@ -619,7 +780,7 @@
         </div>
         <div class="subhead">
           <div class="subhead-t"><svg><use href="#i-chip"/></svg>Wechselrichter-&Uuml;berwachung<i class="ib" data-i="inv"></i></div>
-          <div class="ip" data-i="inv">Fragt zus&auml;tzlich alle 15&nbsp;min die SolarLog-Objekte <b>740/608/782</b> ab (Ger&auml;teliste,
+          <div class="ip" data-i="inv">Nur mit Solar-Log: fragt zus&auml;tzlich alle 15&nbsp;min die Objekte <b>740/608/782</b> ab (Ger&auml;teliste,
             Status und Leistung je Wechselrichter). Erkennt bei mehreren Wechselrichtern auch den Ausfall
             eines <b>einzelnen</b> Ger&auml;ts &ndash; genau der Fall, der sonst monatelang unbemerkt bleibt.</div>
           <div class="trow"><label class="tgl"><input type="checkbox" name="sl_dev" id="f-sl-dev"><span class="sl"></span></label><span class="auto-lbl">Ger&auml;teabfrage aktiv</span></div>
@@ -698,6 +859,14 @@
           ausf&uuml;hren und dort das neue Passwort eingeben.</div>
         <button type="button" class="btn boff" style="width:100%;margin-top:12px" onclick="doLogout()"><svg><use href="#i-power"/></svg>Abmelden</button>
       </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t"><svg><use href="#i-shield"/></svg>Angemeldete Ger&auml;te<i class="ib" data-i="sess"></i></div></div>
+        <div class="ip" data-i="sess">Jede Anmeldung bekommt ein eigenes Zugangs-Token, das ein Jahr lang g&uuml;ltig bleibt.
+          Ein verlorenes Handy oder ein fremder Browser l&auml;sst sich hier einzeln abmelden. Nach einer
+          Passwort&auml;nderung werden alle anderen Ger&auml;te automatisch abgemeldet.</div>
+        <div id="sess-list"><div class="empty">L&auml;dt&hellip;</div></div>
+        <button type="button" class="btn boff" style="width:100%;margin-top:10px" onclick="sessRevokeAll()">Alle anderen Ger&auml;te abmelden</button>
+      </div>
     </div>
 
     <div class="pane" data-pane="sys">
@@ -734,7 +903,7 @@
       </div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-check"/></svg>Selbsttest<i class="ib" data-i="st"></i></div></div>
-        <div class="ip" data-i="st">Pr&uuml;ft Netzwerk, Uhrzeit, SolarLog, jede Steckdose, Dateisystem, MQTT und die
+        <div class="ip" data-i="st">Pr&uuml;ft Netzwerk, Uhrzeit, Datenquelle, jede Steckdose, Dateisystem, MQTT und die
           Alarmierung in einem Durchlauf. Dauert einige Sekunden, weil dabei wirklich abgefragt wird &ndash;
           nicht nur der zuletzt bekannte Zustand angezeigt.</div>
         <button type="button" class="btn bscan" style="width:100%" onclick="runSelftest()"><svg><use href="#i-check"/></svg>Selbsttest starten</button>
@@ -767,7 +936,8 @@
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-chart"/></svg>Langzeit-Verlauf (CSV)<i class="ib" data-i="dl"></i></div></div>
         <div class="ip" data-i="dl">Jede 15-Minuten-Messung wird zus&auml;tzlich unbegrenzt (kein Tages-Reset) als CSV auf dem Ger&auml;t gespeichert &ndash;
-          Leistungen in W und je Steckdose der Schaltzustand (<code>sh0_on</code>&hellip;, leer = unbekannt).
+          Leistungen in W, Batterie und Ladezustand, je Steckdose die Leistung und der Schaltzustand
+          (<code>sh0_on</code>&hellip;: 0 = aus, 1 = ein, 2 = ein und Ger&auml;t l&auml;uft). Jeder Tag daraus l&auml;sst sich im Verlauf aufrufen.
           Vor dem L&ouml;schen unbedingt exportieren, um die Daten zu sichern.</div>
         <div class="hint" id="dl-stats">L&auml;dt&hellip;</div>
         <div class="hint" id="dl-warn" style="display:none;color:var(--orange);margin-top:6px"></div>
@@ -808,7 +978,7 @@
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-bulb"/></svg>&Uuml;ber EnergyOptimizer</div></div>
         <div class="hint" style="line-height:1.55">Schaltet Verbraucher automatisch mit dem Solar&uuml;berschuss &ndash;
-          f&uuml;r Solar-Log-Anlagen mit Shelly-Steckdosen und MQTT-Schaltern.</div>
+          mit Shelly-Steckdosen und MQTT-Schaltern, Messwerte vom Solar-Log, von Fronius, Shelly-Z&auml;hlern, Modbus oder MQTT.</div>
         <div class="stat-grid" style="margin-top:12px;grid-template-columns:repeat(2,1fr)">
           <div class="stat"><small>Version</small><span class="val tnum" id="about-ver" style="font-size:1rem">--</span></div>
           <div class="stat"><small>Build</small><span class="val tnum" id="about-build" style="font-size:1rem">--</span></div>
@@ -822,69 +992,6 @@
     </div>
   </form>
 
-  <!-- Bewusst AUSSERHALB von #sf: die Notizen werden einzeln sofort gespeichert
-       und haetten in der Sammel-Speicherleiste ("Nicht gespeicherte Aenderungen")
-       nichts zu suchen. Deshalb auch keine name-Attribute in dieser Pane. -->
-  <div class="pane" data-pane="ideas">
-    <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Verbesserungen</div></div>
-    <div class="card">
-      <div class="card-h"><div class="card-t"><svg><use href="#i-bulb"/></svg>Ideen &amp; offene Punkte<i class="ib" data-i="idea"></i></div></div>
-      <div class="ip" data-i="idea">Was im Betrieb auff&auml;llt, hier notieren &ndash; die Liste bleibt &uuml;ber Neustarts und
-        Updates erhalten und l&auml;sst sich als Markdown-Datei herunterladen, etwa als Vorlage f&uuml;r ein
-        GitHub-Issue. Jede Notiz wird beim Speichern sofort
-        &uuml;bernommen (nicht &uuml;ber die Speicherleiste unten).</div>
-      <button type="button" class="btn bscan" style="width:100%" onclick="ideaNew()"><svg><use href="#i-plus"/></svg>Neue Verbesserung</button>
-      <div class="msg msg-err" id="idea-msg"></div>
-
-      <div id="idea-ed">
-        <label>Titel</label>
-        <input type="text" id="idea-title" maxlength="89" oninput="ideaLeft()" placeholder="Kurz und konkret, z.B. &bdquo;Tagesertrag als Stundenbalken&ldquo;">
-        <div class="g2" style="margin-top:10px">
-          <div class="field"><label>Bereich</label>
-            <select id="idea-area">
-              <option value="0">Allgemein</option>
-              <option value="1">Dashboard</option>
-              <option value="2">Verlauf &amp; Statistik</option>
-              <option value="3">Ger&auml;te &amp; Steuerung</option>
-              <option value="4">Meldungen &amp; Alarme</option>
-              <option value="5">MQTT / Home Assistant</option>
-              <option value="6">System &amp; Wartung</option>
-              <option value="7">Bedienung / Web-Oberfl&auml;che</option>
-            </select>
-          </div>
-          <div class="field"><label>Priorit&auml;t</label>
-            <select id="idea-prio">
-              <option value="2">hoch</option>
-              <option value="1" selected>normal</option>
-              <option value="0">niedrig</option>
-            </select>
-          </div>
-        </div>
-        <label>Status</label>
-        <select id="idea-status">
-          <option value="0">offen</option>
-          <option value="1">eingeplant</option>
-          <option value="2">umgesetzt</option>
-          <option value="3">verworfen</option>
-        </select>
-        <label>Beschreibung</label>
-        <textarea id="idea-text" maxlength="699" oninput="ideaLeft()" placeholder="Was genau soll anders sein &ndash; und warum? Je konkreter, desto direkter l&auml;sst es sich umsetzen."></textarea>
-        <div class="idea-count" id="idea-left"></div>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button type="button" class="btn bsave" style="width:auto;flex:1;margin-top:0;padding:11px" onclick="ideaSave()"><svg><use href="#i-save"/></svg>Speichern</button>
-          <button type="button" class="btn boff" style="padding:11px 16px" onclick="ideaCancel()">Abbrechen</button>
-        </div>
-      </div>
-
-      <div id="idea-list" style="margin-top:12px"><div class="empty">L&auml;dt&hellip;</div></div>
-    </div>
-    <div class="card">
-      <div class="card-h"><div class="card-t"><svg><use href="#i-save"/></svg>F&uuml;r die Umsetzung abholen<i class="ib" data-i="ideaex"></i></div></div>
-      <div class="ip" data-i="ideaex">Die Liste als Markdown-Datei, bereit zum Einf&uuml;gen in ein Issue oder eine Notiz. Ohne Download geht es auch direkt &uuml;ber
-        <code>/api/ideas</code> (JSON) bzw. <code>/api/ideas/export</code> (Markdown).</div>
-      <button type="button" class="btn bscan" style="width:100%" onclick="ideaExport()"><svg><use href="#i-save"/></svg>Als Markdown herunterladen</button>
-    </div>
-  </div>
   </div>
   <div class="msg msg-err" id="msg-err" style="grid-column:1/-1"></div>
 </div>
@@ -955,7 +1062,6 @@
 <script src="/static/js/config.js?v={{V}}"></script>
 <script src="/static/js/system.js?v={{V}}"></script>
 <script src="/static/js/events.js?v={{V}}"></script>
-<script src="/static/js/ideas.js?v={{V}}"></script>
 <script src="/static/js/demo.js?v={{V}}"></script>
 <script src="/static/js/kiosk.js?v={{V}}"></script>
 <script src="/static/js/main.js?v={{V}}"></script>

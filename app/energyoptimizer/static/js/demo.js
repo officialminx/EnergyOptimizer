@@ -36,8 +36,19 @@ function demoStatus(){
       ov:DM.ov[i]>0?DM.ov[i]--:0,ova:true,win:i!==2,
       e_day:+(DM.pw[i]*hrs*.4/1000).toFixed(2),e_tot:+(DM.pw[i]*hrs*.4/1000+12.5*(i+1)).toFixed(2),
       pv_day:+(DM.pw[i]*hrs*.3/1000).toFixed(2),pv_tot:+(DM.pw[i]*hrs*.3/1000+9.1*(i+1)).toFixed(2),
-      on_day:Math.round(t%28800),on_tot:432000+i*86400,sw:184+i*37});
+      on_day:Math.round(t%28800),on_tot:432000+i*86400,sw:184+i*37,
+      real:on,virt:false,learned:[1840,0,0,620][i]});
+    var sh=shelly[i];
+    sh.st=sh.ov?'manual':!sh.auto?'disabled':sh.on?(sh.forced?'catchup':'surplus'):'waiting';
+    sh.why=!reach?{c:'offline'}:sh.forced?{c:'catchup',m:sh.rt_on,q:sh.rt_min}
+      :!sh.auto?{c:'auto_off',on:on}:on?{c:'running',s:1800+i*600}
+      :!sh.win?{c:'window',h:DM.ws[i]}:sh.ot>0?{c:'switching_on',n:Math.max(1,6-sh.ot)}
+      :{c:'waiting',need:DM.pw[i]+150,miss:Math.max(0,DM.pw[i]+150-Math.max(0,prod-cons))};
   }
+  var ext=[{idx:0,name:T('Fingerbot Küche'),pw:600,pri:1,auto:true,on:false,rt_min:0,rt_on:0,forced:false,
+    mx_min:0,cap:false,ot:0,ft:0,ov:0,ova:false,win:true,real:false,virt:false,st:'waiting',
+    why:{c:'waiting',need:750,miss:Math.max(0,750-Math.max(0,prod-cons))},fb:false,fb_age:12,fb_bad:false,
+    sch:false,schp:false,schr:-1,schn:-1,schs:false,lock:0}];
   var batt=Math.max(-3000,Math.min(3000,prod-cons));
   var soc=Math.round(50+35*Math.sin(t/40));
   var energy={dp:+(prod*hrs/1000).toFixed(2),dc:+(cons*hrs/1000).toFixed(2),
@@ -48,15 +59,19 @@ function demoStatus(){
   var cost={buy:Math.round(energy.dgi*22),sell:Math.round(energy.dgo*8),
             saved:Math.round(selfKwh*22),base:Math.round(1928/30)};
   return{prod:prod,cons:cons,grid:cons-prod,batt:batt,soc:soc,sl_age:1+Math.round(Math.random()*4),avg_s:300,
+    has_prod:true,src:'solarlog',dry:!!DM.dry,up:Math.round(t)+3600,enabled:true,ext:ext,
     sl_next:Math.round(60-(t%60)),failsafe:false,battblk:(batt < -100),al_n:DM.alAck?1:2,al_sev:2,
     led:'connected',shelly:shelly,energy:energy,cost:cost,mqtt:{conn:false},cfg:cfg.loaded?undefined:demoCfg()};
 }
 function demoCfg(){
   var sh=[];for(var i=0;i<4;i++)sh.push({name:DM.names[i],ip:DM.ips[i],id:DM.ids[i],pw:DM.pw[i],pri:DM.pri[i],
     auto:DM.auto[i],rt:DM.rt[i],mx:DM.mx[i],ws:DM.ws[i],we:DM.we[i],wd:DM.wd[i]});
-  return{sl_ip:'192.168.1.40',sl_port:80,sl_user:'',sl_fprod:'101',sl_fcons:'110',sl_fgrid:'',sl_fyday:'105',sl_fcday:'111',sl_fytot:'109',sl_fctot:'115',sl_fsoc:'103',sl_fbatt:'104',sl_poll_min:1,sl_avg_s:300,sl_fsafe:30,
-    on_margin:150,off_margin:200,hyst_on_s:180,hyst_off_s:180,hyst_on:3,hyst_off:3,min_on_min:7,min_off_min:5,
-    batt_grd:100,fw_start:20,fw_end:24,sh_count:4,ip:'192.168.1.99',shelly:sh,
+  return{sl_ip:'192.168.1.40',sl_port:80,sl_user:'',sl_fprod:'101',sl_fcons:'110',sl_fgrid:'',sl_fyday:'105',sl_fcday:'111',sl_fytot:'109',sl_fctot:'115',sl_fsoc:'103',sl_fbatt:'104',sl_avg_s:300,sl_fsafe:30,
+    on_margin:150,off_margin:200,hyst_on_s:180,hyst_off_s:180,hyst_on:6,hyst_off:6,min_on_min:7,min_off_min:5,
+    batt_grd:100,fw_start:20,fw_end:24,sh_count:4,ex_count:1,max_sh:16,max_ex:16,ip:'192.168.1.99',shelly:sh,
+    ext:[{name:T('Fingerbot Küche'),pw:600,pri:1,auto:true,rt:0,mx:0,ws:0,we:24,wd:127,sch:'',st:'zigbee2mqtt/fingerbot'}],
+    src:'solarlog',src_host:'',src_port:0,em_pv_ip:'',mb_preset:'sma',mb_unit:3,mb_prod:'',mb_grid:'',mb_batt:'',mb_soc:'',
+    mqs_prod:'',mqs_cons:'',mqs_grid:'',mqs_batt:'',mqs_soc:'',src_poll_s:30,sh_poll_s:30,dry_run:!!DM.dry,
     p_buy:22,p_feed:8,p_base:1928,
     hb_en:true,hb_url_set:true,hb_min:15,
     mo_sl:15,mo_dev:15,mo_np:45,mo_inv:30,sl_dev:true,lat:47.05,lon:8.31,
@@ -107,31 +122,6 @@ function mock(url,opts){
     age:120,devs:[{i:0,name:T('WR Nord'),st:'Power',w:2140,max:4100},
                   {i:1,name:T('WR Süd'),st:'Shutdown',w:0,max:3900},
                   {i:2,name:T('Zähler'),st:'FeedIn',w:524,max:0}]};
-  if(url.indexOf('/api/ideas/delete')===0){
-    var di=+(url.match(/id=(\d+)/)||[])[1];
-    DM.ideas=(DM.ideas||[]).filter(function(o){return o.id!==di;});
-    return{ok:true};
-  }
-  if(url==='/api/ideas'){
-    if(!DM.ideas)DM.ideas=[
-      {id:1,status:0,prio:2,area:1,created:0,updated:Math.floor(Date.now()/1000)-86400,
-       title:T('Tagesertrag als Stundenbalken'),text:T('Im Dashboard zusätzlich zur Kurve je Stunde ein Balken – auf dem Handy leichter abzulesen.')},
-      {id:2,status:1,prio:1,area:3,created:0,updated:Math.floor(Date.now()/1000)-3600,
-       title:T('Sperrzeit je Gerät statt global'),text:T('Die Wallbox braucht eine längere Mindest-EIN-Zeit als der Boiler.')},
-      {id:3,status:2,prio:0,area:6,created:0,updated:Math.floor(Date.now()/1000)-604800,
-       title:T('Ereignisprotokoll als CSV'),text:''}];
-    if(m==='POST'){
-      var b=JSON.parse((opts&&opts.body)||'{}');
-      var e=null;
-      DM.ideas.forEach(function(o){if(o.id===b.id)e=o;});
-      if(!e){e={id:(DM.ideas.length?Math.max.apply(null,DM.ideas.map(function(o){return o.id;})):0)+1,
-                status:0,prio:1,area:0,created:0,updated:0,title:'',text:''};DM.ideas.push(e);}
-      ['title','text','status','prio','area'].forEach(function(k){if(b[k]!==undefined)e[k]=b[k];});
-      e.updated=Math.floor(Date.now()/1000);
-      return{ok:true,id:e.id};
-    }
-    return{max:30,n:DM.ideas.length,ideas:DM.ideas};
-  }
   if(url==='/api/events/clear'){DM.ev=[];return{ok:true};}
   if(url.indexOf('/api/events')===0){
     if(!DM.ev){
@@ -172,27 +162,50 @@ function mock(url,opts){
     else if(cmd==='autooff')DM.auto[idx]=false;
     return{ok:true};
   }
-  if(url==='/api/save')return{ok:true,reboot:false};
+  if(url==='/api/save'){
+    try{var sv=JSON.parse((opts&&opts.body)||'{}');if(sv.dry_run!==undefined)DM.dry=sv.dry_run==='true'||sv.dry_run===true;}catch(e){}
+    return{ok:true,reboot:false};
+  }
+  if(url==='/api/sessions')return{sessions:[
+    {id:'a1b2c3d4e5f6',created:Math.floor(DM.t0/1000)-86400*40,seen:Math.floor(Date.now()/1000),ua:'Safari · Mac',current:true},
+    {id:'f6e5d4c3b2a1',created:Math.floor(DM.t0/1000)-86400*90,seen:Math.floor(Date.now()/1000)-3600*5,ua:'Safari · iPhone',current:false},
+    {id:'0a0b0c0d0e0f',created:Math.floor(DM.t0/1000)-86400*200,seen:Math.floor(Date.now()/1000)-86400*12,ua:'Script',current:false}]};
+  if(url==='/api/sessions/revoke')return{ok:true,n:2};
+  if(url==='/api/source/test')return{ok:true,msg:T('Verbunden: {prod} W Produktion, {cons} W Verbrauch.').replace('{prod}',4210).replace('{cons}',2680)};
+  if(/\/api\/shelly\/\d+\/learned/.test(url))return{ok:true,pw:1840};
+  if(url==='/api/history/days')return{days:[]};
+  if(url.indexOf('/api/simulate')===0){
+    var sd=(url.match(/d=(\d{8})/)||[])[1],base=sd?new Date(+sd.slice(0,4),+sd.slice(4,6)-1,+sd.slice(6,8)):new Date();
+    var t0s=Math.floor(new Date(base.getFullYear(),base.getMonth(),base.getDate()).getTime()/1000);
+    return{day:+(sd||ymd(base).replace(/-/g,'')),points:52,step:900,prod_kwh:31.2,
+      loads:[{kind:'shelly',idx:0,name:DM.names[0],pw:2000,on:[[t0s+9.5*3600,t0s+15*3600]],kwh:11,pv_kwh:10.4},
+             {kind:'shelly',idx:1,name:DM.names[1],pw:1800,on:[[t0s+11*3600,t0s+13.5*3600]],kwh:4.5,pv_kwh:4.1},
+             {kind:'shelly',idx:3,name:DM.names[3],pw:900,on:[[t0s+10*3600,t0s+12*3600],[t0s+13.75*3600,t0s+16*3600]],kwh:3.8,pv_kwh:3.8}],
+      real:{feed_kwh:14.6,import_kwh:6.1},sim:{feed_kwh:5.2,import_kwh:6.9}};
+  }
   if(url==='/api/restart')return{ok:true};
   if(url==='/api/refresh')return{ok:true};
-  if(url==='/api/history'){
+  if(url==='/api/history'||url.indexOf('/api/history?')===0){
+    var hd=(url.match(/d=(\d{8})/)||[])[1];
     var now=new Date(),start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0);
-    var startEp=Math.floor(start.getTime()/1000),endEp=Math.floor(now.getTime()/1000),pts=[];
+    if(hd){start=new Date(+hd.slice(0,4),+hd.slice(4,6)-1,+hd.slice(6,8));}
+    var startEp=Math.floor(start.getTime()/1000),endEp=hd?startEp+86400-900:Math.floor(now.getTime()/1000),pts=[];
     for(var ep=startEp;ep<=endEp;ep+=300){
       var h=(ep-startEp)/3600;
       var prod=(h<6||h>20)?0:Math.max(0,Math.round(5200*Math.sin((h-6)/14*Math.PI)+(Math.random()*120-60)));
       var cons=Math.round(1300+600*Math.sin(h/3)+((h>17&&h<22)?1400:0)+Math.random()*80);
-      var p=[ep,prod,cons,cons-prod],w=[];
+      var p=[ep,prod,cons,cons-prod,0],w=[];
       w.push(prod>2500?Math.round(1800*(.8+Math.random()*.2)):0);
       w.push((h>17&&h<22)?Math.round(900+Math.random()*300):0);
       w.push(0);
       w.push(prod>3500?Math.round(800*(.7+Math.random()*.3)):0);
       var mask=0;
-      for(var wi=0;wi<4;wi++){p.push(w[wi]);if(w[wi]>0)mask|=(1<<wi);}
-      p.push(mask);   // Schaltzustand als Bitmaske (Index 4+n) wie im Gerät
+      for(var wi=0;wi<4;wi++){if(w[wi]>0)mask|=(1<<wi);}
+      // Wie im Gerät: Ein-Maske (Index 5), Lauf-Maske (6), danach die Leistungen.
+      p.push(mask,0);for(var wj=0;wj<4;wj++)p.push(w[wj]);
       pts.push(p);
     }
-    return{t:endEp,n:4,dev:DM.names,pts:pts};
+    return{t:endEp,n:4,dev:DM.names,rw:[0,0,0,0],pts:pts,day:hd?+hd:undefined};
   }
   if(url==='/api/history_daily'){
     if(!DM.daily){

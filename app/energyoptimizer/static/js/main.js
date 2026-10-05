@@ -6,6 +6,7 @@ initInfo();
   if(t&&t!=='dash'&&$('page-'+t))navTo(t);
 })();
 ch=initChart();
+histDaySet('');
 // Die Jahresübersicht steht jetzt auf derselben Seite wie das Diagramm; ihre
 // Zellbreite hängt an der Kartenbreite und muss beim Drehen mitgehen.
 window.addEventListener('resize',function(){ch=initChart();redrawChart();drawHeatmap();redrawLive();});

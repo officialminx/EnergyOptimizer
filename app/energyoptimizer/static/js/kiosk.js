@@ -39,8 +39,8 @@ function updateKiosk(d){
   var kn=$('k-net');if(kn)kn.className=imp?'cgn':'cgp';
   setTxt('k-net-d',imp?(e.dgi!=null?T('{0} kWh bezogen',[e.dgi.toFixed(1)]):'')
                       :(e.dgo!=null?T('{0} kWh eingespeist',[e.dgo.toFixed(1)]):''));
-  var surp=d.prod-d.cons;
-  setTxt('k-surp',(surp>=0?'+':'-')+wInt(Math.abs(surp)));
+  var surp=d.has_prod===false?-d.grid:d.prod-d.cons;
+  setTxt('k-surp',wInt(Math.abs(surp)));
   var ks=$('k-surp');if(ks)ks.className=surp>=0?'cgp':'cgn';
   setTxt('k-surp-d',surp>=0?'steht zur Verfügung':'wird zugekauft');
   var bt=$('k-batt-t'),hasB=(d.batt!==undefined&&d.batt!==null);
@@ -64,7 +64,7 @@ function updateKiosk(d){
     if(d.al_n>0){al.style.display='';al.textContent=T(d.al_n===1?'{0} offene Störung':'{0} offene Störungen',[d.al_n]);}
     else al.style.display='none';
   }
-  setTxt('k-foot','SolarLog '+fmtAge(d.sl_age==null?-1:d.sl_age)+(d.failsafe?' · '+T('Fail-Safe aktiv'):'')
+  setTxt('k-foot',T('Messwerte {0}',[fmtAge(d.sl_age==null?-1:d.sl_age)])+(d.failsafe?' · '+T('Fail-Safe aktiv'):'')
     +(d.battblk?' · '+T('Batterie-Vorrang aktiv'):''));
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&kioskActive())kioskOff();});

@@ -12,16 +12,29 @@ function loadCfg(c){
   $('f-sl-fctot').value=c.sl_fctot||'';
   $('f-sl-fsoc').value=c.sl_fsoc||'';
   $('f-sl-fbatt').value=c.sl_fbatt||'';
-  $('f-sl-poll').value=c.sl_poll_min||1;
+  $('f-src').value=c.src||'solarlog';
+  $('f-src-host').value=c.src_host||'';
+  $('f-src-port').value=c.src_port||'';
+  $('f-em-pv').value=c.em_pv_ip||'';
+  $('f-mb-preset').value=c.mb_preset||'sma';
+  $('f-mb-unit').value=(c.mb_unit!=null?c.mb_unit:3);
+  ['prod','grid','batt','soc'].forEach(function(k){$('f-mb-'+k).value=c['mb_'+k]||'';});
+  ['prod','cons','grid','batt','soc'].forEach(function(k){$('f-mqs-'+k).value=c['mqs_'+k]||'';});
+  srcShow();
+  $('f-src-poll').value=c.src_poll_s||30;
+  $('f-sh-poll').value=c.sh_poll_s||30;
+  $('f-dry-run').checked=!!c.dry_run;
   $('f-sl-avg').value=(c.sl_avg_s!=null?c.sl_avg_s:300);
   $('f-sl-fsafe').value=(c.sl_fsafe!=null?c.sl_fsafe:30);
-  $('f-onm').value=c.on_margin||150;
-  $('f-offm').value=c.off_margin||200;
+  $('f-onm').value=(c.on_margin!=null?c.on_margin:150);
+  $('f-offm').value=(c.off_margin!=null?c.off_margin:200);
   $('f-hon').value=(c.hyst_on_s!=null?c.hyst_on_s:180);
   $('f-hoff').value=(c.hyst_off_s!=null?c.hyst_off_s:180);
   updateHystHint();
-  $('f-mon').value=c.min_on_min||7;
-  $('f-moff').value=c.min_off_min||5;
+  $('f-mon').value=(c.min_on_min!=null?c.min_on_min:7);
+  $('f-moff').value=(c.min_off_min!=null?c.min_off_min:5);
+  presetMark();
+  simDefaults(c);
   $('f-fws').value=(c.fw_start!=null?c.fw_start:20);
   $('f-fwe').value=(c.fw_end!=null?c.fw_end:24);
   $('f-battg').value=(c.batt_grd!=null?c.batt_grd:100);
@@ -55,6 +68,69 @@ function loadCfg(c){
   $('ipnote').innerHTML='<b>http://'+esc(c.hostname||'energyoptimizer')+'.local'+pt+'</b> &nbsp;|&nbsp; IP <b>'+esc(c.ip)+pt+'</b>';
   setBaseline();
 }
+// ── Datenquelle: nur die Felder der gewählten Quelle zeigen ──────────────────
+function srcShow(){
+  var v=($('f-src')||{}).value||'solarlog';
+  document.querySelectorAll('.src-sec,.src-lbl').forEach(function(el){
+    el.classList.toggle('on',(el.dataset.src||'').split(' ').indexOf(v)>=0);
+  });
+  var port=$('f-src-port');if(port)port.placeholder=v==='modbus'?'502':'80';
+  mbPreset(true);
+}
+// Modbus-Hersteller: Unit-ID vorschlagen und die eigenen Register nur bei "Eigene".
+function mbPreset(keepUnit){
+  var p=($('f-mb-preset')||{}).value;
+  var box=document.querySelector('.mb-custom');if(box)box.classList.toggle('on',p==='custom');
+  if(keepUnit!==true){var u=$('f-mb-unit');if(u)u.value=p==='huawei'?1:p==='sma'?3:u.value;}
+}
+function srcTest(){
+  var out=$('src-test');if(!out)return;
+  out.textContent=T('Teste Verbindung…');
+  var v=$('f-src').value,body={src:v};
+  if(v==='solarlog'){body.sl_ip=$('f-sl-ip').value.trim();body.sl_port=$('f-sl-port').value||'80';body.sl_pass=$('f-sl-pass').value;}
+  else{
+    body.src_host=$('f-src-host').value.trim();body.src_port=$('f-src-port').value||0;body.em_pv_ip=$('f-em-pv').value.trim();
+    body.mb_preset=$('f-mb-preset').value;body.mb_unit=$('f-mb-unit').value;
+    ['prod','grid','batt','soc'].forEach(function(k){body['mb_'+k]=$('f-mb-'+k).value.trim();});
+    ['prod','cons','grid','batt','soc'].forEach(function(k){body['mqs_'+k]=$('f-mqs-'+k).value.trim();});
+  }
+  api('/api/source/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+  .then(function(d){
+    out.innerHTML=(d&&d.ok?'<b style="color:var(--green)">&#10003;</b> ':'<b style="color:var(--red)">&#10005;</b> ')+esc(T((d&&d.msg)||'Fehler beim Abrufen'));
+  }).catch(function(){out.textContent=T('Fehler beim Abrufen');});
+}
+// ── Steuerung: Voreinstellungen ──────────────────────────────────────────────
+var PRESETS={
+  safe:{on_margin:300,off_margin:100,hyst_on_s:300,hyst_off_s:120,min_on_min:10,min_off_min:10},
+  bal:{on_margin:150,off_margin:200,hyst_on_s:180,hyst_off_s:180,min_on_min:7,min_off_min:5},
+  agg:{on_margin:50,off_margin:400,hyst_on_s:60,hyst_off_s:300,min_on_min:5,min_off_min:3}
+};
+var PRESET_TXT={
+  safe:'Schaltet erst bei deutlichem Überschuss und schnell wieder ab – kaum Netzbezug, dafür bleibt mehr Sonne ungenutzt.',
+  bal:'Die Standardwerte: guter Kompromiss zwischen genutzter Sonne und Netzbezug.',
+  agg:'Nutzt auch knappen Überschuss und hält Geräte bei kurzen Wolken an – mehr Eigenverbrauch, gelegentlich etwas Netzbezug.'
+};
+var PRESET_FIELDS={on_margin:'f-onm',off_margin:'f-offm',hyst_on_s:'f-hon',hyst_off_s:'f-hoff',min_on_min:'f-mon',min_off_min:'f-moff'};
+function presetMark(){
+  var hit='';
+  Object.keys(PRESETS).forEach(function(k){
+    var ok=Object.keys(PRESET_FIELDS).every(function(f){return +$(PRESET_FIELDS[f]).value===PRESETS[k][f];});
+    if(ok)hit=k;
+  });
+  var box=$('presets');if(!box)return;
+  box.querySelectorAll('button').forEach(function(b){b.classList.toggle('active',b.dataset.p===hit);b.setAttribute('aria-pressed',b.dataset.p===hit?'true':'false');});
+  setTxt('preset-hint',hit?T(PRESET_TXT[hit]):T('Eigene Werte'));
+}
+(function(){
+  var box=$('presets');if(!box)return;
+  box.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-p]');if(!b)return;
+    var p=PRESETS[b.dataset.p];
+    Object.keys(PRESET_FIELDS).forEach(function(f){$(PRESET_FIELDS[f]).value=p[f];});
+    updateHystHint();presetMark();checkDirty();
+  });
+  Object.keys(PRESET_FIELDS).forEach(function(f){var el=$(PRESET_FIELDS[f]);if(el)el.addEventListener('input',presetMark);});
+})();
 var devOvIdx=null,devOvId='';
 var devOvKind='sh';   // 'sh' = Shelly (mit IP), 'ext' = generischer MQTT-Schalter
 function openDevOv(idx,prefill,kind){
@@ -77,6 +153,13 @@ function openDevOv(idx,prefill,kind){
   $('dov-pw').value=d.pw||0;
   $('dov-pw').min=isExt?0:1;
   $('dov-pri').value=d.pri||(idx+1);
+  $('dov-pri').max=isExt?((cfg&&cfg.max_ex)||16):((cfg&&cfg.max_sh)||16);
+  $('dov-st-row').style.display=isExt?'':'none';
+  $('dov-st').value=d.st||'';
+  var live=!isExt&&lastSt&&(lastSt.shelly||[]).filter(function(x){return x.idx===idx;})[0];
+  var lh=live?learnHtml(live):'';
+  $('dov-learn').innerHTML=lh?lh.replace(/^<div class="learn">|<\/div>$/g,''):'';
+  $('dov-learn').style.display=lh?'':'none';
   $('dov-rt').value=d.rt||0;
   $('dov-mx').value=d.mx||0;
   // Eigenregelung braucht die gemessene Leistung der Steckdose – ein externer
@@ -261,6 +344,8 @@ function saveDevOv(){
   if(!isExt){
     data[pfx+i+'_rw']=$('dov-rw').value||0;
     data[pfx+i+'_io']=$('dov-io').value||0;
+  }else{
+    data[pfx+i+'_st']=$('dov-st').value.trim();
   }
   data[pfx+i+'_auto']=$('dov-auto').checked?'true':'false';
   data[pfx+i+'_ws']=$('dov-ws').value||0;
@@ -318,87 +403,4 @@ function cancelExtTimer(i,retAuto){
     if(cfg.ext&&cfg.ext[i])cfg.ext[i].auto=!!retAuto;
     poll();
   });
-}
-function extSkeleton(s){
-  return'<div class="shelly-card s-off" id="exc-'+s.idx+'">'
-    +'<div class="sc-top"><div class="sc-name" id="exn-'+s.idx+'"></div><span id="exb-'+s.idx+'"></span></div>'
-    +'<div class="sc-meta" id="exmeta-'+s.idx+'"></div>'
-    +'<div class="sc-rt" id="exrt-'+s.idx+'"></div>'
-    +'<div id="exhy-'+s.idx+'"></div>'
-    +'<div id="exlk-'+s.idx+'"></div>'
-    +'<div id="exov-'+s.idx+'"></div>'
-    +'<div id="exsc-'+s.idx+'"></div>'
-    +'<div class="sc-actions">'
-      +'<label class="tgl"><input type="checkbox" id="exa-'+s.idx+'" onchange="extToggleAuto('+s.idx+',this.checked)"><span class="sl"></span></label>'
-      +'<span class="auto-lbl">Auto</span>'
-      +'<button type="button" class="btn bon" onclick="extSet('+s.idx+',1)">EIN</button>'
-      +'<button type="button" class="btn boff" onclick="extSet('+s.idx+',0)">AUS</button>'
-      +'<button type="button" class="sc-cfg-btn" onclick="toggleExtTimer('+s.idx+')" title="Befristet einschalten"><svg><use href="#i-clock"/></svg></button>'
-      +'<button type="button" class="sc-cfg-btn" onclick="openDevOv('+s.idx+',null,\'ext\')" title="Einstellungen"><svg><use href="#i-sliders"/></svg></button>'
-    +'</div>'
-    +'<div class="tchips" id="extc-'+s.idx+'" style="display:none">'
-      +TDUR.map(function(t){return '<button type="button" class="tchip" onclick="extTimer('+s.idx+',\''+t.k+'\')">'+t.l+'</button>';}).join('')
-    +'</div></div>';
-}
-function emptyExtSkeleton(i){
-  return'<div class="shelly-card s-empty" id="exc-'+i+'">'
-    +'<div class="sc-empty-ico"><svg><use href="#i-plus"/></svg></div>'
-    +'<div class="sc-empty-txt">'+T('Externer Schalter {0} einrichten',[i+1])+'</div>'
-    +'<button type="button" class="btn bscan" onclick="openDevOv('+i+',null,\'ext\')"><svg><use href="#i-plus"/></svg>Hinzuf&uuml;gen</button>'
-    +'</div>';
-}
-function updateExt(s){
-  var card=$('exc-'+s.idx);if(!card)return;
-  var st=s.lock>0?'s-lock':s.on?'s-on':'s-off';
-  if(card.className!=='shelly-card '+st)card.className='shelly-card '+st;
-  setTxt('exn-'+s.idx,s.name);
-  setHtml('exb-'+s.idx,s.on
-    ?'<span class="badge" style="background:rgba(52,199,89,.16);color:#0a8e3f">EIN</span>'
-    :'<span class="badge" style="background:rgba(120,120,128,.16);color:#666">AUS</span>');
-  setTxt('exmeta-'+s.idx,T('{0} W (nom.) · Prio {1}',[s.pw||0,s.pri])+' · MQTT');
-  setHtml('exrt-'+s.idx,runtimeHtml(s));
-  var hyHtml='';
-  if(s.auto&&!(s.lock>0)){
-    var need=s.on?(cfg.hyst_off||3):(cfg.hyst_on||3),have=(s.on?s.ft:s.ot)||0;
-    if(have>0){
-      var pips='';for(var k=0;k<need;k++)pips+='<span class="pip'+(k<have?' f':'')+'"></span>';
-      hyHtml='<div class="hyst '+(s.on?'off':'on')+'"><span class="pips">'+pips+'</span>'
-        +T(s.on?'Ausschalten {0}/{1}':'Einschalten {0}/{1}',[have,need])+'</div>';
-    }
-  }
-  setHtml('exhy-'+s.idx,hyHtml);
-  var lkHtml='';
-  if(s.lock>0){
-    var maxL=s.on?(cfg.min_on_min||7)*60:(cfg.min_off_min||5)*60;
-    var lp=Math.min(100,Math.round(s.lock/maxL*100));
-    lkHtml='<div class="lock-bar-wrap"><div class="lock-bar-lbl">'+T('Gesperrt noch {0}',[Math.floor(s.lock/60)+'m '+(s.lock%60)+'s'])+'</div>'
-      +'<div class="lock-bar-track"><div class="lock-bar-fill" style="width:'+lp+'%"></div></div></div>';
-  }
-  setHtml('exlk-'+s.idx,lkHtml);
-  var ovHtml='';
-  if(s.ov>0){
-    ovHtml='<div class="ovr"><svg><use href="#i-clock"/></svg>'+T(s.on?'Befristet EIN – noch {0}':'Befristet AUS – noch {0}',[fmtRest(s.ov)])+(s.ova?T(', danach Automatik'):'')
-      +'<button type="button" onclick="cancelExtTimer('+s.idx+','+(s.ova?1:0)+')">'+T('jetzt beenden')+'</button></div>';
-  }else if(s.win===false){
-    ovHtml='<div class="win-closed"><svg><use href="#i-clock"/></svg>'+T('Ausserhalb des Freigabefensters – die Automatik schaltet jetzt nicht')+'</div>';
-  }
-  setHtml('exov-'+s.idx,ovHtml);
-  setHtml('exsc-'+s.idx,schedHtml(s,'ext'));
-  var cb=$('exa-'+s.idx);
-  if(cb && document.activeElement!==cb && !(autoTog['e'+s.idx] && (Date.now()-autoTog['e'+s.idx])<4000)){
-    if(cb.checked!==!!s.auto)cb.checked=!!s.auto;
-  }
-}
-var exSig=null;
-var MAX_EXT_UI=4;
-function renderExt(list){
-  var sig=list.map(function(s){return s.idx;}).join(',')+'|'+MAX_EXT_UI;
-  if(sig!==exSig){
-    var h='';
-    list.forEach(function(s){h+=extSkeleton(s);});
-    for(var i=list.length;i<MAX_EXT_UI;i++)h+=emptyExtSkeleton(i);
-    $('ext-live').innerHTML=h;
-    exSig=sig;
-  }
-  list.forEach(updateExt);
 }
