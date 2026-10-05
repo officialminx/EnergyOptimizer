@@ -54,7 +54,9 @@ function histDaySet(v){
   }
   $('sim-res').innerHTML='';
   if(!histDay){dayView=null;chartFit();redrawChart();return;}
-  api('/api/history?d='+histDay.replace(/-/g,'')).then(function(d){
+  var want=histDay;
+  api('/api/history?d='+want.replace(/-/g,'')).then(function(d){
+    if(want!==histDay)return;   // inzwischen ein anderer Tag gewählt
     if(d)d.pts=sanePts(d.pts);dayView=d;chartFit();redrawChart();
   });
 }

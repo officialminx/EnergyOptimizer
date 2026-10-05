@@ -10,6 +10,7 @@ import logging
 import os
 import secrets
 from calendar import monthrange
+from datetime import datetime
 
 from aiohttp import web
 
@@ -35,7 +36,7 @@ from .settings import (
     hyst_on_ticks,
 )
 from .solarlog import REQ_BASIC, SolarLogAuthError, SolarLogClient, SolarLogError
-from .sources import make_source
+from .sources import make_source, mqtt_topics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -220,8 +221,8 @@ class WebApi:
                     return True
             self.note_failure()
             return False
-        if ck:
-            self.note_failure()
+        # An unknown cookie is a signed-out or expired session, not a guessed password:
+        # the tokens are random, so it does not count towards the lock.
         return False
 
     @staticmethod
@@ -339,7 +340,10 @@ class WebApi:
             q = req.query.get("lang", "")
             return self._page(self.setup_html, q if q in LANGS else "", **{"Cache-Control": "no-store"})
         if not self.is_authed(req):
-            return self._page(self.login_html, **{"Cache-Control": "no-store"})
+            resp = self._page(self.login_html, **{"Cache-Control": "no-store"})
+            if req.cookies.get("eo_auth"):
+                resp.headers["Set-Cookie"] = "eo_auth=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly"
+            return resp
         if not self.eo.settings.cfg["wizard_done"]:
             return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
         etag = f'"{self.etag}-{self.lang}"'
@@ -440,6 +444,9 @@ class WebApi:
         finally:
             source.close()
         if sd is None:
+            if src == "mqtt" and set(mqtt_topics(c)) - set(self.eo.mqtt.topic_values):
+                return web.json_response({"ok": False, "msg": tr(
+                    "Neue Topics werden erst nach dem Speichern abonniert – speichern und dann testen.", lang)})
             return web.json_response({"ok": False, "msg": tr("Keine Werte: {err}", lang,
                                                              err=source.last_error or "-")})
         if sd.has_prod:
@@ -698,9 +705,13 @@ class WebApi:
     @staticmethod
     def _day_arg(req) -> int | None:
         d = req.query.get("d", "")
-        if len(d) == 8 and d.isdigit() and 1 <= int(d[4:6]) <= 12 and 1 <= int(d[6:]) <= 31:
-            return int(d)
-        return None
+        if len(d) != 8 or not d.isdigit():
+            return None
+        try:
+            datetime(int(d[:4]), int(d[4:6]), int(d[6:]))
+        except ValueError:
+            return None
+        return int(d)
 
     async def h_history(self, req):
         dv = self.eo.devices

@@ -110,3 +110,20 @@ def test_simulation_takes_measured_plug_power_out_of_consumption():
     pts = [_point(int(start + k * 900), 2200, 2000, -200, plug_w=1500) for k in range(4)]
     res = control.simulate(pts, 1, c, CLOCK.tz, control.params_from_cfg(c, 1, 1), {})
     assert res["loads"][0]["kwh"] == 1.5
+
+
+def test_simulation_keeps_manual_plugs_and_battery_as_measured():
+    c = defaults()
+    c["shelly"][0].update(ip="1.2.3.4", pw=1000, auto=True, pri=1)
+    c["shelly"][1].update(ip="1.2.3.5", pw=2000, auto=False, pri=2)   # manual heater
+    c["sh_count"] = 2
+    start = datetime(2026, 6, 10, 12, 0, tzinfo=CLOCK.tz).timestamp()
+    # PV 4 kW, house incl. heater 2.5 kW, battery charges 1 kW, 0.5 kW fed in.
+    pts = [[int(start + k * 900), 4000, 2500, -500, 1000, 2, 0, 0, 2000] + [0] * (MAX_SHELLY - 2)
+           for k in range(4)]
+    res = control.simulate(pts, 2, c, CLOCK.tz, control.params_from_cfg(c, 1, 1), {})
+    assert [x["idx"] for x in res["loads"]] == [0]
+    assert res["real"]["feed_kwh"] == 0.5
+    # The 1 kW plug fits into the 1.5 kW surplus (battery charging counts as surplus):
+    # the 0.5 kW feed-in is used and 0.5 kW more comes from the grid.
+    assert res["sim"]["feed_kwh"] == 0.0 and res["sim"]["import_kwh"] == 0.5

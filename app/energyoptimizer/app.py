@@ -210,7 +210,12 @@ class EnergyOptimizer:
                 self.solar_refresh_req = False
                 if force_solar or now >= self.next_solar:
                     src = self.active_source()
-                    sd = await src.fetch(cfg)
+                    try:
+                        sd = await src.fetch(cfg)
+                    except Exception as err:
+                        _LOGGER.warning("[%s] Reading failed: %s", src.name, err)
+                        src.last_error = str(err) or type(err).__name__
+                        sd = None
                     ok = sd is not None
                     poll_s = cfg["src_poll_s"]
                     self.next_solar = CLOCK.mono() + (poll_s if ok else min(poll_s, SL_RETRY_S))

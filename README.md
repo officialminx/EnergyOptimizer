@@ -191,7 +191,7 @@ and open `http://energyoptimizer.local:8080`.
 | Solar-Log | Production, consumption, day and total counters, battery, inverters | Default; see below |
 | Fronius | `GetPowerFlowRealtimeData`: PV, load, grid, battery and SOC | Needs a Fronius Smart Meter |
 | Shelly meter | Grid power of a Pro 3EM, Pro EM, EM Gen3 or Gen1 3EM/EM; PV power of an optional second Shelly | Without a PV meter the control runs on the feed-in alone |
-| Modbus TCP | SMA (unit 3: 30775, 30865/30867, 31393/31395, 30845), Huawei SUN2000 (unit 1: 32080, 37113, 37765, 37760) or own registers `address:type:factor` | Experimental – check with **Test connection** |
+| Modbus TCP | SMA (unit 3: 30775, 30865/30867, 31393/31395, 30845; for a hybrid Tripower Smart Energy use own registers), Huawei SUN2000 (unit 1: 32064 PV input, 37113, 37765, 37760) or own registers `address:type:factor` | Experimental – check with **Test connection** |
 | MQTT | Any topics, `topic`, `topic#json.path`, optional `*factor` | Needs grid power, or production and consumption |
 
 Without counters from the source, EnergyOptimizer integrates production and consumption from

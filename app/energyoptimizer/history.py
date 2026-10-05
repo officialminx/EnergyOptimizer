@@ -183,7 +183,8 @@ class History:
         """All points of one local day (YYYYMMDD): today from memory, else from hist.csv."""
         today = CLOCK.now()
         if day == today.year * 10000 + today.month * 100 + today.day:
-            return list(self.pts)
+            # Until the first point after midnight the buffer still holds yesterday.
+            return list(self.pts) if self.yday == today.timetuple().tm_yday else []
         start = datetime(day // 10000, day // 100 % 100, day % 100, tzinfo=CLOCK.tz)
         t0 = int(start.timestamp())
         t1 = int((start + timedelta(days=1)).timestamp())

@@ -436,6 +436,7 @@
 "Neu laden": "Reload",
 "Neu starten": "Restart",
 "Neu:": "New:",
+"Neue Topics werden erst nach dem Speichern abonniert – speichern und dann testen.": "New topics are only subscribed after saving – save, then test.",
 "Neue Versionen kommen als Docker-Image. Einstellungen, Verlauf und Zähler liegen im Datenordner und bleiben erhalten.": "New versions come as a Docker image. Settings, history and counters live in the data folder and are kept.",
 "Neues Passwort": "New password",
 "Neustart": "Restart",

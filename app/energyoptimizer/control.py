@@ -180,8 +180,10 @@ def simulate(points: list[list], n_shelly: int, cfg: dict, tz, params: Params,
     """Replays one day of 15-minute history points with the current rules.
 
     A point is [epoch, prod, cons, grid, batt, on_mask, run_mask, w0 … wN]. The
-    measured power of the plugs is taken out of the consumption, the simulated
-    loads are added with their configured power. With 15-minute steps this is an
+    measured power of the simulated plugs is taken out of the consumption and the
+    grid, and they are added again with their configured power; plugs that are not
+    simulated (manual, no automatic) and the battery stay as they were measured.
+    External switches have no measurement, so what they really drew stays in. With 15-minute steps this is an
     estimate: hysteresis and minimum times shorter than a step pass in one step.
     """
     step = HISTORY_SAMPLE_S
@@ -205,7 +207,8 @@ def simulate(points: list[list], n_shelly: int, cfg: dict, tz, params: Params,
     for pt in points:
         t, prod, cons, grid = float(pt[0]), float(pt[1]), float(pt[2]), float(pt[3])
         batt = float(pt[4])
-        plug_w = sum(max(0.0, float(w)) for w in pt[7:7 + n_shelly])
+        plug_w = sum(max(0.0, float(pt[7 + ld.idx])) for ld in loads
+                      if ld.kind == "shelly" and ld.idx < n_shelly and 7 + ld.idx < len(pt))
         base = max(0.0, cons - plug_w)
         dt = datetime.fromtimestamp(t, tz)
         for ld in loads:
@@ -246,7 +249,7 @@ def simulate(points: list[list], n_shelly: int, cfg: dict, tz, params: Params,
             used = min(pv_left, ld.pw)
             sl.pv_wh += used * h
             pv_left -= used
-        sim_grid = base + load_w - prod
+        sim_grid = grid - plug_w + load_w
         prod_sum += prod * h
         if grid < 0:
             real_feed += -grid * h

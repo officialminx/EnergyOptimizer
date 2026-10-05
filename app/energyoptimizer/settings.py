@@ -278,7 +278,11 @@ class SettingsStore:
             base["sh_poll_s"] = 60
         base["shelly"] = _pad(stored.get("shelly"), _shelly_default)
         base["ext"] = _pad(stored.get("ext"), _ext_default)
-        base["sh_count"] = _clamp(_as_int(base["sh_count"]), 0, MAX_SHELLY)
+        # Up to 0.0.5 an install without plugs had sh_count 1 with an empty slot.
+        n = 0
+        while n < MAX_SHELLY and base["shelly"][n]["ip"]:
+            n += 1
+        base["sh_count"] = min(_clamp(_as_int(base["sh_count"]), 0, MAX_SHELLY), n)
         base["ex_count"] = _clamp(_as_int(base["ex_count"]), 0, MAX_EXT)
         self.cfg = base
         if not isinstance(base["web_pass"], str):

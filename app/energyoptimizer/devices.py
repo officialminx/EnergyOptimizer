@@ -577,7 +577,8 @@ class Devices:
 
     def is_running(self, kind: str, i: int) -> bool:
         s = self.st[kind][i]
-        if kind == "ext" or not self.self_regulated(i):
+        if kind == "ext" or not self.self_regulated(i) or s.virt:
+            # A load only switched on in the dry run is assumed to run.
             return s.on
         return s.on and s.reachable and s.running
 
@@ -699,7 +700,7 @@ class Devices:
                 return {"c": "battery_off", "n": max(1, need_off - s.off_ticks)}
             if s.off_ticks > 0:
                 return {"c": "switching_off", "n": max(1, need_off - s.off_ticks)}
-            if kind == "shelly" and e["rw"] > 0 and not s.running:
+            if kind == "shelly" and e["rw"] > 0 and not s.running and not s.virt:
                 return {"c": "no_demand", "s": int(now - s.idle_since) if s.idle_since else 0}
             if s.last_on and now - s.last_on < min_on:
                 return {"c": "running_min_on", "s": int(min_on - (now - s.last_on))}

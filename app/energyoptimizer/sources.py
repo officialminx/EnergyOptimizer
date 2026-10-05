@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 RAW_KEEP = 1400
-HTTP_TIMEOUT = 5
+HTTP_TIMEOUT = 3
 
 
 def compose(prod: float | None, cons: float | None, grid: float | None,
@@ -180,13 +180,18 @@ class ShellyEmSource(Source):
 
     async def _power(self, host: str, pv: bool) -> float:
         """Active power of a Shelly meter; the working request is remembered per host."""
-        tries = [self._kind[host]] if host in self._kind else []
+        known = self._kind.get(host)
+        tries = [known] if known else []
         tries += [t for t in ("em", "em1", "pm1", "switch", "gen1") if t not in tries]
         last: Exception | None = None
         for kind in tries:
             try:
                 val = await self._read(host, kind, pv)
-            except (TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError) as err:
+            except (aiohttp.ClientConnectionError, TimeoutError) as err:
+                # The meter does not answer at all: trying the other request types
+                # would only hold up the main loop. Next poll, same request again.
+                raise ValueError(f"{host}: {type(err).__name__}") from err
+            except (aiohttp.ClientError, ValueError, KeyError, TypeError, IndexError) as err:
                 last = err
                 continue
             self._kind[host] = kind
@@ -272,14 +277,19 @@ class ModbusTcp:
         await self._w.drain()
         while True:
             hdr = await asyncio.wait_for(self._r.readexactly(7), 5)
-            tid, _proto, length, _unit = struct.unpack(">HHHB", hdr)
+            tid, proto, length, _unit = struct.unpack(">HHHB", hdr)
+            if proto != 0 or not 2 <= length <= 260:
+                self.close()
+                raise ModbusError(f"{self.host}: malformed answer")
             body = await asyncio.wait_for(self._r.readexactly(length - 1), 5)
             if tid == self._tid:
                 break
         if body[0] & 0x80:
-            raise ModbusError(f"register {addr}: exception code {body[1]}")
-        n = body[1]
-        return list(struct.unpack(f">{n // 2}H", body[2:2 + n]))
+            raise ModbusError(f"register {addr}: exception code {body[1] if len(body) > 1 else '?'}")
+        if body[0] != 3 or len(body) < 2 + 2 * count or body[1] != 2 * count:
+            self.close()
+            raise ModbusError(f"register {addr}: unexpected answer")
+        return list(struct.unpack(f">{count}H", body[2:2 + 2 * count]))
 
 
 def _decode(words: list[int], typ: str) -> float | None:
@@ -311,7 +321,9 @@ def parse_spec(spec: str) -> tuple[int, str, float] | None:
 # Each value is a list of (address, type, factor) whose sum is the value.
 MODBUS_PRESETS: dict[str, dict[str, list[tuple[int, str, float]]]] = {
     # SMA Sunny Tripower/Boy with Modbus on (unit 3). Grid values need a Sunny
-    # Home Manager / Energy Meter; battery values exist on Sunny Island / SBS.
+    # Home Manager / Energy Meter; battery values exist on Sunny Island / SBS
+    # (AC-coupled, so the PV inverter's AC power 30775 is the production). For a
+    # hybrid inverter (Tripower Smart Energy) use own registers instead.
     "sma": {
         "prod": [(30775, "s32", 1.0)],
         "grid": [(30865, "u32", 1.0), (30867, "u32", -1.0)],
@@ -321,7 +333,8 @@ MODBUS_PRESETS: dict[str, dict[str, list[tuple[int, str, float]]]] = {
     # Huawei SUN2000 with power meter (unit 1, port 502 of the inverter or the
     # SDongle). The meter reports feed-in as positive.
     "huawei": {
-        "prod": [(32080, "s32", 1.0)],
+        # 32064 is the PV input power; 32080 (AC output) would include battery discharge.
+        "prod": [(32064, "s32", 1.0)],
         "grid": [(37113, "s32", -1.0)],
         "batt": [(37765, "s32", 1.0)],
         "soc": [(37760, "u16", 0.1)],

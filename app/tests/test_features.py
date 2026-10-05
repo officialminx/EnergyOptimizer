@@ -229,3 +229,47 @@ async def test_static_assets_are_versioned(client):
     r = await client.get("/static/js/core.js?v=x")
     assert r.status == 200 and r.headers["Cache-Control"] == "no-cache"
     assert (await client.get("/static/../web.py")).status == 404
+
+
+async def test_invalid_day_is_ignored_not_an_error(client):
+    r = await client.get("/api/history?d=20250231")
+    assert r.status == 200 and "day" not in await r.json()
+    assert (await client.get("/api/simulate?d=20251399")).status == 200
+
+
+async def test_signed_out_cookie_does_not_count_as_failed_login(client):
+    api = next(r.handler.__self__ for r in client.server.app.router.routes()
+               if isinstance(getattr(r.handler, "__self__", None), WebApi))
+    client.session.cookie_jar.clear()
+    for _ in range(8):
+        r = await client.get("/", cookies={"eo_auth": "x" * 32})
+        assert "eo_auth=;" in r.headers.get("Set-Cookie", "")
+    assert api.fails == 0 and api.block_remaining() == 0
+
+
+async def test_dry_run_self_regulated_load_counts_runtime(env):
+    eo, clock, _ = env
+    dv = eo.devices
+    eo.settings.cfg["shelly"][0]["rw"] = 50
+    eo.settings.cfg["dry_run"] = True
+    for _ in range(3):
+        await dv.distribute(1300)
+        clock.advance(60)
+    assert dv.st["shelly"][0].virt and dv.is_running("shelly", 0)
+    assert dv.explain("shelly", 0)["c"] != "no_demand"
+
+
+def test_empty_plug_slot_from_0_0_5_is_dropped(tmp_path):
+    (tmp_path / "settings.json").write_text(json.dumps({"web_pass": "", "sh_count": 1, "shelly": [{}]}))
+    st = SettingsStore(str(tmp_path))
+    st.load()
+    assert st.cfg["sh_count"] == 0
+
+
+def test_today_is_empty_until_the_first_point_after_midnight(tmp_path, monkeypatch):
+    from energyoptimizer.history import History
+    FakeClock(monkeypatch, datetime(2026, 6, 10, 0, 5))
+    h = History(str(tmp_path))
+    h.yday = 160                      # 9 June
+    h.pts.append([1] * 23)
+    assert h.day_points(20260610) == []

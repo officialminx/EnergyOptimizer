@@ -189,7 +189,7 @@ var optSig='';
 function renderOptimizer(d){
   var card=$('card-opt'),list=$('opt-list');if(!card||!list)return;
   var rows=[];
-  (d.shelly||[]).forEach(function(s){rows.push({k:'sh',s:s,p:s.reach&&s.apower>0?s.apower:0});});
+  (d.shelly||[]).forEach(function(s){rows.push({k:'sh',s:s,p:s.virt?(s.on?s.pw:0):(s.reach&&s.apower>0?s.apower:0)});});
   (d.ext||[]).forEach(function(s){rows.push({k:'ext',s:s,p:s.on?(s.pw||0):0});});
   card.style.display=rows.length?'':'none';
   if(!rows.length)return;

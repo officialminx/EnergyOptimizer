@@ -185,3 +185,22 @@ async def test_mqtt_source_reads_topic_values(eo):
     assert sources.mqtt_topics(c) == ["pv/w", "meter/SENSOR"]
     eo.mqtt.topic_values = {}
     assert await sources.make_source(eo, "mqtt").fetch(c) is None
+
+
+async def test_modbus_malformed_answer_is_a_source_error(eo, monkeypatch):
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep(asyncio.sleep))
+
+    async def handle(r, w):
+        await r.readexactly(12)
+        w.write(struct.pack(">HHHB", 1, 0, 3, 3) + b"\x03\x09")   # claims 9 bytes, sends none
+        await w.drain()
+        w.close()
+
+    server = await asyncio.start_server(handle, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    c = eo.settings.cfg
+    c.update(src="modbus", src_host="127.0.0.1", src_port=port, mb_preset="sma", mb_unit=3)
+    src = sources.make_source(eo, "modbus")
+    assert await src.fetch(c) is None and src.last_error
+    server.close()
+    await server.wait_closed()
