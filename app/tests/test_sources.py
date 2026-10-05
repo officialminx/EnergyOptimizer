@@ -96,8 +96,10 @@ class FakeModbus:
         self.regs = regs
         self.server = None
         self.port = 0
+        self.writers: list = []
 
     async def handle(self, r, w):
+        self.writers.append(w)
         try:
             while True:
                 hdr = await r.readexactly(7)
@@ -119,6 +121,10 @@ class FakeModbus:
         self.port = self.server.sockets[0].getsockname()[1]
 
     async def close(self):
+        # Since Python 3.12.1 wait_closed() waits for every connection: close them
+        # here instead of relying on the client side being garbage-collected.
+        for w in self.writers:
+            w.close()
         self.server.close()
         await self.server.wait_closed()
 
@@ -164,8 +170,10 @@ async def test_modbus_custom_registers(eo, monkeypatch):
     c = eo.settings.cfg
     c.update(src="modbus", src_host="127.0.0.1", src_port=fake.port, mb_preset="custom", mb_unit=1,
              mb_prod="100:u32:1", mb_grid="200:s32", mb_batt="", mb_soc="300:u16:0.1")
-    sd = await sources.make_source(eo, "modbus").fetch(c)
+    src = sources.make_source(eo, "modbus")
+    sd = await src.fetch(c)
     assert sd.production_w == 2000 and sd.grid_w == -700 and sd.consumption_w == 1300
+    src.close()
     await fake.close()
 
 
@@ -202,5 +210,6 @@ async def test_modbus_malformed_answer_is_a_source_error(eo, monkeypatch):
     c.update(src="modbus", src_host="127.0.0.1", src_port=port, mb_preset="sma", mb_unit=3)
     src = sources.make_source(eo, "modbus")
     assert await src.fetch(c) is None and src.last_error
+    src.close()
     server.close()
     await server.wait_closed()
