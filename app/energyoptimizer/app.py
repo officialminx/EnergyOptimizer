@@ -1,30 +1,40 @@
-"""Hauptschleife und Zusammenbau aller Teile."""
+"""Main loop and assembly of all parts."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
+from typing import Any
 
 import aiohttp
 
 from .alarms import Alarms
 from .clock import CLOCK
 from .const import (
-    EV_BOOT, EV_CONFIG, EV_SOLARLOG, ER_MANUAL, ER_NONE, RST_CONTAINER, SHELLY_POLL_S,
-    SL_DEV_POLL_S, SL_MAX_DEV, SL_RETRY_S, HISTORY_SAMPLE_S,
+    ER_MANUAL,
+    ER_NONE,
+    EV_BOOT,
+    EV_CONFIG,
+    EV_SOLARLOG,
+    HISTORY_SAMPLE_S,
+    RST_CONTAINER,
+    SL_DEV_POLL_S,
+    SL_MAX_DEV,
+    SL_RETRY_S,
 )
 from .devices import Devices
 from .energy import Energy
 from .events import EventLog
+from .heartbeat import Heartbeat
 from .history import History
-from .ideas import Ideas
 from .mdns import Mdns
 from .mqtt import Mqtt
 from .passwords import hash_password, is_hash
-from .heartbeat import Heartbeat
+from .sessions import Sessions
 from .settings import SettingsStore
 from .solarlog import SolarData, SolarDevices, SolarLogReader
+from .sources import Source, make_source
 from .storage import load_json, save_json
 from .sysinfo import SysInfo
 from .updates import UpdateCheck
@@ -33,8 +43,8 @@ _LOGGER = logging.getLogger(__name__)
 
 ST_OK, ST_WARN, ST_FAIL, ST_SKIP = 0, 1, 2, 3
 
-# Liegt diese Datei im Datenordner, wird das Web-Passwort gelöscht und beim nächsten
-# Aufruf der Oberfläche neu festgelegt (python -m energyoptimizer reset-password).
+# `python -m energyoptimizer reset-password` leaves the hash of the new password in
+# this file in the data folder; the running app picks it up within seconds.
 RESET_FLAG = "RESET_PASSWORD"
 MDNS_CHECK_S = 60
 
@@ -48,7 +58,7 @@ class EnergyOptimizer:
         self.events = EventLog(data_dir)
         self.history = History(data_dir)
         self.energy = Energy(data_dir, self.history.daily_append)
-        self.ideas = Ideas(data_dir)
+        self.sessions = Sessions(data_dir)
         self.devices = Devices(self)
         self.alarms = Alarms(self)
         self.heartbeat = Heartbeat(self)
@@ -58,6 +68,8 @@ class EnergyOptimizer:
         self.updates = UpdateCheck()
         self.session: aiohttp.ClientSession = None  # type: ignore[assignment]
         self.reader: SolarLogReader = None  # type: ignore[assignment]
+        self.source: Source | None = None
+        self._source_kind = ""
         self.solar = SolarData()
         self.sl_ok = False
         self.last_sl_ok = 0.0
@@ -67,7 +79,7 @@ class EnergyOptimizer:
         self.devs = SolarDevices()
         self.devs_t = 0.0
         self.boots = 0
-        self.selftest = {"running": False, "done_t": 0.0, "items": []}
+        self.selftest: dict[str, Any] = {"running": False, "done_t": 0.0, "items": []}
         self._tasks: list[asyncio.Task] = []
         self._selftest_req = False
         self.mdns_req = True
@@ -79,13 +91,13 @@ class EnergyOptimizer:
         self.events.load()
         self.energy.load()
         self.history.load()
-        self.ideas.load()
+        self.sessions.load()
         meta_path = os.path.join(self.data_dir, "meta.json")
         meta = load_json(meta_path, {})
         self.boots = int(meta.get("boots", 0)) + 1
         save_json(meta_path, {"boots": self.boots})
-        # Eigener Cookie-Jar aus: das Solar-Log-Cookie wird ausdrücklich als Header
-        # gesetzt (wie in ha-advanced-solarlog), sonst nichts.
+        # No cookie jar: the Solar-Log cookie is set explicitly as a header
+        # (as in ha-advanced-solarlog), nothing else.
         self.session = aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar())
         self.reader = SolarLogReader(self.session)
         self.events.log(EV_BOOT, -1, RST_CONTAINER, False, f"Start #{self.boots}")
@@ -109,20 +121,31 @@ class EnergyOptimizer:
     def flush(self) -> None:
         self.energy.save()
         self.events.flush()
+        self.sessions.flush()
+
+    def active_source(self) -> Source:
+        """The data source from the settings (created anew when it changes)."""
+        kind = self.settings.cfg["src"]
+        if self.source is None or kind != self._source_kind:
+            if self.source is not None:
+                self.source.close()
+            self.source = make_source(self, kind)
+            self._source_kind = kind
+        return self.source
 
     async def update_task(self) -> None:
-        # Eigene Aufgabe: eine langsame GitHub-Antwort darf die Regelung nie aufhalten.
+        # Own task: a slow answer from GitHub must never hold up the control.
         while True:
             if self.updates.due():
                 await self.updates.check(self.session)
             await asyncio.sleep(30)
 
-    # ── Web-Passwort ────────────────────────────────────────────────────────
+    # ── Web password ────────────────────────────────────────────────────────
     def set_web_password(self, pw: str) -> None:
         self.settings.cfg["web_pass"] = hash_password(pw)
         self.settings.save()
         self.events.log(EV_CONFIG, -1, ER_MANUAL, True, "Web-Passwort festgelegt")
-        _LOGGER.info("[Auth] Web-Passwort festgelegt")
+        _LOGGER.info("[Auth] Web password set")
 
     def check_password_reset(self) -> None:
         """`python -m energyoptimizer reset-password` leaves the hash of the new
@@ -139,16 +162,18 @@ class EnergyOptimizer:
         try:
             os.remove(path)
         except OSError as err:
-            _LOGGER.error("[Auth] %s konnte nicht gelöscht werden: %s", path, err)
+            _LOGGER.error("[Auth] %s could not be deleted: %s", path, err)
         if not is_hash(new):
-            _LOGGER.warning("[Auth] Ungültige Reset-Datei ignoriert – Passwort unverändert")
+            _LOGGER.warning("[Auth] Invalid reset file ignored – password unchanged")
             return
         self.settings.cfg["web_pass"] = new
         self.settings.save()
+        # Whoever forgot the password should not stay signed in elsewhere either.
+        self.sessions.revoke_all()
         self.events.log(EV_CONFIG, -1, ER_MANUAL, True, "Web-Passwort zurückgesetzt")
-        _LOGGER.warning("[Auth] Web-Passwort über die Kommandozeile neu gesetzt")
+        _LOGGER.warning("[Auth] Web password reset from the command line")
 
-    # ── Einstellungen übernehmen ────────────────────────────────────────────
+    # ── Apply settings ──────────────────────────────────────────────────────
     def apply_settings(self, doc: dict, text: str | None = None) -> str:
         orig, new, warn = self.settings.apply(doc)
         self.devices.settings_changed(orig, new)
@@ -160,7 +185,7 @@ class EnergyOptimizer:
         self.mdns_req = True
         return warn
 
-    # ── Hauptschleife ───────────────────────────────────────────────────────
+    # ── Main loop ───────────────────────────────────────────────────────────
     async def network_task(self) -> None:
         last_shelly = 0.0
         last_tick = 0.0
@@ -184,20 +209,27 @@ class EnergyOptimizer:
                 force_solar = self.solar_refresh_req
                 self.solar_refresh_req = False
                 if force_solar or now >= self.next_solar:
-                    sd = await self.reader.fetch(cfg)
+                    src = self.active_source()
+                    try:
+                        sd = await src.fetch(cfg)
+                    except Exception as err:
+                        _LOGGER.warning("[%s] Reading failed: %s", src.name, err)
+                        src.last_error = str(err) or type(err).__name__
+                        sd = None
                     ok = sd is not None
-                    self.next_solar = CLOCK.mono() + (cfg["sl_poll_min"] * 60 if ok else SL_RETRY_S)
+                    poll_s = cfg["src_poll_s"]
+                    self.next_solar = CLOCK.mono() + (poll_s if ok else min(poll_s, SL_RETRY_S))
                     self.sl_ok = ok
-                    if ok:
+                    if sd is not None:
                         self.solar = sd
                         sl_ever_ok = True
                     if sl_ever_ok and ok != sl_was_ok:
                         sl_was_ok = ok
-                        self.events.log(EV_SOLARLOG, -1, ER_NONE, ok, cfg["sl_ip"])
-                    if ok:
+                        self.events.log(EV_SOLARLOG, -1, ER_NONE, ok, src.target(cfg))
+                    if sd is not None:
                         self.last_sl_ok = now
                         self.history.set_solar(sd)
-                        self.energy.add_solar(sd, cfg["sl_poll_min"] * 60)
+                        self.energy.add_solar(sd, poll_s)
                         self.mqtt.solar_dirty = True
                         dv.batt_update(sd.has_battery, sd.battery_w)
                         await dv.distribute(sd.surplus_w)
@@ -205,17 +237,18 @@ class EnergyOptimizer:
                 slot = int(CLOCK.time() // HISTORY_SAMPLE_S)
                 if slot != last_hist_slot:
                     if self.history.record(dv.st["shelly"], dv.self_regulated,
-                                           lambda i: dv.is_running("shelly", i)):
+                                           lambda i, dv=dv: dv.is_running("shelly", i)):
                         last_hist_slot = slot
 
-                if dv.poll_req or not last_shelly or now - last_shelly >= SHELLY_POLL_S:
+                if dv.poll_req or not last_shelly or now - last_shelly >= cfg["sh_poll_s"]:
                     dv.poll_req = False
                     last_shelly = now
                     await dv.poll_all()
                     dv.recover_ips()
                     self.history.accum_shelly(dv.st["shelly"])
 
-                if cfg["sl_dev"] and (not last_devs or now - last_devs >= SL_DEV_POLL_S):
+                if (cfg["src"] == "solarlog" and cfg["sl_dev"]
+                        and (not last_devs or now - last_devs >= SL_DEV_POLL_S)):
                     last_devs = now
                     res = await self.reader.fetch_devices(cfg, self.devs)
                     if res is not None:
@@ -244,6 +277,7 @@ class EnergyOptimizer:
                     self.sysinfo.sample()
                     self.check_password_reset()
                     self.events.flush()
+                    self.sessions.tick()
 
                 if self.mdns_req or now - last_mdns >= MDNS_CHECK_S:
                     self.mdns_req = False
@@ -255,11 +289,11 @@ class EnergyOptimizer:
                     await self.run_selftest()
             except asyncio.CancelledError:
                 raise
-            except Exception:  # noqa: BLE001 – die Schleife darf nie stehen bleiben
-                _LOGGER.exception("Fehler in der Hauptschleife")
+            except Exception:
+                _LOGGER.exception("Error in the main loop")
             await asyncio.sleep(0.5)
 
-    # ── Selbsttest ──────────────────────────────────────────────────────────
+    # ── Self-test ───────────────────────────────────────────────────────────
     def request_selftest(self) -> None:
         self._selftest_req = True
 
@@ -274,14 +308,15 @@ class EnergyOptimizer:
         cfg = self.settings.cfg
         add("Netzwerk", ST_OK, "Container läuft")
         add("Uhrzeit", ST_OK, CLOCK.now().strftime("%d.%m.%Y %H:%M"))
-        sd = await self.reader.fetch(cfg)
+        src = self.active_source()
+        sd = await src.fetch(cfg)
         if sd is None:
-            add("SolarLog", ST_FAIL, f"{cfg['sl_ip']}:{cfg['sl_port']} antwortet nicht"
-                + (f" ({self.reader.last_error[:40]})" if self.reader.last_error else ""))
+            add(src.name, ST_FAIL, f"{src.target(cfg)} antwortet nicht"
+                + (f" ({src.last_error[:40]})" if src.last_error else ""))
         elif sd.production_w == 0 and sd.consumption_w == 0:
-            add("SolarLog", ST_WARN, "Erreichbar, aber Produktion und Verbrauch sind 0 – Feldnummern prüfen")
+            add(src.name, ST_WARN, "Erreichbar, aber Produktion und Verbrauch sind 0 – Einstellungen prüfen")
         else:
-            add("SolarLog", ST_OK, f"{cfg['sl_ip']}: {sd.production_w:.0f} W Produktion, "
+            add(src.name, ST_OK, f"{src.target(cfg)}: {sd.production_w:.0f} W Produktion, "
                 f"{sd.consumption_w:.0f} W Verbrauch")
         dv = self.devices
         for i in range(cfg["sh_count"]):

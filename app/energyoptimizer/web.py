@@ -1,4 +1,4 @@
-"""Web-Oberfläche (static/) und JSON-API."""
+"""Web interface (static/) and JSON API."""
 
 from __future__ import annotations
 
@@ -10,19 +10,33 @@ import logging
 import os
 import secrets
 from calendar import monthrange
+from datetime import datetime
 
 from aiohttp import web
 
-from . import __version__, sched
+from . import __version__, control, sched
 from .clock import CLOCK
-from .i18n import tr
-from .passwords import verify_password
 from .const import (
-    ER_MANUAL, ER_NONE, EV_AUTHFAIL, MAX_SHELLY, RST_TXT,
+    ER_MANUAL,
+    ER_NONE,
+    EV_AUTHFAIL,
+    MAX_SHELLY,
+    RST_TXT,
     RUN_START_GRACE_S,
 )
-from .settings import LANGS, MAX_PASSWORD_LEN, MIN_PASSWORD_LEN, host_looks_valid, hyst_off_ticks, hyst_on_ticks
+from .i18n import tr
+from .passwords import verify_password
+from .settings import (
+    LANGS,
+    MAX_PASSWORD_LEN,
+    MIN_PASSWORD_LEN,
+    SOURCES,
+    host_looks_valid,
+    hyst_off_ticks,
+    hyst_on_ticks,
+)
 from .solarlog import REQ_BASIC, SolarLogAuthError, SolarLogClient, SolarLogError
+from .sources import make_source, mqtt_topics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,18 +45,43 @@ AUTH_ALERT_AFTER = 10
 AUTH_ALERT_REPEAT_S = 900
 AUTH_MAX_LOCK_S = 900       # longest lock after repeated wrong passwords
 AUTH_FAIL_FORGET_S = 900    # failures are forgotten after this long without one
+# Request flag: signed in with a cookie of 0.0.5, to be replaced by a session.
+UPGRADE_KEY = web.RequestKey("eo_upgrade", bool) if hasattr(web, "RequestKey") else "eo_upgrade"
 
 
 def _json(fn):
-    """Einfacher GET-Handler, der nur ein JSON-Dokument liefert."""
+    """Plain GET handler that only returns a JSON document."""
     async def handler(req):
         return web.json_response(fn())
     return handler
 
 
-def _read(name: str, mode: str = "r"):
-    with open(os.path.join(STATIC, name), mode, **({} if "b" in mode else {"encoding": "utf-8"})) as f:
+def _read(name: str) -> str:
+    with open(os.path.join(STATIC, name), encoding="utf-8") as f:
         return f.read()
+
+
+def _read_bytes(name: str) -> bytes:
+    with open(os.path.join(STATIC, name), "rb") as f:
+        return f.read()
+
+
+ASSET_TYPES = {".css": "text/css", ".js": "application/javascript"}
+
+
+def _load_assets() -> dict[str, tuple[bytes, str]]:
+    """Stylesheet and scripts of the main page, read once at start."""
+    out: dict[str, tuple[bytes, str]] = {}
+    for root, _dirs, files in os.walk(STATIC):
+        for fn in files:
+            ext = os.path.splitext(fn)[1]
+            if ext not in ASSET_TYPES:
+                continue
+            full = os.path.join(root, fn)
+            rel = os.path.relpath(full, STATIC).replace(os.sep, "/")
+            with open(full, "rb") as f:
+                out[rel] = (f.read(), ASSET_TYPES[ext])
+    return out
 
 
 class WebApi:
@@ -53,8 +92,9 @@ class WebApi:
         self.setup_html = _read("setup.html")
         self.wizard_html = _read("wizard.html")
         self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
-        self.icon = _read("icon.png", "rb")
-        self.etag = hashlib.sha256((self.index_html + self.i18n_js).encode()).hexdigest()[:8]
+        self.icon = _read_bytes("icon.png")
+        self.dev = os.environ.get("EO_DEV") == "1"
+        self._load_pages()
         self.secret = self._load_secret()
         self.fails = 0
         self.last_fail = 0.0
@@ -62,7 +102,25 @@ class WebApi:
         self._basic_cache = b""
         self.alert_t = 0.0
 
-    # ── Anmeldung (Cookie eo_auth = SHA-256(secret ‖ passwort)[:16] hex) ─────
+    def _load_pages(self) -> None:
+        self.index_html = _read("index.html")
+        self.wizard_html = _read("wizard.html")
+        self.i18n_js = _read("i18n.js").replace("/*EN*/{}", _read("i18n-en.json").strip(), 1)
+        self.assets = _load_assets()
+        h = hashlib.sha256((self.index_html + self.i18n_js).encode())
+        for name in sorted(self.assets):
+            h.update(self.assets[name][0])
+        self.etag = h.hexdigest()[:8]
+        # Stylesheet and scripts are referenced with ?v=<etag>, so a new version is
+        # always fetched while unchanged files come from the browser cache.
+        self.index_html = self.index_html.replace("{{V}}", self.etag)
+
+    def _dev_reload(self) -> None:
+        """EO_DEV=1: read the web pages again on every request (development only)."""
+        if self.dev:
+            self._load_pages()
+
+    # ── Sign-in (cookie eo_auth = session token, see sessions.py) ────────────
     def _load_secret(self) -> bytes:
         path = os.path.join(self.eo.data_dir, "auth_secret")
         try:
@@ -78,14 +136,15 @@ class WebApi:
                 f.write(sec.hex())
             os.chmod(path, 0o600)
         except OSError:
-            _LOGGER.warning("[Auth] Server-Secret nicht speicherbar – Sitzung gilt nur bis zum Neustart")
+            _LOGGER.warning("[Auth] Server secret could not be saved – valid until the next restart")
         return sec
 
     @property
     def web_pass(self) -> str:
         return self.eo.settings.cfg["web_pass"]
 
-    def token(self) -> str:
+    def legacy_token(self) -> str:
+        """Cookie of version 0.0.5 and older; accepted once and replaced by a session."""
         return hashlib.sha256(self.secret + self.web_pass.encode()).digest()[:16].hex()
 
     def _basic_ok(self, header: str, pw: str) -> bool:
@@ -123,7 +182,7 @@ class WebApi:
         wait = min(AUTH_MAX_LOCK_S, 2 ** (self.fails - 5)) if self.fails >= 5 else 0
         if wait:
             self.block_until = now + wait
-            _LOGGER.warning("[Auth] %d Fehlversuche – Passwortprüfung für %ds gesperrt", self.fails, wait)
+            _LOGGER.warning("[Auth] %d failed attempts – password check locked for %ds", self.fails, wait)
         if self.fails >= AUTH_ALERT_AFTER and (not self.alert_t or now - self.alert_t >= AUTH_ALERT_REPEAT_S):
             self.alert_t = now
             self.eo.events.log(EV_AUTHFAIL, -1, ER_NONE, True, f"{self.fails} Fehlversuche")
@@ -136,14 +195,17 @@ class WebApi:
 
     @property
     def setup_required(self) -> bool:
-        """Kein Passwort gesetzt (Erststart oder nach reset-password): nur die Einrichtung ist offen."""
+        """No password set (first start): only the setup is open."""
         return not self.web_pass
 
     def is_authed(self, req: web.Request) -> bool:
         if self.setup_required:
             return False
         ck = req.cookies.get("eo_auth", "").strip()
-        if ck and hmac.compare_digest(ck, self.token()):
+        if ck and self.eo.sessions.valid(ck):
+            return True
+        if ck and len(ck) == 32 and hmac.compare_digest(ck, self.legacy_token()):
+            req[UPGRADE_KEY] = True
             return True
         auth = req.headers.get("Authorization")
         if auth:
@@ -159,13 +221,13 @@ class WebApi:
                     return True
             self.note_failure()
             return False
-        if ck:
-            self.note_failure()
+        # An unknown cookie is a signed-out or expired session, not a guessed password:
+        # the tokens are random, so it does not count towards the lock.
         return False
 
     @staticmethod
     def check_origin(req: web.Request) -> bool:
-        """CSRF-Schutz: Origin/Referer muss auf denselben Host zeigen wie die Anfrage."""
+        """CSRF protection: Origin/Referer must name the same host as the request."""
         val = req.headers.get("Origin") or req.headers.get("Referer")
         if not val:
             return True
@@ -191,7 +253,10 @@ class WebApi:
         try:
             resp = await handler(req)
         except web.HTTPException as exc:
-            resp = exc
+            self._headers(exc)
+            raise
+        if req.get(UPGRADE_KEY) and "Set-Cookie" not in resp.headers:
+            self._with_auth_cookie(resp, req)
         return self._headers(resp)
 
     @staticmethod
@@ -203,19 +268,28 @@ class WebApi:
 
     # ── Routen ──────────────────────────────────────────────────────────────
     def build(self) -> web.Application:
-        app = web.Application(middlewares=[self.middleware], client_max_size=16 * 1024 * 1024)
+        app = web.Application(middlewares=[self.middleware],  # type: ignore[list-item]
+                              client_max_size=16 * 1024 * 1024)
         r = app.router
         for p in ("/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/favicon.ico"):
             r.add_get(p, self.h_icon)
         r.add_get("/", self.h_index)
         r.add_get("/wizard", self.h_wizard)
         r.add_get("/i18n.js", self.h_i18n)
+        r.add_get("/static/{path:.+}", self.h_asset)
         r.add_get("/api/status", self.h_status)
         r.add_post("/api/login", self.h_login)
         r.add_post("/api/setup", self.h_setup)
         r.add_post("/api/logout", self.h_logout)
         r.add_post("/api/wizard", self.h_wizard_done)
         r.add_post("/api/solarlog/test", self.h_sl_test)
+        r.add_post("/api/source/test", self.h_source_test)
+        r.add_get("/api/sessions", self.h_sessions)
+        r.add_post("/api/sessions/revoke", self.h_sessions_revoke)
+        r.add_get("/api/history/days", self.h_history_days)
+        r.add_get("/api/simulate", self.h_simulate)
+        r.add_post("/api/simulate", self.h_simulate)
+        r.add_post(r"/api/shelly/{idx:\d+}/learned", self.h_use_learned)
         r.add_get("/api/history/stats", _json(lambda: self.eo.history.stats()))
         r.add_get("/api/history/export", self.h_hist_export)
         r.add_post("/api/history/clear", self.h_hist_clear)
@@ -234,10 +308,6 @@ class WebApi:
         r.add_get("/api/events/export", self.h_events_export)
         r.add_get("/api/events", self.h_events)
         r.add_post("/api/events/clear", self.h_events_clear)
-        r.add_get("/api/ideas", _json(lambda: self.eo.ideas.build()))
-        r.add_post("/api/ideas", self.h_ideas_post)
-        r.add_post("/api/ideas/delete", self.h_ideas_delete)
-        r.add_get("/api/ideas/export", self.h_ideas_export)
         r.add_get("/api/alarms", _json(lambda: self.eo.alarms.build()))
         r.add_post("/api/alarms/ack", self.h_alarm_ack)
         r.add_post("/api/selftest", self.h_selftest_start)
@@ -264,12 +334,16 @@ class WebApi:
         return web.Response(text=html, content_type="text/html", headers=headers)
 
     async def h_index(self, req):
+        self._dev_reload()
         if self.setup_required:
             # Before the first password is set, the setup page offers its own language switch.
             q = req.query.get("lang", "")
             return self._page(self.setup_html, q if q in LANGS else "", **{"Cache-Control": "no-store"})
         if not self.is_authed(req):
-            return self._page(self.login_html, **{"Cache-Control": "no-store"})
+            resp = self._page(self.login_html, **{"Cache-Control": "no-store"})
+            if req.cookies.get("eo_auth"):
+                resp.headers["Set-Cookie"] = "eo_auth=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly"
+            return resp
         if not self.eo.settings.cfg["wizard_done"]:
             return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
         etag = f'"{self.etag}-{self.lang}"'
@@ -282,7 +356,18 @@ class WebApi:
             raise web.HTTPFound("/")
         return self._page(self.wizard_html, **{"Cache-Control": "no-store"})
 
+    async def h_asset(self, req):
+        self._dev_reload()
+        asset = self.assets.get(req.match_info["path"])
+        if asset is None:
+            raise web.HTTPNotFound()
+        cache = ("public, max-age=31536000, immutable" if req.query.get("v") == self.etag
+                 else "no-cache")
+        return web.Response(body=asset[0], content_type=asset[1], charset="utf-8",
+                            headers={"Cache-Control": cache})
+
     async def h_i18n(self, req):
+        self._dev_reload()
         return web.Response(text=self.i18n_js, content_type="application/javascript",
                             headers={"Cache-Control": "no-cache"})
 
@@ -292,12 +377,12 @@ class WebApi:
         self.eo.settings.save()
         return web.json_response({"ok": True})
 
-    async def h_sl_test(self, req):
+    async def h_sl_test(self, req, doc: dict | None = None):
         """Setup wizard: try a Solar-Log address and password without saving them."""
-        doc = await self._json_body(req) or {}
+        if doc is None:
+            doc = await self._json_body(req) or {}
         c = self.eo.settings.cfg
-        host = doc.get("sl_ip") if isinstance(doc.get("sl_ip"), str) else ""
-        host = host.strip()
+        host = str(doc["sl_ip"]).strip() if isinstance(doc.get("sl_ip"), str) else ""
         if not host_looks_valid(host):
             return web.json_response({"ok": False, "msg": tr("Ungültige Adresse", self.lang)})
         try:
@@ -333,6 +418,45 @@ class WebApi:
         return web.json_response({"ok": True, "msg": msg, "prod": prod, "cons": cons,
                                   "user": client.username if pw and client.login_trace else ""})
 
+    async def h_source_test(self, req):
+        """Setup and settings: read a data source once with the entered values, without saving."""
+        doc = await self._json_body(req) or {}
+        src = doc.get("src")
+        if src == "solarlog" or src not in SOURCES:
+            return await self.h_sl_test(req, doc)
+        c = dict(self.eo.settings.cfg)
+        for k in ("src_host", "em_pv_ip", "mb_preset", "mb_prod", "mb_grid", "mb_batt", "mb_soc",
+                  "mqs_prod", "mqs_cons", "mqs_grid", "mqs_batt", "mqs_soc"):
+            if isinstance(doc.get(k), str):
+                c[k] = doc[k].strip()
+        for k in ("src_port", "mb_unit"):
+            try:
+                c[k] = int(doc.get(k, c[k]) or 0)
+            except (TypeError, ValueError):
+                pass
+        c["src"] = src
+        lang = self.lang
+        if src != "mqtt" and not host_looks_valid(c["src_host"]):
+            return web.json_response({"ok": False, "msg": tr("Ungültige Adresse", lang)})
+        source = make_source(self.eo, src)
+        try:
+            sd = await source.fetch(c)
+        finally:
+            source.close()
+        if sd is None:
+            if src == "mqtt" and set(mqtt_topics(c)) - set(self.eo.mqtt.topic_values):
+                return web.json_response({"ok": False, "msg": tr(
+                    "Neue Topics werden erst nach dem Speichern abonniert – speichern und dann testen.", lang)})
+            return web.json_response({"ok": False, "msg": tr("Keine Werte: {err}", lang,
+                                                             err=source.last_error or "-")})
+        if sd.has_prod:
+            msg = tr("Verbunden: {prod} W Produktion, {cons} W Verbrauch.", lang,
+                     prod=round(sd.production_w), cons=round(sd.consumption_w))
+        else:
+            msg = tr("Verbunden: Netz {grid} W (ohne PV-Messung).", lang, grid=round(sd.grid_w))
+        return web.json_response({"ok": True, "msg": msg, "prod": round(sd.production_w),
+                                  "cons": round(sd.consumption_w), "grid": round(sd.grid_w)})
+
     async def _json_body(self, req) -> dict | None:
         try:
             doc = json.loads(await req.text())
@@ -352,27 +476,28 @@ class WebApi:
             return web.json_response({"ok": False}, status=400)
         if self.setup_required:
             return web.json_response({"ok": False, "setup": True}, status=409)
-        pw = doc.get("pw") if isinstance(doc.get("pw"), str) else ""
+        pw = str(doc["pw"]) if isinstance(doc.get("pw"), str) else ""
         if not await asyncio.to_thread(verify_password, pw, self.web_pass):
             self.note_failure()
             w = self.block_remaining()
             return web.json_response({"ok": False, "wait": w} if w else {"ok": False}, status=401)
         self.note_success()
-        return self._with_auth_cookie(web.json_response({"ok": True}))
+        return self._with_auth_cookie(web.json_response({"ok": True}), req)
 
-    def _with_auth_cookie(self, resp):
-        resp.headers["Set-Cookie"] = (f"eo_auth={self.token()}; Path=/; Max-Age=31536000; "
+    def _with_auth_cookie(self, resp, req):
+        token = self.eo.sessions.create(req.headers.get("User-Agent", ""))
+        resp.headers["Set-Cookie"] = (f"eo_auth={token}; Path=/; Max-Age=31536000; "
                                       "SameSite=Lax; HttpOnly")
         return resp
 
     async def h_setup(self, req):
-        """Erststart: das erste Passwort festlegen. Danach ist dieser Endpunkt gesperrt."""
+        """First start: set the first password. After that this endpoint is locked."""
         if not self.check_origin(req):
             return web.json_response({"ok": False}, status=403)
         if not self.setup_required:
             return web.json_response({"ok": False, "done": True}, status=409)
         doc = await self._json_body(req)
-        pw = doc.get("pw") if isinstance(doc, dict) and isinstance(doc.get("pw"), str) else ""
+        pw = str(doc["pw"]) if isinstance(doc, dict) and isinstance(doc.get("pw"), str) else ""
         lang = doc.get("lang") if isinstance(doc, dict) else None
         if lang in LANGS:
             self.eo.settings.cfg["lang"] = lang
@@ -384,14 +509,27 @@ class WebApi:
                 {"ok": False, "msg": tr("Höchstens {n} Zeichen", self.lang, n=MAX_PASSWORD_LEN)}, status=400)
         self.eo.set_web_password(pw)
         self.note_success()
-        return self._with_auth_cookie(web.json_response({"ok": True}))
+        return self._with_auth_cookie(web.json_response({"ok": True}), req)
 
     async def h_logout(self, req):
         if not self.check_origin(req):
             return web.json_response({"ok": False}, status=403)
+        self.eo.sessions.revoke(req.cookies.get("eo_auth", "").strip())
         resp = web.json_response({"ok": True})
         resp.headers["Set-Cookie"] = "eo_auth=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly"
         return resp
+
+    async def h_sessions(self, req):
+        return web.json_response({"sessions": self.eo.sessions.listing(req.cookies.get("eo_auth", ""))})
+
+    async def h_sessions_revoke(self, req):
+        doc = await self._json_body(req) or {}
+        cur = req.cookies.get("eo_auth", "").strip()
+        if doc.get("all"):
+            n = self.eo.sessions.revoke_all(keep=cur)
+            return web.json_response({"ok": True, "n": n})
+        sid = doc.get("id") if isinstance(doc.get("id"), str) else ""
+        return web.json_response({"ok": self.eo.sessions.revoke_id(sid)})
 
     # ── Status ──────────────────────────────────────────────────────────────
     async def h_status(self, req):
@@ -404,7 +542,9 @@ class WebApi:
         now = CLOCK.mono()
         dt = CLOCK.now()
         sd = eo.history.solar_avg(c["sl_avg_s"])
-        doc: dict = {"prod": sd.production_w, "cons": sd.consumption_w, "grid": sd.grid_w}
+        doc: dict = {"prod": sd.production_w, "cons": sd.consumption_w, "grid": sd.grid_w,
+                     "has_prod": sd.has_prod, "src": c["src"], "dry": bool(c["dry_run"]),
+                     "up": int(now - eo.task_start)}
         if sd.has_battery:
             doc["batt"] = sd.battery_w
             doc["soc"] = sd.battery_soc
@@ -413,6 +553,7 @@ class WebApi:
         doc["sl_next"] = max(0, int(eo.next_solar - now)) if eo.next_solar else -1
         doc["failsafe"] = dv.failsafe_active()
         doc["battblk"] = dv.batt_block
+        doc["enabled"] = dv.enabled
         doc["al_n"] = eo.alarms.active_count()
         doc["al_sev"] = eo.alarms.max_severity()
         en = eo.energy.c
@@ -465,6 +606,8 @@ class WebApi:
                 "amp": round(s.current_a, 2), "temp": round(s.temp_c, 1),
                 "rt_min": e["rt"], "rt_on": s.today_on_s // 60, "forced": s.forced_on,
                 "mx_min": e["mx"], "cap": dv.daycap_reached("shelly", i),
+                "real": s.real_on, "virt": s.virt, "learned": dv.learned_w(i),
+                "st": dv.load_status("shelly", i), "why": dv.explain("shelly", i),
             }
             run_state = 0
             if e["rw"] > 0:
@@ -508,7 +651,10 @@ class WebApi:
                 "auto": e["auto"], "on": s.on, "rt_min": e["rt"], "rt_on": s.today_on_s // 60,
                 "forced": s.forced_on, "mx_min": e["mx"], "cap": dv.daycap_reached("ext", i),
                 "ot": s.on_ticks, "ft": s.off_ticks, "ov": ov(s), "ova": s.override_ret_auto,
-                "win": dv.window_open("ext", i),
+                "win": dv.window_open("ext", i), "real": s.real_on, "virt": s.virt,
+                "st": dv.load_status("ext", i), "why": dv.explain("ext", i),
+                "fb": s.fb if e["st"] else None, "fb_age": int(now - s.fb_t) if s.fb_t else -1,
+                "fb_bad": dv.ext_mismatch(i),
             }
             sched_fields(o, e, s)
             o["lock"] = lock_s(e, s)
@@ -519,14 +665,19 @@ class WebApi:
         up = eo.updates
         doc["update"] = {"available": up.available, "latest": up.latest, "url": up.url}
 
-        cf = {k: c[k] for k in ("sl_ip", "sl_port", "sl_user", "sl_fprod", "sl_fcons", "sl_fgrid",
+        cf = {k: c[k] for k in ("src", "sl_ip", "sl_port", "sl_user", "sl_fprod", "sl_fcons", "sl_fgrid",
                                  "sl_fyday", "sl_fcday", "sl_fytot", "sl_fctot", "sl_fsoc", "sl_fbatt",
-                                 "sl_poll_min", "sl_avg_s", "on_margin", "off_margin", "hyst_on_s",
+                                 "src_host", "src_port", "em_pv_ip", "mb_preset", "mb_unit", "mb_prod",
+                                 "mb_grid", "mb_batt", "mb_soc", "mqs_prod", "mqs_cons", "mqs_grid",
+                                 "mqs_batt", "mqs_soc", "src_poll_s", "sh_poll_s",
+                                 "sl_avg_s", "on_margin", "off_margin", "hyst_on_s",
                                  "hyst_off_s", "min_on_min", "min_off_min", "fw_start", "fw_end",
-                                 "sl_fsafe", "batt_grd", "sh_count", "p_buy", "p_feed", "p_base",
+                                 "sl_fsafe", "batt_grd", "sh_count", "ex_count", "p_buy", "p_feed", "p_base",
                                  "hb_en", "hb_min",
                                  "mo_sl", "mo_dev", "mo_np", "mo_inv", "sl_dev", "lat", "lon",
-                                 "mq_en", "mq_host", "mq_port", "mq_user", "mq_disc", "auto_en")}
+                                 "mq_en", "mq_host", "mq_port", "mq_user", "mq_disc", "auto_en", "dry_run")}
+        cf["max_sh"] = MAX_SHELLY
+        cf["max_ex"] = len(c["ext"])
         cf["hostname"] = c["hostname"]
         cf["hyst_on"] = hyst_on_ticks(c)
         cf["hyst_off"] = hyst_off_ticks(c)
@@ -543,17 +694,74 @@ class WebApi:
         ]
         cf["ext"] = [
             {"name": e["name"], "pw": e["pw"], "pri": e["pri"], "auto": e["auto"], "rt": e["rt"],
-             "mx": e["mx"], "ws": e["ws"], "we": e["we"], "wd": e["wd"], "sch": sched.to_str(e["sch"])}
+             "mx": e["mx"], "ws": e["ws"], "we": e["we"], "wd": e["wd"], "sch": sched.to_str(e["sch"]),
+             "st": e["st"]}
             for e in c["ext"][: c["ex_count"]]
         ]
         doc["cfg"] = cf
         return doc
 
-    # ── Verlauf ─────────────────────────────────────────────────────────────
+    # ── History ─────────────────────────────────────────────────────────────
+    @staticmethod
+    def _day_arg(req) -> int | None:
+        d = req.query.get("d", "")
+        if len(d) != 8 or not d.isdigit():
+            return None
+        try:
+            datetime(int(d[:4]), int(d[4:6]), int(d[6:]))
+        except ValueError:
+            return None
+        return int(d)
+
     async def h_history(self, req):
         dv = self.eo.devices
         names = [dv.display_name("shelly", i) for i in range(MAX_SHELLY)]
-        return web.json_response(self.eo.history.build(self.eo.settings.cfg, names))
+        day = self._day_arg(req)
+        pts = None
+        if day is not None:
+            pts = await asyncio.to_thread(self.eo.history.day_points, day)
+        doc = self.eo.history.build(self.eo.settings.cfg, names, pts)
+        if day is not None:
+            doc["day"] = day
+        return web.json_response(doc)
+
+    async def h_history_days(self, req):
+        return web.json_response({"days": await asyncio.to_thread(self.eo.history.days_available)})
+
+    async def h_simulate(self, req):
+        """Replays a day with the current (or posted) control settings."""
+        eo = self.eo
+        c = eo.settings.cfg
+        today = CLOCK.now()
+        day = self._day_arg(req) or today.year * 10000 + today.month * 100 + today.day
+        over: dict = {}
+        if req.method == "POST":
+            over = await self._json_body(req) or {}
+        sim_cfg = dict(c)
+        for k in ("on_margin", "off_margin", "min_on_min", "min_off_min", "hyst_on_s", "hyst_off_s",
+                  "batt_grd"):
+            if isinstance(over.get(k), (int, float)) and not isinstance(over.get(k), bool):
+                sim_cfg[k] = max(0, int(over[k]))
+        pts = await asyncio.to_thread(eo.history.day_points, day)
+        from .const import HISTORY_SAMPLE_S
+        from .settings import hyst_ticks
+        p = control.params_from_cfg(sim_cfg, hyst_ticks(sim_cfg["hyst_on_s"], HISTORY_SAMPLE_S),
+                                    hyst_ticks(sim_cfg["hyst_off_s"], HISTORY_SAMPLE_S))
+        dv = eo.devices
+        names = {(k, i): dv.display_name(k, i) for k in ("shelly", "ext") for i in range(dv.count(k))}
+        res = control.simulate(pts, c["sh_count"], sim_cfg, CLOCK.tz, p, names)
+        res["day"] = day
+        return web.json_response(res)
+
+    async def h_use_learned(self, req):
+        """Takes the learned power of a plug as its configured power."""
+        i = int(req.match_info["idx"])
+        c = self.eo.settings.cfg
+        w = self.eo.devices.learned_w(i)
+        if not 0 <= i < c["sh_count"] or w <= 0:
+            return web.json_response({"ok": False}, status=404)
+        self.eo.apply_settings({f"s{i}_pw": w}, f"Leistung gelernt: {w} W")
+        return web.json_response({"ok": True, "pw": w})
 
     async def h_hist_export(self, req):
         h = self.eo.history
@@ -607,7 +815,11 @@ class WebApi:
         doc = await self._json_body(req)
         if doc is None:
             return web.json_response({"ok": False, "msg": "JSON Fehler"}, status=400)
+        old_pass = self.web_pass
         warn = self.eo.apply_settings(doc)
+        if self.web_pass != old_pass:
+            # New password: every other signed-in device has to sign in again.
+            self.eo.sessions.revoke_all(keep=req.cookies.get("eo_auth", "").strip())
         return web.json_response({"ok": True, "reboot": False, "warn": warn.replace('"', "'")})
 
     async def h_cmd(self, req):
@@ -647,12 +859,12 @@ class WebApi:
         return web.json_response(d)
 
     async def h_restart(self, req):
-        # Im Container: sauber beenden, Docker (restart: unless-stopped) startet neu.
+        # In the container: exit cleanly, Docker (restart: unless-stopped) starts it again.
         self.eo.flush()
         asyncio.get_running_loop().call_later(0.3, lambda: os.kill(os.getpid(), 15))
         return web.json_response({"ok": True})
 
-    # ── Protokoll, Notizen, Alarme ──────────────────────────────────────────
+    # ── Event log, alarms ───────────────────────────────────────────────────
     async def h_events(self, req):
         try:
             n = max(1, int(req.query.get("n", "120")))
@@ -676,30 +888,6 @@ class WebApi:
 
     async def h_events_clear(self, req):
         return web.json_response({"ok": self.eo.events.clear()})
-
-    async def h_ideas_post(self, req):
-        doc = await self._json_body(req)
-        if doc is None:
-            return web.json_response({"ok": False, "msg": "JSON Fehler"}, status=400)
-        ok, iid, err, nf = self.eo.ideas.upsert(doc)
-        if not ok:
-            return web.json_response({"ok": False, "msg": tr(err, self.lang).replace('"', "'")},
-                                     status=404 if nf else 400)
-        return web.json_response({"ok": True, "id": iid})
-
-    async def h_ideas_delete(self, req):
-        try:
-            iid = int(req.query.get("id", "0"))
-        except ValueError:
-            iid = 0
-        if not self.eo.ideas.delete(iid):
-            return web.json_response({"ok": False, "msg": tr("Notiz nicht gefunden", self.lang)}, status=404)
-        return web.json_response({"ok": True})
-
-    async def h_ideas_export(self, req):
-        return web.Response(text=self.eo.ideas.markdown(self.lang), content_type="text/markdown", charset="utf-8",
-                            headers={"Content-Disposition": 'attachment; filename="%s"' % (
-                                "improvements.md" if self.lang == "en" else "verbesserungen.md")})
 
     async def h_alarm_ack(self, req):
         try:
@@ -744,14 +932,15 @@ class WebApi:
             if x.has_power:
                 o["w"] = int(round(x.power_w))
             devs.append(o)
-        main = eo.reader.raw_main
-        if eo.reader.last_error:
-            main = f"[Fehler] {eo.reader.last_error}\n" + main
+        src = eo.active_source()
+        main = src.raw
+        if src.last_error:
+            main = f"[Fehler] {src.last_error}\n" + main
         client = eo.reader._client
-        if client is not None and client.login_trace:
+        if eo.settings.cfg["src"] == "solarlog" and client is not None and client.login_trace:
             main += "\n[Login] " + json.dumps(client.login_report(), ensure_ascii=False)
         return web.json_response({
-            "main": main, "dev": eo.reader.raw_dev,
+            "src": src.name, "main": main, "dev": eo.reader.raw_dev,
             "age": int(CLOCK.mono() - eo.devs_t) if eo.devs_t else -1, "devs": devs,
         })
 
@@ -760,7 +949,7 @@ _host_ip = ("", 0.0)
 
 
 def req_host_ip() -> str:
-    """LAN-Adresse, wie sie die Einstellungsseite als "IP" anzeigt (1 min gecacht)."""
+    """LAN address as the settings page shows it (cached for a minute)."""
     global _host_ip
     from .devices import local_ipv4
     if os.environ.get("EO_HOST_IP"):

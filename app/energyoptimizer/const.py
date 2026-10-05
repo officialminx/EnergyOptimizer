@@ -1,10 +1,16 @@
-"""Konstanten: Grenzen, Intervalle, Ereignis- und Alarmcodes."""
+"""Constants: limits, intervals, event and alarm codes."""
 
-MAX_SHELLY = 4
-MAX_EXT = 4
+MAX_SHELLY = 16
+MAX_EXT = 16
 MAX_SCHED = 4
 
-SHELLY_POLL_S = 60
+# Poll intervals: defaults and limits of the settings (seconds).
+SRC_POLL_DEFAULT_S = 30
+SRC_POLL_MIN_S = 5
+SRC_POLL_MAX_S = 3600
+SH_POLL_DEFAULT_S = 30
+SH_POLL_MIN_S = 5
+SH_POLL_MAX_S = 600
 HISTORY_SAMPLE_S = 900
 HISTORY_MAX = 96
 SHELLY_CMD_LOCK_S = 5
@@ -55,7 +61,7 @@ EV_TYPE_TXT = {
     EV_SWITCH: "Schaltung",
     EV_REACH: "Erreichbarkeit",
     EV_AUTOMODE: "Automatik",
-    EV_SOLARLOG: "SolarLog",
+    EV_SOLARLOG: "Datenquelle",
     EV_FAILSAFE: "Fail-Safe",
     EV_IPMOVE: "IP-Wechsel",
     EV_CONFIG: "Einstellungen",
@@ -63,7 +69,6 @@ EV_TYPE_TXT = {
     EV_ALARM: "Störung",
     EV_AUTHFAIL: "Fehlanmeldungen",
     EV_RUN: "Betrieb",
-    13: "Tesla-Laden",
 }
 
 ER_TXT = {
@@ -94,7 +99,8 @@ AL_NOPROD = 2
 AL_INVERTER = 3
 AL_NVS = 4
 AL_SHELLY0 = 5
-AL_COUNT = AL_SHELLY0 + MAX_SHELLY
+AL_EXT0 = AL_SHELLY0 + MAX_SHELLY      # external switch does not confirm the command
+AL_COUNT = AL_EXT0 + MAX_EXT
 
 NS_INFO = 0
 NS_WARN = 1

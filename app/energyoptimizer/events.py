@@ -1,7 +1,7 @@
-"""Ereignisprotokoll: Ringpuffer mit 1500 Einträgen.
+"""Event log: ring buffer with 1500 entries.
 
-Ein Eintrag ist [epoch, uptime_s, type, dev, reason, flags, surplus_w, text];
-flags Bit0 = EIN, Bit1 = Überschuss-Wert gültig.
+An entry is [epoch, uptime_s, type, dev, reason, flags, surplus_w, text];
+flags bit0 = ON, bit1 = surplus value valid, bit2 = dry run (nothing switched).
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ EV_MAX = 1500
 EV_TEXT = 40
 EVF_ON = 0x01
 EVF_SURP = 0x02
+EVF_DRY = 0x04
 
 
 class EventLog:
@@ -33,8 +34,8 @@ class EventLog:
                 self.ev.append(r)
 
     def log(self, type_: int, dev: int, reason: int, flag: bool, text: str | None,
-            surplus_w: float | None = None) -> None:
-        flags = EVF_ON if flag else 0
+            surplus_w: float | None = None, dry: bool = False) -> None:
+        flags = (EVF_ON if flag else 0) | (EVF_DRY if dry else 0)
         surplus = 0
         if surplus_w is not None:
             surplus = int(round(max(-32000.0, min(32000.0, surplus_w))))
@@ -54,7 +55,7 @@ class EventLog:
 
     def build(self, max_n: int, dev_filter: int) -> dict:
         max_n = max(1, min(400, max_n))
-        out = []
+        out: list[list] = []
         for r in reversed(self.ev):
             if len(out) >= max_n:
                 break
@@ -73,7 +74,7 @@ class EventLog:
 
     def csv(self) -> str:
         buf = io.StringIO()
-        buf.write("datetime,epoch,uptime_s,type_id,type,device,name,state,reason_id,reason,surplus_w\n")
+        buf.write("datetime,epoch,uptime_s,type_id,type,device,name,state,reason_id,reason,surplus_w,dry_run\n")
         w = csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
         for r in self.ev:
             epoch, up, typ, dev, reason, flags, surplus, text = r
@@ -86,5 +87,5 @@ class EventLog:
                 rtxt = ER_TXT.get(reason, "")
             w.writerow([when, epoch, up, typ, EV_TYPE_TXT.get(typ, "unbekannt"), dev, text,
                         1 if flags & EVF_ON else 0, reason, rtxt,
-                        surplus if flags & EVF_SURP else ""])
+                        surplus if flags & EVF_SURP else "", 1 if flags & EVF_DRY else 0])
         return buf.getvalue()

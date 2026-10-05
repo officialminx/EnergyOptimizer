@@ -1,11 +1,13 @@
-"""Verlauf.
+"""History.
 
-* Tagesverlauf: 96 Punkte im 15-Minuten-Raster, Mittelwert aller Messungen des
-  Intervalls, persistiert in history.json.
-* Langzeit-Log hist.csv, gekürzt ab 12 MB auf 6 MB.
-* Tagesarchiv hist_daily.json: ein Datensatz je Tag (Produktion, Verbrauch,
-  Netzbezug, Einspeisung), inkl. CSV-Import.
-* Anzeige-Glättung der Live-Werte (sl_avg_s).
+* Day curve: 96 points on a 15-minute grid, average of all readings of the
+  interval, kept in history.json. A point is
+  [epoch, prod, cons, grid, batt, on_mask, run_mask, w0 … w15].
+* Long-term log hist.csv (same values, one row per point), cut from 12 MB to 6 MB.
+  Any past day can be read back from it.
+* Daily archive hist_daily.json: one record per day (production, consumption,
+  grid import, feed-in), with CSV import.
+* Smoothing of the live values for display (sl_avg_s).
 """
 
 from __future__ import annotations
@@ -23,11 +25,15 @@ from .storage import load_json, save_json
 
 _LOGGER = logging.getLogger(__name__)
 
-DATALOG_HDR = ("epoch,prod_w,cons_w,grid_w,sh0_w,sh1_w,sh2_w,sh3_w,"
-               "sh0_on,sh1_on,sh2_on,sh3_on")
+# sh<i>_on: 0 = off, 1 = on, 2 = on and the device runs (self-regulating plugs)
+DATALOG_HDR = ("epoch,prod_w,cons_w,grid_w,batt_w,soc,"
+               + ",".join(f"sh{i}_w" for i in range(MAX_SHELLY)) + ","
+               + ",".join(f"sh{i}_on" for i in range(MAX_SHELLY)))
+DATALOG_COLS = 6 + 2 * MAX_SHELLY
+PT_LEN = 7 + MAX_SHELLY
 DATALOG_MAX_BYTES = 12 * 1024 * 1024
 DATALOG_KEEP_BYTES = 6 * 1024 * 1024
-SOLAVG_MAX = 32
+SOLAVG_MAX = 720
 HDI_MAX_ROWS = 5000
 HDF_IMPORTED = 0x01
 HDF_LOW_CONFIDENCE = 0x02
@@ -48,16 +54,17 @@ class History:
         self.werr = False
         self._energy_cache: dict[int, dict] = {}
         self._energy_cache_day: date | None = None
-        # Live-Werte + Glättung
+        # Live values + smoothing
         self.live = SolarData()
         self.live_t: float = 0.0
         self.next_t: float = 0.0
         self._avg: deque[tuple] = deque(maxlen=SOLAVG_MAX)
-        # Akkumulatoren für den nächsten Verlaufspunkt
-        self._acc = [0.0, 0.0, 0.0, 0]
+        # Accumulators for the next history point
+        self._acc = [0.0, 0.0, 0.0, 0.0, 0]
         self._acc_sh = [[0.0, 0] for _ in range(MAX_SHELLY)]
+        self.last_soc = 0
 
-    # ── Live-Werte ──────────────────────────────────────────────────────────
+    # ── Live values ─────────────────────────────────────────────────────────
     def set_solar(self, d: SolarData) -> None:
         self.live = d
         self.live_t = CLOCK.mono()
@@ -66,7 +73,9 @@ class History:
         self._acc[0] += d.production_w
         self._acc[1] += d.consumption_w
         self._acc[2] += d.grid_w
-        self._acc[3] += 1
+        self._acc[3] += d.battery_w if d.has_battery else 0.0
+        self._acc[4] += 1
+        self.last_soc = d.battery_soc if d.has_battery else 0
 
     def solar_avg(self, window_s: float) -> SolarData:
         sd = SolarData(**self.live.__dict__)
@@ -97,40 +106,55 @@ class History:
                 self._acc_sh[i][0] += st.apower_w
                 self._acc_sh[i][1] += 1
 
-    # ── Tagesverlauf ────────────────────────────────────────────────────────
+    # ── Day curve ───────────────────────────────────────────────────────────
+    @staticmethod
+    def _upgrade_point(p: list) -> list | None:
+        """Point of the current format; converts the 0.0.5 format (four plugs)."""
+        if len(p) == PT_LEN:
+            return p
+        if len(p) == 9:
+            mask = int(p[8])
+            return p[:4] + [0, mask & 0xF, (mask >> 4) & 0xF] + p[4:8] + [0] * (MAX_SHELLY - 4)
+        return None
+
     def load(self) -> None:
         data = load_json(self.ring_path, None)
         if isinstance(data, dict) and isinstance(data.get("pts"), list):
             today = CLOCK.now().timetuple().tm_yday
             if data.get("yday") == today:
                 for p in data["pts"][-HISTORY_MAX:]:
-                    if isinstance(p, list) and len(p) == 9:
-                        self.pts.append(p)
+                    if isinstance(p, list):
+                        q = self._upgrade_point(p)
+                        if q is not None:
+                            self.pts.append(q)
                 self.yday = today
         self._migrate_datalog()
 
     def record(self, states, self_regulated, is_running) -> bool:
-        """Einen Verlaufspunkt anhängen (Aufruf alle 15 min, auf :00/:15/:30/:45)."""
+        """Append a history point (called every 15 min, at :00/:15/:30/:45)."""
         if not self.live.valid:
             return False
         a = self._acc
-        prod = a[0] / a[3] if a[3] else self.live.production_w
-        cons = a[1] / a[3] if a[3] else self.live.consumption_w
-        grid = a[2] / a[3] if a[3] else self.live.grid_w
-        self._acc = [0.0, 0.0, 0.0, 0]
+        n = a[4]
+        prod = a[0] / n if n else self.live.production_w
+        cons = a[1] / n if n else self.live.consumption_w
+        grid = a[2] / n if n else self.live.grid_w
+        batt = a[3] / n if n else (self.live.battery_w if self.live.has_battery else 0.0)
+        self._acc = [0.0, 0.0, 0.0, 0.0, 0]
         now = CLOCK.now()
-        p = [int(CLOCK.time()), _clamp16(prod), _clamp16(cons), _clamp16(grid)]
-        mask = 0
+        on_mask = run_mask = 0
+        watts = []
         for i in range(MAX_SHELLY):
-            s, n = self._acc_sh[i]
+            s, k = self._acc_sh[i]
             st = states[i]
-            p.append(_clamp16(s / n if n else st.apower_w))
-            if st.on and st.reachable:
-                mask |= 1 << i
+            watts.append(_clamp16(s / k if k else st.apower_w))
+            if st.real_on and st.reachable:
+                on_mask |= 1 << i
             if self_regulated(i) and is_running(i):
-                mask |= 1 << (4 + i)
+                run_mask |= 1 << i
         self._acc_sh = [[0.0, 0] for _ in range(MAX_SHELLY)]
-        p.append(mask)
+        p = [int(CLOCK.time()), _clamp16(prod), _clamp16(cons), _clamp16(grid), _clamp16(batt),
+             on_mask, run_mask] + watts
         yday = now.timetuple().tm_yday
         if self.yday != yday:
             self.pts.clear()
@@ -140,22 +164,94 @@ class History:
         self._datalog_append(p)
         return True
 
-    def build(self, cfg: dict, names: list[str]) -> dict:
+    @staticmethod
+    def _shape(pts, shc: int) -> list[list]:
+        """Points for the interface: only the configured plugs."""
+        return [p[:7] + p[7:7 + shc] for p in pts]
+
+    def build(self, cfg: dict, names: list[str], pts: list[list] | None = None) -> dict:
         shc = 0
         while shc < min(cfg["sh_count"], MAX_SHELLY) and cfg["shelly"][shc]["ip"]:
             shc += 1
-        pts = []
-        for p in self.pts:
-            pts.append(p[:4] + p[4:4 + shc] + [p[8]])
         return {
             "t": int(CLOCK.time()), "n": shc, "dev": names[:shc],
             "rw": [1 if cfg["shelly"][i]["rw"] > 0 else 0 for i in range(shc)],
-            "pts": pts,
+            "pts": self._shape(self.pts if pts is None else pts, shc),
         }
+
+    def day_points(self, day: int) -> list[list]:
+        """All points of one local day (YYYYMMDD): today from memory, else from hist.csv."""
+        today = CLOCK.now()
+        if day == today.year * 10000 + today.month * 100 + today.day:
+            # Until the first point after midnight the buffer still holds yesterday.
+            return list(self.pts) if self.yday == today.timetuple().tm_yday else []
+        start = datetime(day // 10000, day // 100 % 100, day % 100, tzinfo=CLOCK.tz)
+        t0 = int(start.timestamp())
+        t1 = int((start + timedelta(days=1)).timestamp())
+        out: list[list] = []
+        if not self.datalog_exists():
+            return out
+        with open(self.datalog_path, encoding="utf-8") as f:
+            f.readline()
+            for line in f:
+                head = line.split(",", 1)[0]
+                try:
+                    ep = int(head)
+                except ValueError:
+                    continue
+                if ep < t0:
+                    continue
+                if ep >= t1:
+                    break
+                p = self._csv_point(line)
+                if p is not None:
+                    out.append(p)
+        return out
+
+    @staticmethod
+    def _csv_point(line: str) -> list | None:
+        parts = line.strip().split(",")
+        if len(parts) < DATALOG_COLS:
+            return None
+        try:
+            v = [int(x or 0) for x in parts[:DATALOG_COLS]]
+        except ValueError:
+            return None
+        on_mask = run_mask = 0
+        for i in range(MAX_SHELLY):
+            st = v[6 + MAX_SHELLY + i]
+            if st:
+                on_mask |= 1 << i
+            if st == 2:
+                run_mask |= 1 << i
+        return v[:5] + [on_mask, run_mask] + v[6:6 + MAX_SHELLY]
+
+    def days_available(self) -> list[int]:
+        """Days (YYYYMMDD) that hist.csv has points for."""
+        days: set[int] = set()
+        if self.datalog_exists():
+            with open(self.datalog_path, encoding="utf-8") as f:
+                f.readline()
+                last = -1
+                for line in f:
+                    try:
+                        ep = int(line.split(",", 1)[0])
+                    except ValueError:
+                        continue
+                    k = ep // 3600
+                    if k == last:
+                        continue
+                    last = k
+                    d = CLOCK.local(ep)
+                    days.add(d.year * 10000 + d.month * 100 + d.day)
+        t = CLOCK.now()
+        if self.pts:
+            days.add(t.year * 10000 + t.month * 100 + t.day)
+        return sorted(days)
 
     # ── hist.csv ────────────────────────────────────────────────────────────
     def _migrate_datalog(self) -> None:
-        """Ältere hist.csv ohne Schaltzustands-Spalten auf das aktuelle Format bringen."""
+        """Brings an older hist.csv (four plugs, no battery) to the current format."""
         path = self.datalog_path
         if not os.path.exists(path):
             return
@@ -167,17 +263,22 @@ class History:
                 rest = f.read()
             lines = rest.splitlines() if hdr.startswith("epoch") else [hdr] + rest.splitlines()
             tmp = path + ".tmp"
+            pad = MAX_SHELLY - 4
             with open(tmp, "w", encoding="utf-8") as out:
                 out.write(DATALOG_HDR + "\n")
                 for line in lines:
-                    line = line.strip()
-                    if not line:
+                    v = line.strip().split(",")
+                    if not v or not v[0]:
                         continue
-                    line += "," * max(0, 11 - line.count(","))
-                    out.write(line + "\n")
+                    v += [""] * max(0, 12 - len(v))
+                    row = v[:4] + ["0", "0"] + v[4:8] + ["0"] * pad + [x or "0" for x in v[8:12]] + ["0"] * pad
+                    out.write(",".join(row) + "\n")
+                out.flush()
+                os.fsync(out.fileno())
             os.replace(tmp, path)
+            _LOGGER.info("[DataLog] Converted hist.csv to the format with %d plugs", MAX_SHELLY)
         except OSError as err:
-            _LOGGER.warning("[DataLog] Format-Umstellung fehlgeschlagen: %s", err)
+            _LOGGER.warning("[DataLog] Format conversion failed: %s", err)
 
     def _datalog_append(self, p: list) -> None:
         path = self.datalog_path
@@ -186,16 +287,18 @@ class History:
             with open(path, "a", encoding="utf-8") as f:
                 if is_new:
                     f.write(DATALOG_HDR + "\n")
-                mask = p[8]
-                f.write(",".join(str(v) for v in p[:8]) + ","
-                        + ",".join(str((mask >> i) & 1) for i in range(4)) + "\n")
+                on_mask, run_mask = p[5], p[6]
+                states = [((on_mask >> i) & 1) + ((run_mask >> i) & 1) for i in range(MAX_SHELLY)]
+                f.write(",".join(str(v) for v in p[:5]) + f",{self.last_soc},"
+                        + ",".join(str(v) for v in p[7:7 + MAX_SHELLY]) + ","
+                        + ",".join(str(x) for x in states) + "\n")
             self.werr = False
             self._energy_cache.clear()
             if os.path.getsize(path) > DATALOG_MAX_BYTES:
                 self._datalog_rotate()
         except OSError as err:
             self.werr = True
-            _LOGGER.error("[DataLog] Schreiben fehlgeschlagen: %s", err)
+            _LOGGER.error("[DataLog] Write failed: %s", err)
 
     def _datalog_rotate(self) -> None:
         path = self.datalog_path
@@ -210,7 +313,7 @@ class History:
             out.write(rest)
         os.replace(tmp, path)
         self._energy_cache.clear()
-        _LOGGER.info("[DataLog] Gekürzt: %d -> %d Byte", size, os.path.getsize(path))
+        _LOGGER.info("[DataLog] Cut: %d -> %d bytes", size, os.path.getsize(path))
 
     def datalog_exists(self) -> bool:
         return os.path.exists(self.datalog_path)
@@ -244,7 +347,7 @@ class History:
         }
 
     def energy(self, rng: int) -> dict:
-        """Wochen-/Monats-/Jahresbalken aus hist.csv (buildEnergyJson)."""
+        """Week/month/year bars from hist.csv."""
         now = CLOCK.now()
         today = now.date()
         if self._energy_cache_day != today:
@@ -312,12 +415,12 @@ class History:
                 while mon < 0:
                     mon += 12
                     yr -= 1
-                t = int(datetime(yr, mon + 1, 1, 12, tzinfo=CLOCK.tz).timestamp())
+                ts = int(datetime(yr, mon + 1, 1, 12, tzinfo=CLOCK.tz).timestamp())
             else:
-                t = int((midnight - timedelta(days=n - 1 - i)).timestamp())
+                ts = int((midnight - timedelta(days=n - 1 - i)).timestamp())
             c = cnt[i] or 1
             buckets.append({
-                "t": t, "pe": int(e_prod[i] + 0.5), "ce": int(e_cons[i] + 0.5),
+                "t": ts, "pe": int(e_prod[i] + 0.5), "ce": int(e_cons[i] + 0.5),
                 "fe": int(e_feed[i] + 0.5), "ie": int(e_imp[i] + 0.5),
                 "pw": int(s_prod[i] / c + 0.5), "cw": int(s_cons[i] / c + 0.5),
             })
@@ -325,7 +428,7 @@ class History:
         self._energy_cache[rng] = out
         return out
 
-    # ── Tagesarchiv ─────────────────────────────────────────────────────────
+    # ── Daily archive ───────────────────────────────────────────────────────
     def _daily_load(self) -> list[list[int]]:
         rows = load_json(self.daily_path, [])
         return [r for r in rows if isinstance(r, list) and len(r) == 6]
@@ -337,7 +440,7 @@ class History:
         rows.append(rec)
         rows.sort(key=lambda r: r[0])
         save_json(self.daily_path, rows)
-        _LOGGER.info("[HistDaily] Tag %d angehängt (%d Tage gesamt)", d, len(rows))
+        _LOGGER.info("[HistDaily] Day %d added (%d days in total)", d, len(rows))
 
     def daily_json(self) -> dict:
         return {"days": self._daily_load()}

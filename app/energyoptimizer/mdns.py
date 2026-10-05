@@ -31,8 +31,8 @@ class Mdns:
     def __init__(self, port: int) -> None:
         self.port = port
         self.enabled = mdns_enabled() and AsyncZeroconf is not None
-        self._zc = None
-        self._info = None
+        self._zc: AsyncZeroconf | None = None
+        self._info: ServiceInfo | None = None
         self._key: tuple[str, str] | None = None
         self.error = ""
 
@@ -41,7 +41,7 @@ class Mdns:
         return os.environ.get("EO_HOST_IP") or local_ipv4()
 
     async def update(self, hostname: str) -> None:
-        """Idempotent: kündigt <hostname>.local an, sofern sich Name oder IP geändert haben."""
+        """Idempotent: announces <hostname>.local if the name or the address changed."""
         if not self.enabled:
             return
         ip = self.host_ip()
@@ -68,21 +68,21 @@ class Mdns:
             _LOGGER.warning("[mDNS] %s", self.error)
             self._key = key
             return
-        except Exception as err:  # noqa: BLE001 - mDNS darf den Start nie verhindern
+        except Exception as err:
             self.error = str(err) or type(err).__name__
-            _LOGGER.warning("[mDNS] Ankündigung fehlgeschlagen: %s", self.error)
+            _LOGGER.warning("[mDNS] Announcement failed: %s", self.error)
             return
         self._info = info
         self._key = key
         self.error = ""
         suffix = "" if self.port == 80 else f":{self.port}"
-        _LOGGER.info("[mDNS] Erreichbar als http://%s.local%s (%s)", hostname, suffix, ip)
+        _LOGGER.info("[mDNS] Reachable as http://%s.local%s (%s)", hostname, suffix, ip)
 
     async def _unregister(self) -> None:
         if self._zc is not None and self._info is not None:
             try:
                 await self._zc.async_unregister_service(self._info)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         self._info = None
 
@@ -91,7 +91,7 @@ class Mdns:
         if self._zc is not None:
             try:
                 await self._zc.async_close()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             self._zc = None
         self._key = None

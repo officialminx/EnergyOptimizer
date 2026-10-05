@@ -1,25 +1,25 @@
-"""Solar-Log-Abfrage.
+"""Solar-Log queries.
 
-`SolarLogClient` ist eine direkte Übernahme des Clients aus ha-advanced-solarlog
-(custom_components/advanced_solarlog/api.py). Nur dessen Anmeldung öffnet den
-passwortgeschützten JSON-Zugang zuverlässig:
+`SolarLogClient` is taken directly from ha-advanced-solarlog
+(custom_components/advanced_solarlog/api.py). Only its login reliably opens the
+password-protected JSON access:
 
-* POST /getjp mit ``Content-Type: text/html`` und ``X-SL-CSRF-PROTECTION: 1``
-  (application/json mit HTTP-Basic-Auth lehnt der Solar-Log ab),
-* Login über POST /login mit ``u=<konto>&p=<passwort>``, wobei die Kontonamen
-  der Reihe nach probiert werden,
-* bei "Password was wrong" ein zweiter Versuch mit dem bcrypt-Hash des Passworts
-  (Salz aus ``{"550":null}``) – neuere Firmware verlangt das,
-* das Sitzungs-Cookie ``SolarLog`` wird als eigener Header mitgeschickt, bei
-  Klartext-Passwort zusätzlich ``token=…; `` vor dem Anfragetext.
+* POST /getjp with ``Content-Type: text/html`` and ``X-SL-CSRF-PROTECTION: 1``
+  (the Solar-Log refuses application/json with HTTP basic auth),
+* login via POST /login with ``u=<account>&p=<password>``, trying the account
+  names in turn,
+* on "Password was wrong" a second attempt with the bcrypt hash of the password
+  (salt from ``{"550":null}``) – newer firmware requires that,
+* the ``SolarLog`` session cookie is sent as a header of its own, with a plain
+  password also ``token=…; `` in front of the request body.
 
-`SolarLogReader` bildet daraus die Messwerte, die die Regelung braucht
-(Felder aus 801/170, Batterie aus 858, Geräteebene aus 740/608/782/141).
+`SolarLogReader` turns that into the readings the control needs (fields from
+801/170, battery from 858, device level from 740/608/782/141). `SolarData` is the
+common result of every data source (see sources.py).
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
@@ -72,8 +72,8 @@ class SolarLogClient:
         self.host = host
         self.port = port
         self.password = password or ""
-        # Ein in den Einstellungen hinterlegter Kontoname wird zuerst probiert,
-        # danach die Namen, die ha-advanced-solarlog kennt.
+        # An account name from the settings is tried first, then the names
+        # ha-advanced-solarlog knows.
         names = list(LOGIN_USERNAMES)
         if username and username not in names:
             names.insert(0, username)
@@ -120,7 +120,7 @@ class SolarLogClient:
                 text = await response.text(errors="replace")
                 cookies = {k: m.value for k, m in response.cookies.items()}
                 status = response.status
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             raise SolarLogError(f"Timeout while connecting to Solar-Log at {self.host}") from err
         except aiohttp.ClientError as err:
             raise SolarLogError(f"Cannot connect to Solar-Log at {self.host}: {err}") from err
@@ -229,7 +229,7 @@ class SolarLogClient:
 
     async def _retry_login_hashed(self, username: str) -> tuple[str, dict[str, str]]:
         """Second login attempt with the bcrypt-hashed password."""
-        import bcrypt  # noqa: PLC0415
+        import bcrypt
 
         salt = (await self.request(REQ_SALT, allow_relogin=False)).get("550", {})
         salt = salt.get("104") if isinstance(salt, dict) else None
@@ -295,7 +295,7 @@ def _num_or_none(value: Any) -> float | None:
 
 
 def _entries(v: Any):
-    """(index, value) für Array oder Objekt mit Positionsnummern als Schlüssel."""
+    """(index, value) for an array or an object keyed by position numbers."""
     if isinstance(v, list):
         for i, e in enumerate(v[:SL_MAX_DEV]):
             yield i, e
@@ -331,8 +331,10 @@ class SolarData:
     prod_total_wh: float = 0.0
     cons_total_wh: float = 0.0
     has_battery: bool = False
-    battery_w: float = 0.0
+    battery_w: float = 0.0        # positive = charging
     battery_soc: int = 0
+    has_counters: bool = True     # prod/cons day and total counters come from the source
+    has_prod: bool = True         # the source measures production
 
 
 @dataclass
@@ -353,11 +355,11 @@ class SolarDevices:
 
 
 def _raw_keep(text: str) -> str:
-    return text if len(text) <= SL_RAW_KEEP else text[:SL_RAW_KEEP] + " …[gekürzt]"
+    return text if len(text) <= SL_RAW_KEEP else text[:SL_RAW_KEEP] + " …[cut]"
 
 
 class SolarLogReader:
-    """Liest die Messwerte gemäss den Feldnummern aus den Einstellungen."""
+    """Reads the values given by the field numbers in the settings."""
 
     def __init__(self, session: aiohttp.ClientSession) -> None:
         self._session = session
@@ -380,15 +382,15 @@ class SolarLogReader:
         return self._client
 
     async def _ensure_login(self, client: SolarLogClient) -> None:
-        # Wie ha-advanced-solarlog beim Einrichten: mit Passwort vorab anmelden,
-        # damit auch die geschützten Werte (Batterie, Geräte) lesbar sind.
+        # Like ha-advanced-solarlog during setup: log in first if there is a password,
+        # so the protected values (battery, devices) can be read too.
         if self._logged_in or not client.password:
             return
         self._logged_in = True
         try:
             await client.async_login()
         except SolarLogAuthError as err:
-            _LOGGER.warning("Solar-Log-Anmeldung fehlgeschlagen: %s", err)
+            _LOGGER.warning("Solar-Log login failed: %s", err)
 
     async def fetch(self, cfg: dict) -> SolarData | None:
         client = self.client_for(cfg)
@@ -401,7 +403,7 @@ class SolarLogReader:
                 raise SolarLogError("Solar-Log did not return the expected 801/170 block")
         except (SolarLogError, ValueError) as err:
             self.last_error = str(err)
-            _LOGGER.warning("[SolarLog] Abfrage fehlgeschlagen: %s", err)
+            _LOGGER.warning("[SolarLog] Query failed: %s", err)
             return None
 
         raw = text
@@ -420,9 +422,9 @@ class SolarLogReader:
         out.prod_total_wh = fld(cfg["sl_fytot"])
         out.cons_total_wh = fld(cfg["sl_fctot"])
 
-        # Batterie nur, wenn in den Einstellungen aktiviert. Eigene Abfrage wie in
-        # ha-advanced-solarlog: 858 steht hinter dem Passwort, ein Fehler hier darf
-        # die Hauptwerte nicht mitreissen.
+        # Battery only if enabled in the settings. Own request as in
+        # ha-advanced-solarlog: 858 needs the password, and an error here must not
+        # take the main values down with it.
         if cfg["sl_fsoc"] or cfg["sl_fbatt"]:
             try:
                 btext = await client.request_text(REQ_BATTERY)
@@ -434,16 +436,16 @@ class SolarLogReader:
                     out.battery_w = _as_float(batt[2]) - _as_float(batt[3])
             except (SolarLogError, ValueError, AttributeError) as err:
                 raw += f"\n[858] {err}"
-                _LOGGER.debug("[SolarLog] Batterie nicht lesbar: %s", err)
+                _LOGGER.debug("[SolarLog] Battery not readable: %s", err)
 
         self.raw_main = _raw_keep(raw)
         self.last_error = ""
         if out.has_battery:
-            _LOGGER.info("[SolarLog] %.0f W | Verbrauch %.0f W | Netz %.0f W | Überschuss %.0f W | "
-                         "Batt %.0f W (%d%%)", out.production_w, out.consumption_w, out.grid_w,
+            _LOGGER.debug("[SolarLog] %.0f W | consumption %.0f W | grid %.0f W | surplus %.0f W | "
+                         "battery %.0f W (%d%%)", out.production_w, out.consumption_w, out.grid_w,
                          out.surplus_w, out.battery_w, out.battery_soc)
         else:
-            _LOGGER.info("[SolarLog] %.0f W | Verbrauch %.0f W | Netz %.0f W | Überschuss %.0f W",
+            _LOGGER.debug("[SolarLog] %.0f W | consumption %.0f W | grid %.0f W | surplus %.0f W",
                          out.production_w, out.consumption_w, out.grid_w, out.surplus_w)
         return out
 
@@ -480,7 +482,7 @@ class SolarLogReader:
                 res.d[i].has_power = True
                 res.d[i].power_w = f
         if res.count == 0:
-            _LOGGER.info("[SolarLog] Geräteabfrage: keine Positionen erkannt")
+            _LOGGER.info("[SolarLog] Device query: no positions found")
             return None
         for i in range(SL_MAX_DEV):
             res.d[i].name = prev.d[i].name
@@ -497,7 +499,7 @@ class SolarLogReader:
         for i in range(devs.count):
             if not devs.d[i].present or devs.d[i].name:
                 continue
-            # Nur EIN Gerät pro Aufruf, nie das ganze 141-Objekt.
+            # Only ONE device per call, never the whole 141 object.
             try:
                 data = await client.request(f'{{"141":{{"{i}":{{"119":null}}}}}}')
             except SolarLogError:
