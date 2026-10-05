@@ -78,7 +78,9 @@ cd ~/energyoptimizer
 docker compose pull && docker compose up -d
 ```
 
-The web interface shows a notice when a new release is available. Settings, history and
+EnergyOptimizer checks GitHub for a new release once a week, and you can check at any time with
+**Settings → Update & info → Check for updates now**. The web interface shows a notice when a new
+release is available (it only notifies; installing is the command above). Settings, history and
 counters live in the `./data` folder and are kept across updates.
 
 ## Forgot your password?

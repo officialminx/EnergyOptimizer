@@ -224,6 +224,7 @@ class WebApi:
         r.add_get("/api/history_daily", _json(lambda: self.eo.history.daily_json()))
         r.add_post("/api/history_daily_import", self.h_daily_import)
         r.add_post("/api/refresh", self.h_refresh)
+        r.add_post("/api/update/check", self.h_update_check)
         r.add_post("/api/save", self.h_save)
         r.add_post(r"/api/shelly/{idx:\d+}/{cmd:(on|off|autoon|autooff)}", self.h_cmd)
         r.add_post(r"/api/ext/{idx:\d+}/{cmd:(on|off|autoon|autooff)}", self.h_cmd)
@@ -592,6 +593,15 @@ class WebApi:
     async def h_refresh(self, req):
         self.eo.solar_refresh_req = True
         return web.json_response({"ok": True})
+
+    async def h_update_check(self, req):
+        if not self.check_origin(req):
+            return web.json_response({"ok": False}, status=403)
+        up = self.eo.updates
+        if not up.enabled:
+            return web.json_response({"ok": False, "update": up.state()}, status=409)
+        st = await up.check_now(self.eo.session)
+        return web.json_response({"ok": not st["error"], "update": st})
 
     async def h_save(self, req):
         doc = await self._json_body(req)

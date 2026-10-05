@@ -280,3 +280,26 @@ async def test_solarlog_test_endpoint(client):
     assert not d["ok"] and "Keine Antwort" in d["msg"]
     d = await (await client.post("/api/solarlog/test", json={"sl_ip": "bad host!"})).json()
     assert not d["ok"]
+
+
+async def test_manual_update_check(client):
+    up = client.eo.updates
+    up.enabled = False
+    r = await client.post("/api/update/check")
+    assert r.status == 409
+
+    up.enabled = True
+    calls = []
+
+    async def fake_check(session):
+        calls.append(session)
+        up.latest = "9.9.9"
+        up.error = ""
+
+    up.check = fake_check
+    r = await client.post("/api/update/check", headers={"Origin": "http://evil.example"})
+    assert r.status == 403 and not calls
+    r = await client.post("/api/update/check")
+    doc = await r.json()
+    assert r.status == 200 and len(calls) == 1
+    assert doc["update"]["available"] and doc["update"]["latest"] == "9.9.9"

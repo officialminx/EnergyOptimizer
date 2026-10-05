@@ -1483,6 +1483,9 @@ details.coll.sub .det-body{padding:0 14px 14px}
         <div class="card-h"><div class="card-t"><svg><use href="#i-refresh"/></svg>Update<i class="ib" data-i="upd"></i></div></div>
         <div class="ip" data-i="upd">Neue Versionen kommen als Docker-Image. Einstellungen, Verlauf und Z&auml;hler liegen im Datenordner und bleiben erhalten.</div>
         <div class="hint" id="upd-state" style="margin-bottom:8px">Version: &ndash;</div>
+        <div class="hint" style="margin-bottom:8px">EnergyOptimizer pr&uuml;ft automatisch einmal pro Woche auf GitHub, ob eine neue Version erschienen ist.</div>
+        <button type="button" class="btn bscan" id="upd-btn" onclick="updCheck()" >Jetzt nach Updates suchen</button>
+        <div class="hint" id="upd-res" style="margin:6px 0 10px"></div>
         <div class="hint">Auf dem Server im Ordner der <code>docker-compose.yml</code>:<br><code>docker compose pull &amp;&amp; docker compose up -d</code></div>
       </div>
       <div class="card">
@@ -3077,6 +3080,19 @@ function updDismiss(){
   try{localStorage.setItem('upd-dismiss',u.latest);}catch(e){}
   $('upd-banner').style.display='none';
 }
+function updCheck(){
+  var b=$('upd-btn');if(!b||b.disabled)return;
+  var old=b.textContent,res=$('upd-res');
+  b.disabled=true;b.textContent=T('Suche läuft …');if(res)res.textContent='';
+  api('/api/update/check',{method:'POST'}).then(function(r){
+    var u=r&&r.update;
+    if(u&&lastSt){lastSt.update=u;updateBanner(u);}
+    if(res)res.textContent=!u||u.error?T('Prüfung fehlgeschlagen')
+      :u.available?T('Version {0} ist verfügbar',[u.latest]):T('Du hast die neueste Version');
+    poll();
+  }).catch(function(){if(res)res.textContent=T('Prüfung fehlgeschlagen');})
+  .then(function(){b.disabled=false;b.textContent=old;});
+}
 function updateBanner(u){
   var b=$('upd-banner');if(!b)return;
   var show=!!(u&&u.available&&!updDismissed(u.latest));
@@ -3805,6 +3821,7 @@ function pollSys(){
       else if(up.error)t+=' &middot; '+T('Prüfung fehlgeschlagen');
       else t+=' &middot; '+T('aktuell');
       setHtml('upd-state',t);
+      var ub=$('upd-btn');if(ub)ub.style.display=up.enabled?'':'none';
     }
     var n=d.heartbeat;
     if(n){
@@ -4135,6 +4152,7 @@ function mock(url,opts){
   if(url==='/api/status')return demoStatus();
   if(url==='/api/history/stats')return{exists:true,bytes:812000,first:Math.round(DM.t0/1000)-86400*180,fs_total:26500000,fs_used:812000};
   if(url==='/api/history/clear')return{ok:true};
+  if(url==='/api/update/check')return{ok:true,update:demoStatus().update};
   if(url==='/api/sysinfo'){DM.uptime+=10;
     return{mem_free:2900*1048576+Math.round(Math.random()*9e7),mem_total:3900*1048576,
       disk_free:21e9,disk_total:29e9,uptime:DM.uptime,temp:46+Math.random()*5,
