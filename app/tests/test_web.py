@@ -1,6 +1,8 @@
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
+from energyoptimizer import installer
+from energyoptimizer.installer import DockerApi
 from energyoptimizer.web import WebApi
 
 from .fakes import make_app
@@ -297,3 +299,22 @@ async def test_manual_update_check(client):
     doc = await r.json()
     assert r.status == 200 and len(calls) == 1
     assert doc["update"]["available"] and doc["update"]["latest"] == "9.9.9"
+
+
+async def test_install_endpoint(client, monkeypatch):
+    eo = client.eo
+    r = await client.post("/api/update/install", headers={"Origin": "http://evil.example"})
+    assert r.status == 403
+    r = await client.post("/api/update/install")
+    assert r.status == 409 and not (await r.json())["ok"]     # no update, no socket
+    eo.updates.latest = "9.9.9"
+    eo.installer.api = DockerApi(base="http://127.0.0.1:1")
+
+    async def fake_prepare(api):
+        return "x"
+
+    monkeypatch.setattr(installer, "prepare", fake_prepare)
+    r = await client.post("/api/update/install")
+    assert r.status == 200 and (await r.json())["install"]["phase"] == "pulling"
+    st = await (await client.get("/api/sysinfo")).json()
+    assert st["update"]["install"]["supported"] and st["update"]["available"]

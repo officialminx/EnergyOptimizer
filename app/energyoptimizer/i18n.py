@@ -12,6 +12,10 @@ from pathlib import Path
 
 # Server-only texts; everything else comes from the dictionary the web pages use.
 _SERVER: dict[str, str] = {
+    # Update-Installation
+    "Die Installation läuft bereits.": "The installation is already running.",
+    "Hier lässt sich nichts installieren: Docker-Socket fehlt oder kein Update verfügbar.":
+        "Nothing to install: the Docker socket is missing or no update is available.",
     # Anmeldung und Einrichtung
     "Mindestens {n} Zeichen": "At least {n} characters",
     "Höchstens {n} Zeichen": "At most {n} characters",
