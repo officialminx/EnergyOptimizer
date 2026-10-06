@@ -261,6 +261,10 @@ function pollSys(){
       else t+=' &middot; '+T('aktuell');
       setHtml('upd-state',t);
       var ub=$('upd-btn');if(ub)ub.style.display=up.enabled?'':'none';
+      var can=updInstallable(up),ui=$('upd-install');
+      if(ui)ui.style.display=can?'':'none';
+      var um=$('upd-manual');if(um)um.style.display=up.available&&!can?'block':'none';
+      var nw=$('set-upd-new');if(nw)nw.style.display=up.available?'':'none';
     }
     var n=d.heartbeat;
     if(n){

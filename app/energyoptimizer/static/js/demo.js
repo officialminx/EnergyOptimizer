@@ -84,11 +84,12 @@ function mock(url,opts){
   if(url==='/api/history/stats')return{exists:true,bytes:812000,first:Math.round(DM.t0/1000)-86400*180,fs_total:26500000,fs_used:812000};
   if(url==='/api/history/clear')return{ok:true};
   if(url==='/api/update/check')return{ok:true,update:demoStatus().update};
+  if(url==='/api/update/install')return{ok:true,install:{supported:true,phase:'starting',error:''}};
   if(url==='/api/sysinfo'){DM.uptime+=10;
     return{mem_free:2900*1048576+Math.round(Math.random()*9e7),mem_total:3900*1048576,
       disk_free:21e9,disk_total:29e9,uptime:DM.uptime,temp:46+Math.random()*5,
       cpu:6+Math.round(Math.random()*10),proc:1+Math.round(Math.random()*3),
-      boots:47,rst_txt:'Container-Start',version:'demo',update:{current:'0.0.1',latest:'0.0.2',available:true,url:'#',enabled:true,error:'',age:120},ip:'192.168.1.20',port:80,mdns:'energyoptimizer.local',mdns_err:'',
+      boots:47,rst_txt:'Container-Start',version:'demo',update:{current:'0.0.1',latest:'0.0.2',available:true,url:'#',enabled:true,error:'',age:120,install:{supported:true,phase:'idle',error:''}},ip:'192.168.1.20',port:80,mdns:'energyoptimizer.local',mdns_err:'',
       heartbeat:{hb_age:420,hb_ok:true}};}
   if(url.indexOf('/api/alarms/ack')===0){DM.alAck=true;return{ok:true};}
   if(url==='/api/alarms'){

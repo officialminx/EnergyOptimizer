@@ -78,15 +78,25 @@ be changed later under **Settings**; the wizard can be run again under
 
 ## Updating
 
+EnergyOptimizer checks GitHub for a new release once a week, and you can check at any time with
+**Settings → Update & info → Check for updates now**. When a new release is available, the web
+interface shows a notice with an **Install** button. It downloads the new image and replaces the
+container; the page reloads by itself after about a minute. If the new version does not start, the
+old container is restored. Settings, history and counters live in the `./data` folder and are kept
+across updates.
+
+This needs the Docker socket in `docker-compose.yml` (the line
+`/var/run/docker.sock:/var/run/docker.sock`, already included in the file in this repository). The
+socket gives full control over Docker on the host. If you would rather not mount it, remove that
+line and update from the command line instead:
+
 ```sh
 cd ~/energyoptimizer
 docker compose pull && docker compose up -d
 ```
 
-EnergyOptimizer checks GitHub for a new release once a week, and you can check at any time with
-**Settings → Update & info → Check for updates now**. The web interface shows a notice when a new
-release is available (it only notifies; installing is the command above). Settings, history and
-counters live in the `./data` folder and are kept across updates.
+Installations from before v0.1.1 have to add the socket line to their `docker-compose.yml` and update
+once with the command above; after that the button works.
 
 ## Forgot your password?
 
@@ -173,6 +183,7 @@ variables in `docker-compose.yml`:
 | `EO_HOSTNAME` | `energyoptimizer` | Network name on first start (later: **Settings → Network**) |
 | `EO_MDNS` | `1` | Set to `0` to disable the `.local` announcement |
 | `EO_UPDATE_CHECK` | `1` | Set to `0` to disable the check for new releases on GitHub |
+| `EO_DOCKER_SOCKET` | `/var/run/docker.sock` | Docker socket used by the **Install update** button |
 | `EO_SCAN_SUBNET` | host subnet | Subnet for Shelly discovery, e.g. `192.168.1.0/24` |
 | `EO_HOST_IP` | auto | IP address shown in the web interface and announced over mDNS |
 | `EO_DEV` | – | Set to `1` to read the web pages from disk on every request (development) |

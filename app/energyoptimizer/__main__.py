@@ -1,4 +1,4 @@
-"""Entry point: python -m energyoptimizer [reset-password]"""
+"""Entry point: python -m energyoptimizer [reset-password | apply-update <container>]"""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from aiohttp import web
 
 from . import __version__
 from .app import RESET_FLAG, EnergyOptimizer
+from .installer import DockerError, apply_update
 from .passwords import hash_password
 from .settings import MAX_PASSWORD_LEN, MIN_PASSWORD_LEN
 from .web import WebApi
@@ -51,6 +52,16 @@ def reset_password() -> int:
     return 0
 
 
+def run_apply_update(target: str) -> int:
+    """Helper container started by the web interface: replaces the app container."""
+    try:
+        asyncio.run(apply_update(target, log=lambda m: print(m, flush=True)))
+    except DockerError as err:
+        print(f"Update failed: {err}", file=sys.stderr, flush=True)
+        return 1
+    return 0
+
+
 async def main() -> None:
     logging.basicConfig(
         level=os.environ.get("EO_LOG_LEVEL", "INFO").upper(),
@@ -84,6 +95,8 @@ async def main() -> None:
 if __name__ == "__main__":
     if sys.argv[1:] == ["reset-password"]:
         sys.exit(reset_password())
+    if len(sys.argv) == 3 and sys.argv[1] == "apply-update":
+        sys.exit(run_apply_update(sys.argv[2]))
     if sys.argv[1:]:
         print("Usage: python -m energyoptimizer [reset-password]", file=sys.stderr)
         sys.exit(2)

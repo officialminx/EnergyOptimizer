@@ -299,6 +299,7 @@ class WebApi:
         r.add_post("/api/history_daily_import", self.h_daily_import)
         r.add_post("/api/refresh", self.h_refresh)
         r.add_post("/api/update/check", self.h_update_check)
+        r.add_post("/api/update/install", self.h_update_install)
         r.add_post("/api/save", self.h_save)
         r.add_post(r"/api/shelly/{idx:\d+}/{cmd:(on|off|autoon|autooff)}", self.h_cmd)
         r.add_post(r"/api/ext/{idx:\d+}/{cmd:(on|off|autoon|autooff)}", self.h_cmd)
@@ -663,7 +664,7 @@ class WebApi:
         doc["led"] = "scan" if dv.scan.running else ("connected" if eo.sl_ok else "disconnected")
         doc["mqtt"] = {"conn": eo.mqtt.connected}
         up = eo.updates
-        doc["update"] = {"available": up.available, "latest": up.latest, "url": up.url}
+        doc["update"] = {"available": up.available, "latest": up.latest, "url": up.url, "install": eo.installer.state()}
 
         cf = {k: c[k] for k in ("src", "sl_ip", "sl_port", "sl_user", "sl_fprod", "sl_fcons", "sl_fgrid",
                                  "sl_fyday", "sl_fcday", "sl_fytot", "sl_fctot", "sl_fsoc", "sl_fbatt",
@@ -809,7 +810,17 @@ class WebApi:
         if not up.enabled:
             return web.json_response({"ok": False, "update": up.state()}, status=409)
         st = await up.check_now(self.eo.session)
-        return web.json_response({"ok": not st["error"], "update": st})
+        return web.json_response({"ok": not st["error"], "update": {**st, "install": self.eo.installer.state()}})
+
+    async def h_update_install(self, req):
+        if not self.check_origin(req):
+            return web.json_response({"ok": False}, status=403)
+        inst = self.eo.installer
+        if not inst.start():
+            msg = ("Die Installation läuft bereits." if inst.busy
+                   else "Hier lässt sich nichts installieren: Docker-Socket fehlt oder kein Update verfügbar.")
+            return web.json_response({"ok": False, "msg": tr(msg, self.lang), "install": inst.state()}, status=409)
+        return web.json_response({"ok": True, "install": inst.state()})
 
     async def h_save(self, req):
         doc = await self._json_body(req)
@@ -854,7 +865,7 @@ class WebApi:
             "version": __version__, "build": os.environ.get("EO_BUILD", "dev"),
             "ip": req_host_ip(), "port": eo.port,
             "mdns": f"{host}.local" if eo.mdns.enabled else "", "mdns_err": eo.mdns.error,
-            "heartbeat": eo.heartbeat.state(), "update": eo.updates.state(),
+            "heartbeat": eo.heartbeat.state(), "update": {**eo.updates.state(), "install": eo.installer.state()},
         })
         return web.json_response(d)
 

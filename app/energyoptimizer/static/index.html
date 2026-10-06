@@ -83,7 +83,8 @@
   <div class="alarm upd" id="upd-banner" style="display:none">
     <div class="alarm-i"><svg><use href="#i-refresh"/></svg></div>
     <div class="alarm-b"><div class="alarm-t" id="upd-t">Update verf&uuml;gbar</div>
-      <div class="alarm-d">Auf dem Server: <code>docker compose pull &amp;&amp; docker compose up -d</code> &middot; <a id="upd-link" href="#" target="_blank" rel="noopener">Was ist neu?</a></div></div>
+      <div class="alarm-d"><span id="upd-cmd">Auf dem Server: <code>docker compose pull &amp;&amp; docker compose up -d</code> &middot; </span><a id="upd-link" href="#" target="_blank" rel="noopener">Was ist neu?</a></div></div>
+    <button type="button" class="alarm-ack alarm-go" id="upd-banner-go" style="display:none" onclick="updInstall()">Installieren</button>
     <button type="button" class="alarm-ack" onclick="updDismiss()">Sp&auml;ter</button>
   </div>
   <div class="alarm dry" id="dry-banner" style="display:none">
@@ -483,7 +484,7 @@
       <button type="button" class="set-row" data-set="sys"><span class="set-ico"><svg><use href="#i-tool"/></svg></span>
         <span class="set-tx"><span class="set-t">Diagnose</span><span class="set-s">Systemzustand, Selbsttest, Neustart</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       <button type="button" class="set-row" data-set="about"><span class="set-ico"><svg><use href="#i-refresh"/></svg></span>
-        <span class="set-tx"><span class="set-t">Update &amp; Info</span><span class="set-s">Version, Updates, Projekt</span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <span class="set-tx"><span class="set-t">Update &amp; Info</span><span class="set-s" id="set-upd-s">Version, Updates, Projekt</span></span><span class="set-new" id="set-upd-new" style="display:none">Neu</span><svg class="chev"><use href="#i-chev"/></svg></button>
     </div>
   </div>
 
@@ -968,12 +969,14 @@
       <div class="pane-h"><button type="button" class="back-btn" onclick="setBack()"><svg><use href="#i-chev"/></svg>Zur&uuml;ck</button><div class="pane-t">Update &amp; Info</div></div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-refresh"/></svg>Update<i class="ib" data-i="upd"></i></div></div>
-        <div class="ip" data-i="upd">Neue Versionen kommen als Docker-Image. Einstellungen, Verlauf und Z&auml;hler liegen im Datenordner und bleiben erhalten.</div>
+        <div class="ip" data-i="upd">EnergyOptimizer pr&uuml;ft einmal pro Woche auf GitHub, ob eine neue Version erschienen ist. Neue Versionen kommen als Docker-Image; Einstellungen, Verlauf und Z&auml;hler liegen im Datenordner und bleiben erhalten.</div>
         <div class="hint" id="upd-state" style="margin-bottom:8px">Version: &ndash;</div>
-        <div class="hint" style="margin-bottom:8px">EnergyOptimizer pr&uuml;ft automatisch einmal pro Woche auf GitHub, ob eine neue Version erschienen ist.</div>
-        <button type="button" class="btn bscan" id="upd-btn" onclick="updCheck()" >Jetzt nach Updates suchen</button>
-        <div class="hint" id="upd-res" style="margin:6px 0 10px"></div>
-        <div class="hint">Auf dem Server im Ordner der <code>docker-compose.yml</code>:<br><code>docker compose pull &amp;&amp; docker compose up -d</code></div>
+        <div class="g2">
+          <button type="button" class="btn bscan" id="upd-btn" onclick="updCheck()">Jetzt nach Updates suchen</button>
+          <button type="button" class="btn bsave" id="upd-install" style="display:none" onclick="updInstall()"><svg><use href="#i-refresh"/></svg>Update installieren</button>
+        </div>
+        <div class="hint" id="upd-res" style="margin:6px 0 0"></div>
+        <div class="hint" id="upd-manual" style="display:none;margin-top:10px">Automatisch installieren geht, sobald der Docker-Socket eingebunden ist (siehe <code>docker-compose.yml</code>). Bis dahin auf dem Server im Ordner der <code>docker-compose.yml</code>:<br><code>docker compose pull &amp;&amp; docker compose up -d</code></div>
       </div>
       <div class="card">
         <div class="card-h"><div class="card-t"><svg><use href="#i-bulb"/></svg>&Uuml;ber EnergyOptimizer</div></div>

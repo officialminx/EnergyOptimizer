@@ -4,4 +4,4 @@ The Solar-Log client comes from ha-advanced-solarlog, because only its login ope
 the password-protected JSON access of the Solar-Log.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

@@ -14,3 +14,7 @@ services:
       EO_PORT: "80"
     volumes:
       - ./data:/data
+      # Lets "Install update" in the web interface replace this container with the new
+      # version. The socket gives full control over Docker on the host: remove this line
+      # if you prefer to update with "docker compose pull && docker compose up -d".
+      - /var/run/docker.sock:/var/run/docker.sock

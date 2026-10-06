@@ -28,6 +28,7 @@ from .energy import Energy
 from .events import EventLog
 from .heartbeat import Heartbeat
 from .history import History
+from .installer import Installer
 from .mdns import Mdns
 from .mqtt import Mqtt
 from .passwords import hash_password, is_hash
@@ -66,6 +67,7 @@ class EnergyOptimizer:
         self.sysinfo = SysInfo(data_dir)
         self.mdns = Mdns(port)
         self.updates = UpdateCheck()
+        self.installer = Installer(self.updates)
         self.session: aiohttp.ClientSession = None  # type: ignore[assignment]
         self.reader: SolarLogReader = None  # type: ignore[assignment]
         self.source: Source | None = None
